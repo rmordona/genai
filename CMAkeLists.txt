@@ -1,0 +1,59 @@
+cmake_minimum_required(VERSION 3.0)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -fopenmp -shared -fPIC -Wall")
+cmake_policy(SET CMP0057 NEW)
+project(Genai)
+
+# Set the path to the GCC compiler
+set(CMAKE_C_COMPILER /usr/local/pkg/homebrew/Cellar/gcc/13.1.0/bin/gcc-13)
+set(CMAKE_CXX_COMPILER /usr/local/pkg/homebrew/Cellar/gcc/13.1.0/bin/g++-13)
+
+# Set the C++ standard to C++17
+set(CMAKE_CXX_STANDARD 17)
+#set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find Python libraries and headers
+find_package(Python REQUIRED COMPONENTS Interpreter Development)
+find_package(pybind11 REQUIRED)
+
+# Set the path to the libraries
+set(PYBIND11_DIR "/usr/local/pkg/homebrew/lib/python3.7/site-packages/pybind11")
+set(OPENBLAS_DIR "/usr/local/pkg/homebrew/Cellar/openblas/0.3.10")
+set(OMP_DIR "/usr/local/pkg/homebrew/Cellar/gcc/13.1.0/lib/gcc/current/gcc/x86_64-apple-darwin18/13")
+set(OPENMPI_DIR "/usr/local/pkg/homebrew/Cellar/open-mpi/4.1.5")
+set(EIGEN_DIR "/usr/local/include/eigen3")
+
+# Set working directory
+set(WORKDIR "/Users/raymondordona/Documents/genai/framework_cpp")
+
+# Add the include directories to your project
+include_directories(${PYTHON_INCLUDE_DIRS} ${PYBIND11_DIR}/include ${pybind11_INCLUDE_DIRS} ${OPENBLAS_DIR} ${OMP_DIR} ${OPENMPI_DIR})
+
+
+# Create the module library
+pybind11_add_module(genai MODULE ${WORKDIR}/src/genai.cpp)
+
+# Add executable target
+#add_executable(genai ${WORKDIR}/src/genai.cpp)
+
+# Include directories for pybind11
+target_include_directories(genai PRIVATE ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR} ${PYBIND11_DIR}/include ${OPENBLAS_DIR}/include ${OMR_DIR}/include ${OPENMPI_DIR}/include ${EIGEN_DIR})
+
+# Set the module suffix
+set_target_properties(genai PROPERTIES SUFFIX ".so")
+
+# Set the library search path
+link_directories(${OPENMPI_DIR}/lib)
+
+# Link against Python libraries
+target_link_libraries(genai PRIVATE pybind11::module  ${Python_LIBRARIES} cblas)
+
+
+# Optional: Set additional compiler flags
+add_compile_options(-Wall -Wextra)
+
+# Set the C++ standard
+#set_target_properties(genai PROPERTIES CXX_STANDARD 17)
+
+
+# Install the module
+#install(TARGETS mymodule DESTINATION ${Python_SITEARCH}/mymodule)

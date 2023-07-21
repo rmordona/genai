@@ -1,0 +1,1978 @@
+/******************************************************************************************************************************************
+* Design considerations:
+* 
+* Designing an ideal structure for a neural network in C++ depends on various factors, including the specific requirements, 
+* complexity of the network, and the desired level of flexibility. However, here are some key components and considerations 
+* for building an efficient and modular neural network structure in C++:
+* 
+* Layer Abstraction: Define a base layer class that represents a generic layer in the neural network. This class should have 
+* common methods like forward, backward, and updateWeights for performing forward propagation, backpropagation, and weight updates.
+*
+* Different Layer Implementations: Implement various types of layers as derived classes, such as fully connected layers, convolutional 
+* layers, recurrent layers, activation layers, etc. Each layer implementation should inherit from the base layer class and provide 
+* specific implementations for the required methods.
+*
+* Network Architecture: Define a network class that represents the overall neural network structure. It should encapsulate multiple 
+* layers and provide methods for adding layers, connecting them, and performing forward and backward passes.
+*
+* Input and Output Handling: Consider how input data will be fed to the network and how output predictions will be obtained. Design 
+* appropriate interfaces for loading and preprocessing input data and handling the output predictions.
+*
+* Training and Optimization: Implement training algorithms like stochastic gradient descent (SGD), mini-batch gradient descent, or more 
+* advanced optimization methods. Include methods for setting up training parameters, initializing weights, and updating them during training.
+* 
+* Serialization and Persistence: Provide methods for saving and loading trained models to disk, allowing you to reuse or deploy the trained 
+* network without retraining.
+* 
+* Integration with Libraries: Utilize existing C++ libraries for efficient numerical computations, such as BLAS libraries for matrix 
+* operations or CUDA for GPU acceleration. Incorporate these libraries into your network implementation to improve performance.
+* 
+* Modularity and Flexibility: Design the structure in a modular and flexible way, allowing easy extension and customization. Consider 
+* incorporating design patterns like Factory, Builder, or Strategy to enhance flexibility and reusability.
+*
+* System Design:
+* Model Parallelism: Given the massive size of the model, it might be necessary to partition the parameters across multiple GPUs or devices 
+* to enable efficient training. Model parallelism techniques, such as pipeline parallelism or model slicing, could be employed.
+* 
+* Distributed Training: Training a model with 175 billion parameters would likely require distributing the workload across multiple machines. 
+* Distributed training frameworks like TensorFlow's Distributed Strategy or PyTorch's DistributedDataParallel can help parallelize the computations 
+* and synchronize gradients across machines.
+* 
+* Cluster Infrastructure: A large-scale model would require a powerful cluster infrastructure with high-performance GPUs or specialized hardware 
+* like TPUs. The number of machines and GPUs would depend on the specific requirements and scalability needs.
+*
+* Data Pipeline and Preprocessing: Handling large datasets efficiently is crucial. Designing a robust and scalable data pipeline that can 
+* preprocess and load data in parallel is essential for training such models. Techniques like distributed data loading and data sharding can be employed.
+*
+* Model Architecture: The specific architecture of the model would depend on the task it aims to solve. For natural language processing tasks, 
+* architectures like transformers have been successful. However, with 175 billion parameters, the architecture might involve complex variations, 
+* deep hierarchies, and advanced attention mechanisms.
+*
+* Parameter Server or All-Reduce Approach: Coordinating the model parameters across different devices or machines can be done using a parameter 
+* server architecture or an all-reduce approach. Both approaches have their trade-offs in terms of communication overhead and synchronization efficiency.
+*
+* Deployment Considerations: Deploying a large-scale model requires careful engineering and optimization to ensure efficient inference. 
+* Techniques like model pruning, quantization, or specialized hardware deployment (e.g., using TensorRT or ONNX Runtime) might be considered to 
+* improve inference speed and resource utilization.
+*
+* Monitoring and Scalability: Monitoring the training process, tracking model performance, and ensuring scalability are critical. Tools like 
+* TensorFlow Extended (TFX) or Kubeflow can help with managing large-scale training pipelines and monitoring system metrics.
+* 
+* It's important to note that the above considerations provide a broad overview and may vary depending on the specific requirements, constraints, 
+* and resources available. Designing a system for a model with 175 billion parameters is a highly complex task that requires deep expertise in 
+* distributed systems, machine learning, and infrastructure design.
+* 
+* Attention Mechanism Considerations:
+* Advanced attention mechanisms refer to more sophisticated and enhanced variations of the traditional attention mechanism. These variations 
+* aim to address specific challenges or improve the effectiveness of attention-based models in different tasks. Here are a few examples:
+* 
+* Multi-head Attention: Instead of using a single attention mechanism, multi-head attention employs multiple parallel attention mechanisms 
+* operating on different subspaces of the input. This allows the model to capture different types of information and learn more diverse representations.
+*
+* Self-Attention with Masking: In certain tasks, such as machine translation or language generation, it is essential to mask certain 
+* positions in the input sequence to prevent the model from attending to future or unseen information. Masked self-attention ensures that 
+* attention is only applied to valid positions in the sequence, taking into account the autoregressive nature of the task.
+* 
+* Relative Positional Encodings: Positional encodings are often used in attention mechanisms to incorporate positional information into the model. 
+* Advanced attention mechanisms introduce relative positional encodings that capture relative distances or relationships between positions, 
+* enabling the model to better understand the sequential structure of the input.
+*
+* Sparse Attention: In models with a large number of parameters, computing attention weights for all possible pairwise interactions can be 
+* computationally expensive. Sparse attention mechanisms aim to reduce this computational burden by approximating the attention weights only for 
+* a subset of the elements, typically based on their proximity or relevance to each other.
+*
+* Structured Attention: Traditional attention mechanisms operate on sequential or tabular data. However, in some domains, such as graphs or 
+* images, attention needs to be applied to structured data. Advanced attention mechanisms adapt the attention mechanism to incorporate the 
+* structural properties of the data, enabling the model to capture dependencies and relationships in a structured manner.
+*
+* Parameter server Approach (Distributed Training Strategies)
+* Parameter server and all-reduce are two commonly used distributed training strategies in deep learning. Here's a comparison between 
+* the two approaches:
+* 
+* Communication Pattern:
+* 
+* Parameter Server: In the parameter server approach, the model parameters are divided and stored on separate parameter servers. During 
+* training, workers (e.g., GPUs or machines) communicate with the parameter servers to read and update the parameters.
+* All-reduce: In the all-reduce approach, all workers participate in collective communication operations to synchronize their model parameters. 
+* Each worker computes gradients locally, and all workers collectively reduce and update the gradients to ensure consistency across all replicas.
+* Communication Overhead:
+*
+* Parameter Server: The parameter server approach involves communication between workers and parameter servers during parameter read and update 
+* operations. The frequency of communication can be higher compared to all-reduce, especially when there are a large number of parameter servers 
+* or when parameter updates are frequent.
+* All-reduce: All-reduce involves communication among all workers during the gradient reduction step. The frequency of communication is 
+* typically lower compared to parameter server, as workers exchange gradients periodically rather than after each update.
+* Scalability:
+* 
+* Parameter Server: Parameter server architectures can scale to a large number of workers, as each worker communicates with a subset of parameter 
+* servers. However, the scalability is limited by the communication bandwidth and latency between workers and parameter servers.
+* All-reduce: All-reduce can scale efficiently to a large number of workers, as all workers participate in the collective communication. 
+* The scalability of all-reduce depends on the network topology and the efficiency of the collective communication implementation.
+* Fault Tolerance:
+
+* Parameter Server: Parameter server architectures may suffer from single points of failure if a parameter server becomes unavailable. 
+* Fault tolerance can be achieved by replicating the parameter servers or implementing backup mechanisms.
+* All-reduce: All-reduce is inherently fault-tolerant as it relies on collective communication among all workers. If a worker fails, the 
+* remaining workers can continue the training process.
+* Memory and Storage Requirements:
+* 
+* Parameter Server: Parameter server architectures require storage for the model parameters on the parameter servers. The storage requirements 
+* depend on the size of the model and the number of parameter servers.
+* All-reduce: All-reduce requires memory for storing gradients during the reduction step. The memory requirements depend on the size of the 
+* model and the number of workers.
+* Both parameter server and all-reduce approaches have their strengths and weaknesses, and the choice depends on various factors such as the 
+* size of the model, the number of workers, communication overhead, and fault tolerance requirements. In recent years, all-reduce has gained 
+* popularity due to its scalability, fault tolerance, and efficient utilization of resources in distributed deep learning training.
+*
+* In terms of All-reduce approach:
+* All-reduce algorithms, such as ring-based or tree-based algorithms, have demonstrated good scalability and efficiency in synchronous 
+* gradient aggregation, reducing the communication overhead compared to parameter server architectures. This has made all-reduce more 
+* attractive for large-scale distributed training, especially in scenarios with a large number of workers or when training large models.
+* 
+* However, it's important to note that the field of deep learning and distributed training is rapidly evolving. New techniques, frameworks, 
+* and approaches continue to emerge, and the choice of distributed training strategy may vary depending on the specific requirements and 
+* constraints of the training task.
+* 
+* To have the most up-to-date information on the current trends and practices in distributed deep learning training, I would recommend 
+* referring to recent research papers, industry practices, and consulting with experts in the field.
+*
+* Ring-based and tree-based algorithms are two common approaches used in distributed computing, including in the context of all-reduce 
+* operations in distributed deep learning. Here's a brief comparison of the two:
+*
+* Ring-based Algorithm:
+*
+* In a ring-based algorithm, the workers are arranged in a logical ring structure.
+* The data is passed sequentially from one worker to the next in a circular manner until it reaches all the workers.
+* Each worker performs a local reduction operation on the data it receives and then forwards the result to the next worker.
+* The process continues until the data has been reduced by all workers and returned to the original sender.
+* Ring-based algorithms are relatively simple to implement and have low latency but may suffer from load imbalance if the computation or communication 
+* times vary significantly between workers.
+*
+* Tree-based Algorithm:
+* 
+* In a tree-based algorithm, the workers are organized in a hierarchical tree structure.
+* The data is aggregated in a hierarchical manner, starting from the leaf nodes and moving up to the root node.
+* Each node in the tree combines the data from its child nodes and performs a reduction operation.
+* The process continues recursively until the root node receives the final reduced data.
+* Tree-based algorithms can provide better load balancing compared to ring-based algorithms as the data aggregation happens in a 
+* hierarchical structure.
+* However, they may introduce higher latency due to additional communication steps involved in traversing the tree structure.
+* The choice between ring-based and tree-based algorithms depends on various factors, such as the number of workers, the communication infrastructure, 
+* and the characteristics of the training workload. Both algorithms have their strengths and weaknesses, and their performance can vary based on 
+* the specific system and workload conditions.
+* 
+* It's worth noting that there are also other variations and optimizations of all-reduce algorithms, such as recursive doubling, butterfly, and more, 
+* which aim to improve performance in different contexts. The choice of the most suitable algorithm often requires experimentation and benchmarking 
+* on the target system to find the optimal configuration for a given distributed training task.
+* 
+* Here is a list of some commonly used variations and optimizations of all-reduce algorithms:
+* 
+* Ring-Based Algorithms: Traditional ring-based algorithms are widely used and serve as the baseline for many other algorithms.
+* 
+* Tree-Based Algorithms: Tree-based algorithms, such as binomial tree, k-ary tree, or hypercube-based tree, provide better load balancing and 
+* reduced communication steps compared to ring-based algorithms.
+* 
+* Recursive Doubling: Recursive doubling algorithms leverage the binary representation of the rank to perform reduction operations in a hierarchical 
+* manner, effectively reducing the number of communication steps.
+* 
+* Butterfly Algorithm: The butterfly algorithm uses a combination of butterfly networks and hypercube networks to achieve reduced latency and 
+* improved bandwidth utilization.
+* 
+* AllGather: AllGather is an extension of all-reduce that collects the input data from all workers onto every worker, rather than performing a 
+* reduction operation. It is commonly used for gathering statistics or exchanging information across all workers.
+* 
+* AllReduce-Multi: AllReduce-Multi algorithms allow simultaneous communication of multiple smaller messages instead of a single large message, which 
+* can improve performance in certain scenarios, especially when dealing with heterogeneous network environments.
+* 
+* Gradient Compression: Gradient compression techniques, such as top-K sparsification or quantization, can be applied to reduce the communication 
+* bandwidth and latency during the all-reduce operation while still maintaining reasonable model accuracy.
+* 
+* Ring All-Reduce with All-Gather: This approach combines the ring-based all-reduce with an all-gather operation to reduce the overall communication 
+* time, especially when the number of workers is large.
+*
+* Gradient Accumulation: Gradient accumulation techniques allow workers to accumulate gradients over multiple iterations before performing the 
+* all-reduce operation, reducing the frequency of communication and potentially improving scalability.
+* 
+* Asynchronous All-Reduce: Asynchronous algorithms, such as asynchronous decentralized parallel stochastic gradient descent (A-DePSGD), relax 
+* the synchronization requirements and overlap communication with computation to improve overall training throughput.
+* 
+* These are just a few examples of the variations and optimizations available for all-reduce algorithms. The choice of which algorithm to use 
+* depends on factors such as network topology, system characteristics, workload, and communication patterns, and it often requires careful 
+* experimentation and benchmarking to identify the best approach for a specific distributed training scenario.
+*
+* In terms of Training distribution:
+* Distributing training across multiple workers in a C++ codebase involves partitioning the data and model parameters, performing computations 
+* on each worker, and synchronizing the updates to keep the model consistent. Here's a high-level overview of how training can be broken 
+* down and distributed across workers:
+* 
+* Data Partitioning: Split the training data into multiple shards or subsets, where each worker is responsible for processing a different portion 
+* of the data. The data can be partitioned based on samples, batches, or other appropriate criteria.
+* 
+* Model Replication: Replicate the model parameters on each worker. This ensures that each worker has a copy of the complete model for performing 
+* computations independently.
+* 
+* Forward Pass: Each worker performs a forward pass on its local data subset using the replicated model. The forward pass computes the predictions 
+* and loss for the local data.
+* 
+* Backward Pass and Gradient Computation: After the forward pass, each worker computes the gradients of the model parameters with respect to the 
+* local data subset. The gradients can be computed using techniques like backpropagation or automatic differentiation.
+* 
+* Gradient Aggregation: The computed gradients from each worker need to be aggregated to obtain a global gradient. This can be done using various 
+* aggregation algorithms, such as the All-Reduce algorithm, where gradients are exchanged and combined across workers to compute the average or sum 
+* of gradients.
+* 
+* Parameter Update: Once the global gradient is obtained, each worker updates its local copy of the model parameters using an optimization algorithm, 
+* such as stochastic gradient descent (SGD) or Adam. The updates can be applied asynchronously or synchronously based on the distributed training strategy.
+* 
+* Synchronization: If training is performed asynchronously, it is necessary to periodically synchronize the model parameters across workers to maintain 
+* consistency. Synchronization can be done by broadcasting the updated model parameters from a designated worker to other workers.
+*
+* Iterative Training: The above steps are repeated for multiple iterations or epochs until the desired convergence or training criteria are met. Each 
+* iteration involves data partitioning, forward and backward passes, gradient aggregation, parameter updates, and synchronization.
+*
+* It's important to note that the implementation details of distributed training in C++ may vary depending on the specific framework or library being 
+* used. Popular frameworks like TensorFlow or PyTorch provide built-in support for distributed training with their own APIs and abstractions. 
+* These frameworks handle the underlying communication, synchronization, and parameter updates across workers, allowing you to focus more on 
+* defining the model and training process.
+*
+* When implementing distributed training in C++, you may need to utilize distributed computing libraries, such as MPI (Message Passing Interface) or 
+* specialized distributed frameworks like Horovod, to facilitate inter-worker communication and coordination. These libraries provide functions and 
+* utilities for message passing, collective operations, and distributed training patterns.
+* 
+* Overall, the process of distributing training across workers in C++ involves partitioning data, replicating the model parameters, performing 
+* computations on each worker, aggregating gradients, updating parameters, and ensuring synchronization to achieve distributed training and collaboration.
+******************************************************************************************************************************************/
+
+#include <iostream>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+#include <string>
+#include <cmath>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/embed.h>
+#include <pybind11/numpy.h>
+#include <cblas.h>
+#include <omp.h>
+#include <mpi.h>
+#include <queue>
+#include <thread>
+#include <mutex>
+#include <Eigen/Dense>
+#include <Eigen/Core>
+#include <memory>
+
+namespace py = pybind11;
+using namespace py::literals;
+
+void print_string(const std::string& text, bool printNextLine) {
+    if (printNextLine) {
+        py::print(text);
+    } else {
+        py::print(text, py::arg("end") = "");
+    }
+}
+
+void print_double(double value, bool printNextLine) {
+    if (printNextLine) {
+        py::print(value);
+    } else {
+        py::print(value, py::arg("end") = "");
+    }
+}
+
+double* allocate_matrix(ssize_t rows, ssize_t cols) {
+    // Allocate memory for the matrix
+    double* matrix = (double*)malloc(rows * cols * sizeof(double));
+    return matrix;
+}
+
+void process_array1(py::array_t<double> inputArray) {
+    // Access the underlying NumPy array data
+    py::buffer_info bufInfo = inputArray.request();
+    double* dataPtr = static_cast<double*>(bufInfo.ptr);
+
+    // Access the shape and strides of the array
+    std::vector<size_t> shape(bufInfo.shape.begin(), bufInfo.shape.end());
+    std::vector<size_t> strides(bufInfo.strides.begin(), bufInfo.strides.end());
+
+    // Iterate over the array elements
+    for (size_t i = 0; i < shape[0]; ++i) {
+        for (size_t j = 0; j < shape[1]; ++j) {
+            // Access the element at (i, j)
+            double value = dataPtr[i * strides[0] + j * strides[1]];
+            // Process the element as needed
+            // ...
+            print_double(value, true);
+        }
+    }
+}
+
+void process_array(py::array_t<double> inputArray) {
+    py::print("Processing array:");
+
+/*
+    auto bufInfo = inputArray.request();
+    double* dataPtr = static_cast<double*>(bufInfo.ptr);
+
+    ssize_t size = bufInfo.size;
+
+    for (ssize_t i = 0; i < size; ++i) {
+        double value = dataPtr[i];
+        py::print(value);
+    }
+*/
+
+    py::buffer_info bufInfo = inputArray.request();
+
+    // Get the shape of the array
+    std::vector<size_t> shape(bufInfo.shape.begin(), bufInfo.shape.end());
+
+    // Get the shape of the array
+    // std::vector<size_t> shape = bufInfo.shape;
+
+    // Determine the number of dimensions
+    size_t numDimensions = shape.size();
+
+    // Print the dimensions
+    py::print("Number of dimensions:", numDimensions);
+    py::print("Shape:", shape);
+
+}
+
+void process_matrix(py::array_t<double> inputMatrix) {
+    py::print("Processing matrix:");
+
+    auto bufInfo = inputMatrix.request();
+    double* dataPtr = static_cast<double*>(bufInfo.ptr);
+
+    ssize_t rows = bufInfo.shape[0];
+    ssize_t cols = bufInfo.shape[1];
+
+    for (ssize_t i = 0; i < rows; ++i) {
+        for (ssize_t j = 0; j < cols; ++j) {
+            double value = dataPtr[i * cols + j];
+            // py::print(value);
+            print_double(value, false);
+            print_string(" ", false);
+        }
+        print_string("", true);
+    }
+}
+
+py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
+    py::print("Processing matrix:");
+
+    auto bufInfoA = A.request();
+    double* matA = static_cast<double*>(bufInfoA.ptr);
+
+    auto bufInfoB = B.request();
+    double* matB = static_cast<double*>(bufInfoB.ptr);
+
+    ssize_t rows = bufInfoA.shape[0];
+    ssize_t cols = bufInfoA.shape[1];
+
+    for (ssize_t i = 0; i < rows; ++i) {
+        for (ssize_t j = 0; j < cols; ++j) {
+            double value = matA[i * cols + j];
+            print_double(value, false);
+            print_string(" ", false);
+        }
+        print_string("", true);
+    }
+
+    for (ssize_t i = 0; i < rows; ++i) {
+        for (ssize_t j = 0; j < cols; ++j) {
+            double value = matB[i * cols + j];
+            print_double(value, false);
+            print_string(" ", false);
+        }
+        print_string("", true);
+    }
+
+    int rows_a = rows;
+    int cols_a = cols;
+    int cols_b = cols;
+
+    // Create a new NumPy array with the same shape as the matrix
+    // This actually allocates memory.
+    py::array_t<double> result({rows, cols});
+
+    // Get a pointer to the underlying data of the NumPy array
+    double* matC = result.mutable_data();
+
+    // otherwise, allocate manually
+    // double* matC = allocate_matrix(rows, cols);
+
+    float alpha = 1.0;
+    float beta  = 0.0;
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, rows_a, cols_b, cols_a, alpha,
+                (double *) matA, cols_a,
+                (double *) matB, cols_b, beta,
+                (double *) matC, cols_b);
+
+    return result;
+}
+
+
+struct OperationParams {
+    Eigen::MatrixXd weights; // NxW
+    Eigen::VectorXd biases;  // W
+};
+
+// Create the MPI data type for std::vector<OperationParams>
+MPI_Datatype OperationParamsMPIType;
+MPI_Datatype VectorOperationParamsMPIType;
+
+// Create the MPI data type for std::vector<OperationParams>
+void  createVectorOperationParamsMPIType() {
+
+    // Create an MPI datatype for the OperationParams struct
+    int blockcounts[2] = {1, 1};
+    MPI_Datatype types[2] = {MPI_DOUBLE, MPI_DOUBLE};
+    MPI_Aint offsets[2];
+
+    offsets[0] = offsetof(OperationParams, weights);
+    offsets[1] = offsetof(OperationParams, biases);
+
+    MPI_Type_create_struct(2, blockcounts, offsets, types, &OperationParamsMPIType);
+    MPI_Type_commit(&OperationParamsMPIType);
+
+    // Create an MPI datatype for std::vector<OperationParams>
+    int vectorBlockcounts[1] = {0};
+    MPI_Aint vectorOffsets[1] = {0};
+    MPI_Datatype vectorTypes[1] = {OperationParamsMPIType};
+
+    MPI_Type_create_struct(1, vectorBlockcounts, vectorOffsets, vectorTypes, &VectorOperationParamsMPIType);
+    MPI_Type_commit(&VectorOperationParamsMPIType);
+
+}
+
+// Free the MPI data type
+void freeVectorOperationParamsMPIType() {
+    MPI_Type_free(&VectorOperationParamsMPIType);
+    MPI_Type_free(&OperationParamsMPIType);
+}
+
+
+MPI_Datatype MatrixXdMPIType;
+MPI_Datatype VectorXdMPIType;
+
+void  createMPITypes() {
+    // Create MPI data type for Eigen's MatrixXd
+    MPI_Type_contiguous(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::RowsAtCompileTime *
+                        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>::ColsAtCompileTime,
+                        MPI_DOUBLE, &MatrixXdMPIType);
+    MPI_Type_commit(&MatrixXdMPIType);
+
+    // Create MPI data type for Eigen's VectorXd
+    MPI_Type_contiguous(Eigen::Matrix<double, Eigen::Dynamic, 1>::RowsAtCompileTime,
+                        MPI_DOUBLE, &VectorXdMPIType);
+    MPI_Type_commit(&VectorXdMPIType);
+}
+
+// Free the MPI data type
+void freeMPITypes() {
+    MPI_Type_free(&MatrixXdMPIType);
+    MPI_Type_free(&VectorXdMPIType);
+}
+
+enum class OperType {
+    LINEAR,
+    BATCHNORM,
+    LAYERNORM,
+    REDUCT,
+    ACTIVATE,
+    MASK,
+    DROPOUT,
+    SCALE,
+    ATTENTION
+};
+
+enum class ReductionType {
+    SUM,
+    AVG,
+    MAX,
+    MIN,
+    ARGMAX,
+    ARGMIN,
+    MATMUL,
+    MUL
+};
+
+enum class ActivationType {
+    SIGMOID,
+    TANH,
+    RELU,
+    LEAKYRELU,
+    GELU,
+    SOFTMAX
+};
+
+
+/*****************************************************************************************************
+* Base Operators
+*  Linear, BatchNorm, LayerNorm, Reduct classes derive from BaseOperator class.
+*****************************************************************************************************/
+class BaseOperator {
+    private:
+        OperType otype;
+    public:
+    virtual void forwardPass() = 0;
+    virtual void backwardPass() = 0;
+
+        // Perform Matrix Multiplication.
+    Eigen::MatrixXd matmul(Eigen::MatrixXd A, Eigen::MatrixXd B) {
+
+        // Perform matrix multiplication using cblas_dgemm
+        Eigen::MatrixXd C(A.rows(), B.cols());
+
+        double alpha = 1.0;
+        double beta = 0.0;
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+                    A.rows(), B.cols(), A.cols(),
+                    alpha, A.data(), A.cols(),
+                    B.data(), B.cols(),
+                    beta, C.data(), C.cols());
+        return C;
+    }
+
+    void xavierInitialization(Eigen::MatrixXd& weights) {
+        double scale = std::sqrt(6.0 / (weights.rows() + weights.cols()));
+        weights.setRandom();
+        weights *= scale;
+    }
+
+    void xavierInitialization(Eigen::VectorXd& biases) {
+        double scale = std::sqrt(6.0 / (biases.rows() + biases.cols()));
+        biases.setRandom();
+        biases *= scale;
+    }
+
+    void heInitialization(Eigen::MatrixXd& weights) {
+        double scale = std::sqrt(2.0 / weights.rows());
+        weights.setRandom();
+        weights *= scale;
+    }
+
+    void uniformInitialization(Eigen::MatrixXd& weights, double minVal, double maxVal) {
+        weights = Eigen::MatrixXd::Random(weights.rows(), weights.cols());
+        weights = (weights.array() * (maxVal - minVal)) + minVal;
+    }
+
+    void normalInitialization(Eigen::MatrixXd& weights, double mean, double stdDev) {
+        weights = Eigen::MatrixXd::Random(weights.rows(), weights.cols());
+        weights = (weights.array() * stdDev) + mean;
+    }
+
+    void zeroInitialization(Eigen::MatrixXd& weights) {
+        weights.setZero();
+    }
+
+};
+
+
+
+/*****************************************************************************************************
+* Some common reduction operations used in machine learning and deep learning include:
+*   Sum: Computes the sum of all the values.
+*   Avg: Computes the average of all the values.
+*   Max: Finds the maximum value among all the values.
+*   Min: Finds the minimum value among all the values.
+*   Argmax: Returns the index or position of the maximum value.
+*   Argmin: Returns the index or position of the minimum value.
+*   Matmul: Returns matrix multiplication result.
+*   Mul: Returns element-wise multiplication result.
+*****************************************************************************************************/
+class Reduct: public BaseOperator {
+private:
+    ReductionType rtype = ReductionType::SUM;
+
+public:
+    Reduct(ReductionType rtype) {
+        this->rtype = rtype;
+    }
+
+    void execute() {
+        switch(rtype) {
+            case ReductionType::SUM:
+                sum();
+            break;
+            case ReductionType::AVG:
+                avg();
+            break;
+            case ReductionType::MIN:
+                min();
+            break;
+            case ReductionType::MAX:
+                max();
+            break;
+            case ReductionType::ARGMIN:
+                argmin();
+            break;
+            case ReductionType::ARGMAX:
+                argmax();
+            break;
+            case ReductionType::MATMUL:
+                matmul();
+            break;
+            case ReductionType::MUL:
+                mul();
+            break;
+            default: 
+                sum();
+        }
+    }
+
+    void sum() { 
+        print_string("summation ...", true);
+    }
+
+    void avg() {}
+    void min() {}
+    void max() {}
+    void argmin() {}
+    void argmax() {}
+    void matmul() {}
+    void mul() {}
+
+    void forwardPass() { print_string("Reduct forward pass ...", true); }
+    void backwardPass() {}
+};
+
+/*****************************************************************************************************
+ * Linear Class:
+*****************************************************************************************************/
+class Linear : public BaseOperator {
+private:
+
+    OperationParams parameters; // inputs to next forward-wise Nodes
+    OperationParams gradients;  // inputs to next backward-wise Nodes
+
+    int M = 0; // number of inputs
+    int W = 0; // number of weights (or number of features)
+
+public:
+    Linear(int size) {
+        this->W = size;
+        print_string("Linear operation ...", true);
+    }
+
+    // This assumes that the input is defined with NxM dimensionality.
+    // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
+    void setInitialWeights(int M) {
+
+        this->M = M;
+   
+        parameters.weights.resize(M, W); // allocates memory
+        parameters.biases.resize(W); // allocates memory
+
+        // Initialize Weights & Biases
+        xavierInitialization(parameters.weights);
+        xavierInitialization(parameters.biases);
+
+        gradients.weights.resize(M, W); // allocates memory
+        gradients.biases.resize(W); // allocates memory
+
+        // Initialize Gradients     
+        gradients.weights.setZero();
+        gradients.biases.setZero();
+    }
+
+    OperationParams getParameters() const {
+        return parameters;
+    }
+
+    OperationParams getGradients() const {
+        return gradients;
+    }
+
+    Eigen::MatrixXd linearTransform(const Eigen::MatrixXd& input_data) {
+        // We only need the M dimension from an NxM input to generate parameter matrix.
+        setInitialWeights(input_data.cols());
+        Eigen::MatrixXd weights = parameters.weights;
+        Eigen::VectorXd biases = parameters.biases;
+        Eigen::MatrixXd output = matmul(input_data, weights).rowwise() + biases.transpose();
+        return output;
+    }
+
+    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data) { 
+
+        // Perform Linear Transformation.
+        Eigen::MatrixXd output = linearTransform(input_data);
+
+        print_string("Linear forward pass ...", true); 
+
+        return output; // this becomes input to the next Node or next Layer.
+    }
+
+    void forwardPass() {
+        print_string("Linear forward pass ...", true); 
+    }
+
+    void backwardPass() {}
+    
+};
+
+// Suppose we have a sample input represented as a matrix of NxM where N=number of samples
+// and M=embedding vector size (features).  Our Batch normalization takes mean and variance
+// along the N dimension.
+class BatchNorm : public BaseOperator {
+private:
+    Eigen::VectorXd scale;
+    Eigen::VectorXd shift;
+public:
+    BatchNorm(int size) {}
+
+    Eigen::MatrixXd normalize(const Eigen::MatrixXd& input_data) {
+
+        int N = input_data.rows(); // N
+
+        // Initialize scaling and shifting parameters   
+        scale.resize(N); // allocates memory
+        shift.resize(N); // allocates memory
+
+        // Initialize Weights & Biases
+        xavierInitialization(scale);
+        xavierInitialization(shift);
+
+        std::cout << input_data << std::endl;
+
+        Eigen::MatrixXd normalizedInput;
+
+        // Calculate batch mean along the N dimension
+        Eigen::VectorXd batchMean = input_data.colwise().mean();
+
+        std::cout << "Mean ..." << std::endl;
+        std::cout << batchMean << std::endl;
+
+        // Calculate: X - mean
+        Eigen::MatrixXd minusMean = input_data.rowwise() - batchMean.transpose();
+
+        // Calculate batch variance along the N dimension
+        Eigen::VectorXd batchVariance = minusMean.array().square().colwise().mean();
+
+        std::cout << "Variance ..." << std::endl;
+        std::cout << batchVariance << std::endl;
+
+        // Add a small epsilon for numerical stability
+        double epsilon = 1e-8;
+        Eigen::VectorXd epsilonVector = Eigen::VectorXd::Constant(batchVariance.size(), epsilon);
+
+        std::cout << "Epsilon ..." << std::endl;
+        std::cout << epsilonVector << std::endl;
+
+        // Calculate batch standard deviation along the N dimension
+        Eigen::VectorXd batchStdDev = (batchVariance + epsilonVector).cwiseSqrt();
+
+        std::cout << "stdDev ..." << std::endl;
+        std::cout << batchStdDev << std::endl;
+
+        // Normalize the inputs along the N dimension
+        normalizedInput = minusMean.array().rowwise()  / batchStdDev.transpose().array();
+
+        std::cout << "normalizedInput along the N  ..." << std::endl;
+        std::cout << normalizedInput << std::endl;
+
+        // Scale and shift the normalized inputs
+        normalizedInput = (normalizedInput.array().colwise() * scale.array()).array().colwise() + shift.array();
+
+        std::cout << "scale and shift ..." << std::endl;
+        std::cout << scale << std::endl;
+
+        std::cout << "scale and shift ..." << std::endl;
+        std::cout << shift << std::endl;
+
+        std::cout << "normalizedInput scaled ..." << std::endl;
+        std::cout << normalizedInput << std::endl;
+
+        return normalizedInput;
+    }
+
+    void setScale(const Eigen::VectorXd& newScale) {
+        scale = newScale;
+    }
+
+    void setShift(const Eigen::VectorXd& newShift) {
+        shift = newShift;
+    }
+
+    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data) { 
+
+        // Perform Linear Transformation.
+        Eigen::MatrixXd output = normalize(input_data);
+
+        print_string("Batch Normalize forward pass ...", true); 
+
+        return output; // this becomes input to the next Node or next Layer.
+    }
+
+    void forwardPass() { print_string("BatchNorm forward pass ...", true); }
+    void backwardPass() {}
+};
+
+// Suppose we have a sample input represented as a matrix of NxM where N=number of samples
+// and M=embedding vector size (features).  Our Batch normalization takes mean and variance
+// along the M dimension.
+
+class LayerNorm : public BaseOperator {
+private:
+    Eigen::VectorXd scale;
+    Eigen::VectorXd shift;
+
+public:
+    LayerNorm(int size) {}
+
+    Eigen::MatrixXd normalize(const Eigen::MatrixXd& input_data) {
+
+        int W = input_data.cols(); // W
+
+        // Initialize scaling and shifting parameters   
+        scale.resize(W); // allocates memory
+        shift.resize(W); // allocates memory
+
+        // Initialize Weights & Biases
+        xavierInitialization(scale);
+        xavierInitialization(shift);
+
+        std::cout << input_data << std::endl;
+
+        Eigen::MatrixXd normalizedInput;
+
+        // Calculate layer mean along the M dimension
+        Eigen::VectorXd layerMean = input_data.rowwise().mean();
+
+        std::cout << "Mean ..." << std::endl;
+        std::cout << layerMean << std::endl;
+
+        // Calculate: X - mean
+        Eigen::MatrixXd minusMean = input_data.colwise() - layerMean;
+
+        // Calculate batch variance along the M dimension
+        Eigen::VectorXd layerVariance = minusMean.array().square().rowwise().mean();
+
+        std::cout << "Variance ..." << std::endl;
+        std::cout << layerVariance << std::endl;
+
+        // Add a small epsilon for numerical stability
+        double epsilon = 1e-8;
+        Eigen::VectorXd epsilonVector = Eigen::VectorXd::Constant(layerVariance.size(), epsilon);
+
+        std::cout << "Epsilon ..." << std::endl;
+        std::cout << epsilonVector << std::endl;
+
+        // Calculate batch standard deviation along the M dimension
+        Eigen::VectorXd layerStdDev = (layerVariance + epsilonVector).array().sqrt();
+
+        std::cout << "stdDev ..." << std::endl;
+        std::cout << layerStdDev << std::endl;
+
+        // Normalize the inputs along the M dimension
+        normalizedInput = minusMean.array().colwise()  / layerStdDev.array();
+
+        std::cout << "normalizedInput along the N  ..." << std::endl;
+        std::cout << normalizedInput << std::endl;
+
+        // Scale and shift the normalized inputs
+        normalizedInput = (normalizedInput.array().rowwise() * scale.transpose().array()).array().rowwise() + shift.transpose().array();
+
+        std::cout << "scale and shift ..." << std::endl;
+        std::cout << scale << std::endl;
+
+        std::cout << "scale and shift ..." << std::endl;
+        std::cout << shift << std::endl;
+
+        std::cout << "normalizedInput scaled ..." << std::endl;
+        std::cout << normalizedInput << std::endl;
+
+        return normalizedInput;
+    }
+    
+
+    void setScale(const Eigen::VectorXd& newScale) {
+        scale = newScale;
+    }
+
+    void setShift(const Eigen::VectorXd& newShift) {
+        shift = newShift;
+    }
+
+    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data) { 
+
+        // Perform Linear Transformation.
+        Eigen::MatrixXd output = normalize(input_data);
+
+        print_string("Batch Normalize forward pass ...", true); 
+
+        return output; // this becomes input to the next Node or next Layer.
+    }
+
+    void forwardPass() { print_string("LayerNorm forward pass ...", true); }
+    void backwardPass() {}
+};
+
+class Activate : public BaseOperator {
+private:
+    ActivationType atype = ActivationType::RELU;
+    double alpha = 0.01; // for leakyReLU
+public:
+    Activate(ActivationType atype = ActivationType::RELU) {
+        this->atype = atype;
+    }
+
+    Activate* setAlpha(double alpha) {
+        this->alpha = alpha;
+        return this;
+    }
+
+    Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& x) {
+        return 1.0 / (1.0 + (-x).array().exp());
+    }
+
+    Eigen::MatrixXd tanh(const Eigen::MatrixXd& x) {
+        return x.array().tanh();
+    }
+
+    Eigen::MatrixXd relu(const Eigen::MatrixXd& x) {
+        return x.array().max(0.0);
+    }
+
+    Eigen::MatrixXd gelu(const Eigen::MatrixXd& x) {
+        return 0.5 * x.array() * (1.0 + ((x.array() * std::sqrt(2.0 / M_PI)).tanh()));
+    }
+
+    Eigen::MatrixXd leakyReLU(const Eigen::MatrixXd& x, double alpha) {
+        return x.array().max(alpha * x.array());
+    }
+
+    Eigen::MatrixXd softmax(const Eigen::MatrixXd& x) {
+        Eigen::MatrixXd expX = x.array().exp();
+        Eigen::VectorXd sumExp = expX.rowwise().sum();
+        return (expX.array().colwise() / sumExp.array()).matrix();
+    }
+
+    Eigen::MatrixXd activate(const Eigen::MatrixXd& input_data) { 
+        Eigen::MatrixXd output;
+        switch(atype) {
+            case ActivationType::SIGMOID: 
+                output = sigmoid(input_data);
+            break;
+            case ActivationType::TANH: 
+                output = tanh(input_data);
+            break;
+            case ActivationType::RELU: 
+                output = relu(input_data);
+            break;
+            case ActivationType::LEAKYRELU: 
+                output = leakyReLU(input_data, alpha);
+            break;
+            case ActivationType::GELU: 
+                output = gelu(input_data);
+            break;
+            case ActivationType::SOFTMAX: 
+                output = softmax(input_data);
+            break;
+        }
+        return output; // this becomes input to the next Node or next Layer.
+    }
+
+    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data) { 
+
+        // Perform Activation
+        Eigen::MatrixXd output = activate(input_data);
+
+        print_string("Activation forward pass ...", true); 
+
+        return output; // this becomes input to the next Node or next Layer.
+    }
+
+    void forwardPass() { print_string("Activate forward pass ...", true); }
+    void backwardPass() {}
+};
+
+class Mask : public BaseOperator {
+public:
+    Mask(int size) {
+    }
+
+    void forwardPass() { print_string("Mask forward pass ...", true); }
+    void backwardPass() {}
+};
+
+class Scale : public BaseOperator {
+public:
+    Scale(int size) {
+        // Initialize scaling and shifting parameters
+    }
+
+    void forwardPass() { print_string("Scale forward pass ...", true); }
+    void backwardPass() {}
+};
+
+class Dropout : public BaseOperator {
+public:
+    Dropout(int size) {
+        // Initialize scaling and shifting parameters
+    }
+
+    void forwardPass() { print_string("Scale forward pass ...", true); }
+    void backwardPass() {}
+};
+
+class Attention : public BaseOperator {
+public:
+    Attention(int size) {
+        // Initialize scaling and shifting parameters
+    }
+
+    void forwardPass() { print_string("Scale forward pass ...", true); }
+    void backwardPass() {}
+};
+
+
+/********************************************************************************************
+* NodeFactory
+********************************************************************************************/
+
+enum class NodeType {
+    Input,
+    Hidden,
+    Output
+};
+
+
+class Node {
+private:
+    std::unordered_set<Node*> outputs;
+    std::unordered_set<Node*> inputs;
+    std::vector<std::shared_ptr<BaseOperator>> operations;
+    Eigen::MatrixXd input_data;
+    int id;
+
+public:
+    std::string name;
+    NodeType type;
+
+    Node(const std::string& name, NodeType type, const py::array_t<double>& initialValues = {})
+        : name(name), type(type) {
+        if (initialValues.size() != 0) {
+            setData(initialValues);
+        }
+    }
+
+    // The input is assumed to have NxM where N=number of samples, M=embedding vector size
+    // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
+    void setData(py::array_t<double> embedding) {
+        // Convert values to C++ array
+        py::buffer_info values_info = embedding.request();
+        double* data = static_cast<double*>(values_info.ptr);
+        int v_rows = values_info.shape[0]; // N
+        int v_cols = values_info.shape[1]; // M
+        input_data = Eigen::Map<Eigen::MatrixXd>(data, v_rows, v_cols);
+    }
+
+    void addInput(Node* input) {
+        inputs.insert(input);
+        input->outputs.insert(this);
+    }
+
+    void addOutput(Node* output) {
+        outputs.insert(output);
+        output->inputs.insert(this);
+    }
+
+    std::unordered_set<Node*> getOutputs() {
+        return outputs;
+    }
+
+    std::unordered_set<Node*> getInputs() {
+        return inputs;
+    }
+
+    void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
+        this->operations = operations;
+    }
+
+    // based on operations
+    Eigen::MatrixXd forwardPass(Eigen::MatrixXd& input_data) {
+        // Propagate forward to connected nodes
+        int size = operations.size();
+        print_string(name + " forward pass ...", true);
+        print_double((double) size, true);
+
+        Eigen::MatrixXd output = input_data;
+
+        for (const auto& operation : operations ) {
+                // Check the dynamic type of the object using dynamic_cast
+            if (auto linear = std::dynamic_pointer_cast<Linear>(operation)) {
+                print_string("Linear object", true);
+                output = linear->forward(output);
+                std::cout << output << std::endl;
+            } else
+            if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(operation)) {
+                print_string("Batchnorm object", true);
+                output = batchnorm->forward(output);
+                std::cout << output << std::endl;
+            } else            
+            if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(operation)) {
+                print_string("Layernorm object", true);
+                output = layernorm->forward(output);
+                std::cout << output << std::endl;
+            } else           
+            if (auto activate = std::dynamic_pointer_cast<Activate>(operation)) {
+                print_string("Activate object", true);
+                output = activate->forward(output);
+                std::cout << output << std::endl;
+            } else {
+                operation->forwardPass();
+            }
+        }
+        return output;
+    }
+
+    void backwardPass() {
+        // Initialize gradients
+/*
+        // Perform backward computation based on node type
+        if (type == NodeType::Output) {
+            // Output node gradients are computed based on some external criterion
+            // Here, we simply set the gradient to 1
+            gradients = std::vector<double>(values.size(), 0.0);
+            gradients[0] = 1.0;
+        } else {
+            // double sum = 0.0;
+            // Compute gradients based on gradients received from connected nodes
+            for (Node* output : outputs) {
+                double outputGradient = output->gradients[0];
+                size_t index = 0;
+                for (auto input : output->inputs) {
+                    if (input == this) {
+                        gradients[index] += outputGradient * values[index];
+                        break;
+                    }
+                    index++;
+                }
+            }
+        }
+*/
+
+        // Propagate gradients backward to connected nodes
+        for (Node* input : inputs) {
+            input->backwardPass();
+        }
+    }
+
+/*
+    py::array_t<double> getGradientData() {
+        py::array_t<double> result({10, 20});
+        return result;
+    }
+*/
+    double* getGradientData() {
+        double* matrix = allocate_matrix(20, 30);
+        return matrix;
+    }
+
+/*
+    Eigen::MatrixXd softmax(const Eigen::MatrixXd& input) {
+        Eigen::MatrixXd expValues = input.array().exp();
+        Eigen::VectorXd sumExp = expValues.rowwise().sum();
+        return expValues.array().rowwise() / sumExp.array();
+    }
+*/
+
+    double computeLoss(const std::vector<double>& target) {
+/*
+        // Check if the node's output and the target have compatible sizes
+        if (output.size() != target.size()) {
+            throw std::runtime_error("Output and target sizes mismatch.");
+        }
+
+        // Compute the loss based on the node's output and the target values
+        double sumSquaredDiff = 0.0;
+        for (std::size_t i = 0; i < output.size(); ++i) {
+            double diff = output[i] - target[i];
+            sumSquaredDiff += diff * diff;
+        }
+        double loss = sumSquaredDiff / output.size();
+
+        // Set the computed loss as the new value
+        setLoss(loss);
+*/
+        return (double) 0;
+    }
+
+    double getLoss() const {
+       // return loss;
+       return 0;
+    }
+
+    void setLoss(double newLoss) {
+       // loss = newLoss;
+    }
+
+/*
+    std::vector<OperationParams> getParameters() const {
+        // Retrieve the updated parameters from the node and return them
+        return parameters;
+    }
+*/
+
+    void updateParameters() {
+
+        // Multiply learning rate and gradients and record the result back to gradients
+        // then perform subtraction
+        // cblas_dscal(g_rows * g_cols, learningRate, (double*) gradients.data(), 1);
+        // parameters.array() -=  gradients.array();
+
+        // Perform direct multiply and subtract operation
+    /*
+        for (ssize_t i = 0; i < (ssize_t) operations.size(); ++i) {
+            Eigen::MatrixXd& weights = parameters[i].weights;
+            Eigen::VectorXd& biases = parameters[i].biases;
+            Eigen::MatrixXd& gradient = gradients[i];
+
+            // Update the parameters using the gradients
+            weights -= learningRate * gradient;
+            biases -= learningRate * gradient.rowwise().sum();
+
+            // Reset the gradients to zero for the next iteration
+            gradient.setZero();
+        }
+     */
+    }
+
+    ssize_t getParameterSize() const {
+        // Compute the total size of parameters for the node
+        ssize_t totalSize = 0;
+    /*
+        for (const auto& parameter : parameters) {
+            totalSize += parameter.weights.size();
+            totalSize += parameter.biases.size();
+        }
+    */
+        return totalSize;
+    } 
+
+    ssize_t getGradientSize() {
+       // Compute the total size of parameters for the node
+        std::size_t totalSize = 0;
+    /*
+        for (const auto& gradient : gradients) {
+            totalSize += gradient.size();
+        }
+    */
+        return totalSize;
+    }
+ 
+
+    int getId() const {
+       return id;
+    }
+
+
+    void printValues() {
+/*
+        print_string(name + " values: ", false);
+        double* mat = NULL;
+        for (const auto& values : cache) {
+            print_string("operation:", true);
+            mat = (double*) values.data();
+            for (ssize_t i = 0; i < (ssize_t) values.rows(); i++) {
+                for (ssize_t j = 0; j < (ssize_t) values.cols(); j++) {
+                    print_double((double) mat[i * values.cols() + j], false);
+                }
+                print_string("", true);
+            }
+        }
+*/
+    }
+
+    void printGradients() {
+/*
+        print_string(name + " gradients: ", false);
+        double* mat = NULL;
+        for (const auto& gradient : gradients) {
+            print_string("operation:", true);
+            mat = (double*) gradient.data();
+            for (ssize_t i = 0; i < (ssize_t) gradient.rows(); i++) {
+                for (ssize_t j = 0; j < (ssize_t) gradient.cols(); j++) {
+                    print_double((double) mat[i * gradient.cols() + j], false);
+                }
+                print_string("", true);
+            }
+        }
+*/
+    }
+
+
+};
+
+class Graph {
+private:
+    std::vector<Node*> nodes;
+    std::unordered_map<Node*, std::unordered_set<Node*>> adjacencyList;
+    std::unordered_map<Node*, std::unordered_set<Node*>> reverseAdjacencyList;
+    Eigen::MatrixXd input_data;
+
+public:
+
+    // Create a node with three arguments: name, type, and initial values
+    Node* createNode(const std::string& name, NodeType type, const py::array_t<double>& initialValues) {
+        Node* node = new Node(name, type, initialValues);
+        nodes.push_back(node);
+        adjacencyList[node] = std::unordered_set<Node*>();
+        reverseAdjacencyList[node] = std::unordered_set<Node*>();
+        return node;
+    }
+
+    // Create a node with two arguments: name and type (no initial values)
+    Node* createNode(const std::string& name, NodeType type) {
+        Node* node = new Node(name, type);
+        nodes.push_back(node);
+        adjacencyList[node] = std::unordered_set<Node*>();
+        reverseAdjacencyList[node] = std::unordered_set<Node*>();
+        return node;
+    }
+
+    void connect(Node* from, Node* to) {
+        adjacencyList[from].insert(to);
+        reverseAdjacencyList[to].insert(from); // Add reverse connection
+    }
+
+    void connect(Node* from, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+        to->setOperations(operations);
+        adjacencyList[from].insert(to);
+        reverseAdjacencyList[to].insert(from); // Add reverse connection
+    }
+
+    void connect(std::vector<Node*> from_nodes, Node* to) {
+        for (Node* node : from_nodes) {
+           adjacencyList[node].insert(to);
+           reverseAdjacencyList[to].insert(node); // Add reverse connection
+        }
+    }
+
+    void connect(std::vector<Node*> from_nodes, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+        to->setOperations(operations);
+        for (Node* node : from_nodes) {
+           adjacencyList[node].insert(to);
+           reverseAdjacencyList[to].insert(node); // Add reverse connection
+        }
+    }
+
+    void connectNodes(Node* from, Node* to) {
+        adjacencyList[from].insert(to);
+        reverseAdjacencyList[to].insert(from); // Add reverse connection
+    }
+
+    std::vector<Node*> getNodes() {
+        return nodes;
+    }
+
+    // The input is assumed to have NxM where N=number of samples, M=embedding vector size
+    // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
+    void setData(py::array_t<double> embedding) {
+        // Convert values to C++ array
+        py::buffer_info values_info = embedding.request();
+        double* data = static_cast<double*>(values_info.ptr);
+        int v_rows = values_info.shape[0]; // N
+        int v_cols = values_info.shape[1]; // M
+        input_data = Eigen::Map<Eigen::MatrixXd>(data, v_rows, v_cols);
+    }
+
+    Eigen::MatrixXd forwardPropagation() {
+        std::unordered_set<Node*> visited;
+
+        Eigen::MatrixXd output = input_data;
+
+        for (Node* node : nodes) {
+            if (visited.find(node) == visited.end()) {
+                output = forwardPropagationDFS(node, visited, output);
+            }
+        }
+        std::cout << "Final Outcome" << std::endl;
+        std::cout << output << std::endl;
+        return output;
+    }
+
+    Eigen::MatrixXd forwardPropagationDFS(Node* node, std::unordered_set<Node*>& visited, Eigen::MatrixXd& input_data) {
+        visited.insert(node);
+        Eigen::MatrixXd output = node->forwardPass(input_data);
+        for (Node* output_node : adjacencyList[node]) {
+            if (visited.find(output_node) == visited.end()) {
+                output = forwardPropagationDFS(output_node, visited, output);
+            }
+        }
+        return output;
+    }
+
+    void backwardPropagation() {
+        std::unordered_set<Node*> visited;
+        for (Node* node : nodes) {
+            if (visited.find(node) == visited.end()) {
+                backwardPropagationDFS(node, visited);
+            }
+        }
+    }
+
+    void backwardPropagationDFS(Node* node, std::unordered_set<Node*>& visited) {
+        visited.insert(node);
+        node->backwardPass();
+        for (Node* input : reverseAdjacencyList[node]) {
+            if (visited.find(input) == visited.end()) {
+                backwardPropagationDFS(input, visited);
+            }
+        }
+    }
+
+    std::vector<std::vector<Node*>> splitStageNodes(const std::vector<Node*>& stageNodes, int numModelParallel) {
+        int numNodes = stageNodes.size();
+        int nodesPerSubset = numNodes / numModelParallel;
+        int remainingNodes = numNodes % numModelParallel;
+
+        std::vector<std::vector<Node*>> subsets;
+        subsets.reserve(numModelParallel);
+
+        int startIndex = 0;
+        for (int i = 0; i < numModelParallel; ++i) {
+             int subsetSize = nodesPerSubset + (i < remainingNodes ? 1 : 0);
+             subsets.push_back(std::vector<Node*>(stageNodes.begin() + startIndex, stageNodes.begin() + startIndex + subsetSize));
+             startIndex += subsetSize;
+        }
+
+        return subsets;
+    }
+
+    void gatherGradients(const std::vector<Node*>& nodes, std::vector<double>& aggregatedGradients) {
+        // int numNodes = nodes.size();
+        int totalSize = 0;
+
+        // Compute total size of aggregated gradients and gather gradients
+        /*
+        for (int i = 0; i < numNodes; ++i) {
+            int gradientSize = nodes[i]->getGradientSize();
+            std::memcpy(&aggregatedGradients[totalSize], (double*)nodes[i]->getGradientData(), gradientSize * sizeof(double));
+            totalSize += gradientSize;
+        }
+*/
+        MPI_Gather(aggregatedGradients.data(), totalSize, MPI_DOUBLE, aggregatedGradients.data(), totalSize, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+/*
+    void gatherGradients(const std::vector<Node*>& nodes, std::vector<double>& aggregatedGradients) {
+        int numNodes = nodes.size();
+        int gradientSize = nodes[0]->getGradientSize();
+        std::vector<double> gradients(gradientSize * numNodes);
+
+        for (int i = 0; i < numNodes; ++i) {
+             std::memcpy(&gradients[i * gradientSize], (double*) nodes[i]->getGradientData(), gradientSize * sizeof(double));
+        }
+
+        MPI_Gather(gradients.data(), gradientSize * numNodes, MPI_DOUBLE, aggregatedGradients.data(), gradientSize * numNodes, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+*/
+
+/*
+    void aggregateLosses(const std::vector<Node*>& subset) {
+        // Perform aggregation of losses within the stage
+        // This could involve summing the losses or other appropriate aggregation operations
+        // Implementation depends on the specific requirements of your model and pipeline parallelism strategy
+    }
+*/
+
+    void aggregateLosses(const std::vector<Node*>& subset) {
+        for (Node* node : subset) {
+            double loss = node->getLoss();
+            double aggregatedLoss = 0.0;
+
+            // Use MPI_Reduce to aggregate the losses from all nodes
+            MPI_Reduce(&loss, &aggregatedLoss, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+            if (node->getId() == 0) {
+                // Set the aggregated loss to the first node in the subset
+                node->setLoss(aggregatedLoss);
+            }
+        }
+    }
+
+    void synchronizeStage() {
+        // Perform synchronization within the stage (e.g., using OpenMP barrier)
+        #pragma omp barrier
+    }
+
+/*
+    void synchronizeStage() {
+        // Use MPI_Barrier to synchronize all MPI processes
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+*/
+
+/*
+    void performParameterUpdate(const std::vector<Node*>& nodes) {
+        // Create temporary buffers to store the updated parameters
+        std::vector<Eigen::MatrixXd> updatedWeights;
+        std::vector<Eigen::VectorXd> updatedBiases;
+
+        for (Node* node : nodes) {
+            // Get the updated parameters from the node
+            const std::vector<OperationParams>& params = node->getParameters();
+
+            // Extract the matrices and vectors from OperationParams and append them to the buffers
+            for (const OperationParams& opParams : params) {
+                updatedWeights.push_back(opParams.weights);
+                updatedBiases.push_back(opParams.biases);
+            }
+        }
+
+        // Perform the element-wise sum of the updated weights and biases using MPI_Allreduce
+        MPI_Allreduce(MPI_IN_PLACE, updatedWeights.data(), updatedWeights.size(), MatrixXdMPIType, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, updatedBiases.data(), updatedBiases.size(), VectorXdMPIType, MPI_SUM, MPI_COMM_WORLD);
+
+        // Compute the average of the updated weights and biases
+        int worldSize;
+        MPI_Comm_size(MPI_COMM_WORLD, &worldSize);
+
+        for (Eigen::MatrixXd& weight : updatedWeights) {
+            weight /= worldSize;
+        }
+
+        for (Eigen::VectorXd& bias : updatedBiases) {
+            bias /= worldSize;
+        }
+
+        // Distribute the updated weights and biases back to the corresponding nodes
+        int startIndex = 0;
+        for (Node* node : nodes) {
+            int numParams = node->getParameterSize();
+            std::vector<Eigen::MatrixXd> nodeWeights(updatedWeights.begin() + startIndex, updatedWeights.begin() + startIndex + numParams);
+            std::vector<Eigen::VectorXd> nodeBiases(updatedBiases.begin() + startIndex, updatedBiases.begin() + startIndex + numParams);
+            node->updateParameters(nodeWeights, nodeBiases);
+            startIndex += numParams;
+        }
+    }
+    */
+
+/*
+    void aggregateGradients(const std::vector<Node*>& nodes, std::vector<Eigen::MatrixXd>& aggregatedGradients) {
+    // Create a temporary buffer to store the gradients from each node
+    std::vector<std::vector<Eigen::MatrixXd>> nodeGradients;
+
+    for (Node* node : nodes) {
+        // Get the gradients from the node
+        const std::vector<Eigen::MatrixXd>& gradients = node->getGradients();
+
+        // Append the gradients to the buffer
+        nodeGradients.push_back(gradients);
+    }
+
+    // Calculate the total number of gradients
+    int totalGradients = 0;
+    for (const auto& gradients : nodeGradients) {
+        totalGradients += gradients.size();
+    }
+
+    // Resize the aggregated gradients vector to hold the total number of gradients
+    aggregatedGradients.resize(totalGradients);
+
+    // Concatenate the gradients from all nodes into the aggregated gradients vector
+    int index = 0;
+    for (const auto& gradients : nodeGradients) {
+        std::copy(gradients.begin(), gradients.end(), aggregatedGradients.begin() + index);
+        index += gradients.size();
+    }
+
+    // Use MPI_Allreduce to perform an element-wise sum of the aggregated gradients across all processes
+    MPI_Allreduce(MPI_IN_PLACE, aggregatedGradients.data(), totalGradients, MatrixXdMPIType, MPI_SUM, MPI_COMM_WORLD);
+}
+*/
+
+/*
+    void performParameterUpdate(const std::vector<Node*>& nodes) {
+        // Create a temporary buffer to store the updated parameters
+        std::vector<double> updatedParams;
+
+        for (Node* node : nodes) {
+            // Get the updated parameters from the node
+            const std::vector<OperationParams> params = node->getParameters();
+
+            // Append the updated parameters to the buffer
+            updatedParams.insert(updatedParams.end(), params.begin(), params.end());
+        }
+
+        // Use MPI_Allreduce to perform an element-wise sum of the updated parameters across all processes
+        MPI_Allreduce(MPI_IN_PLACE, updatedParams.data(), updatedParams.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        // Distribute the updated parameters back to the corresponding nodes
+        int startIndex = 0;
+        for (Node* node : nodes) {
+            int numParams = node->getParameterSize();
+            std::vector<double> nodeParams(updatedParams.begin() + startIndex, updatedParams.begin() + startIndex + numParams);
+            node->updateParameters(nodeParams);
+            startIndex += numParams;
+        }
+    }
+*/
+
+    // Perform topological sorting on the DAG
+    std::vector<Node*> topologicalSort(std::vector<Node*>& nodes) {
+        std::vector<Node*> sortedNodes;
+        std::unordered_set<Node*> visited;
+
+        for (Node* node : nodes) {
+            if (!visited.count(node)) {
+                topologicalSortUtil(node, visited, sortedNodes);
+            }
+        }
+
+        // std::reverse(sortedNodes.begin(), sortedNodes.end());
+        return sortedNodes;
+    }
+
+    // Helper function for topological sort
+    void topologicalSortUtil(Node* node, std::unordered_set<Node*>& visited, std::vector<Node*>& sortedNodes) {
+        visited.insert(node);
+
+        for (Node* output : node->getOutputs()) {
+            if (!visited.count(output)) {
+                topologicalSortUtil(output, visited, sortedNodes);
+            }
+        }
+
+        sortedNodes.push_back(node);
+    }
+
+    // Group the nodes into regions for parallel and serial execution
+    std::vector<std::vector<Node*>> groupNodes(const std::vector<Node*>& sortedNodes) {
+        std::vector<std::vector<Node*>> regions;
+        std::vector<Node*> currentRegion;
+        std::unordered_set<Node*> visited;
+
+        for (Node* node : sortedNodes) {
+            if (node->getInputs().size() > 1 || node->getOutputs().size() > 1) {
+                // Add the node to the current parallel region
+                currentRegion.push_back(node);
+            } else {
+                // Start a new serial region
+                if (!currentRegion.empty()) {
+                    regions.push_back(currentRegion);
+                    currentRegion.clear();
+                }
+
+                // Add the node to the current serial region
+                currentRegion.push_back(node);
+
+                // Start a new parallel region
+                if (node->getOutputs().size() > 1) {
+                    regions.push_back(currentRegion);
+                    currentRegion.clear();
+                }
+            }
+        }
+
+        // Add the last region if it is not empty
+        if (!currentRegion.empty()) {
+            regions.push_back(currentRegion);
+        }
+
+        return regions;
+    }
+
+    // Assuming you have the following vectors representing your regions, repeatSequentially, and repeatCounts
+    // Example use:
+    //    std::vector<std::vector<Node*>> regions = {region1, region2, region3};
+    //    std::vector<bool> repeatSequentially = {true, false, true};
+    //    std::vector<int> repeatCounts = {3, 1, 2};
+    //
+    //    // Call the repeatRegions function
+    //    std::vector<std::vector<Node*>> repeatedRegions = repeatRegions(regions, repeatSequentially, repeatCounts);
+    std::vector<std::vector<Node*>> repeatRegions(const std::vector<std::vector<Node*>>& regions, const std::vector<bool>& repeatSequentially, const std::vector<int>& repeatCounts) {
+        std::vector<std::vector<Node*>> repeatedRegions;
+
+        print_string("Repeat Regions:", false);
+        print_double((double) regions.size(), true);
+        
+        for (size_t i = 0; i < regions.size(); i++) {
+            if (repeatSequentially[i]) {
+                int repeatCount = repeatCounts[i];
+                while (repeatCount > 0) {
+                    repeatedRegions.push_back(regions[i]);
+                    repeatCount--;
+                }
+            } else {
+                repeatedRegions.push_back(regions[i]);
+            }
+        }
+        
+        return repeatedRegions;
+    }
+
+/*
+    void executeRegionForward(const std::vector<Node*>& region, int numProcesses, int rank) {
+        int numNodes = region.size();
+        // Split the nodes evenly among processes
+        int nodesPerProcess = numNodes / numProcesses;
+        int startNodeIndex = rank * nodesPerProcess;
+        int endNodeIndex = (rank == numProcesses - 1) ? numNodes : startNodeIndex + nodesPerProcess;
+
+        // Execute nodes assigned to the current process
+        for (int i = startNodeIndex; i < endNodeIndex; ++i) {
+            // Execute the forward pass of the node
+            region[i]->forwardPass();
+        }
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    void executeRegionComputeLoss(const std::vector<Node*>& region, std::vector<double>& target, int numProcesses, int rank) {
+        int numNodes = region.size();
+        // Split the nodes evenly among processes
+        int nodesPerProcess = numNodes / numProcesses;
+        int startNodeIndex = rank * nodesPerProcess;
+        int endNodeIndex = (rank == numProcesses - 1) ? numNodes : startNodeIndex + nodesPerProcess;
+
+        // Execute nodes assigned to the current process
+        // Compute loss and aggregate across processes
+        double localLoss = 0.0;
+        for (int i = startNodeIndex; i < endNodeIndex; ++i) {
+            // Execute the forward pass of the node
+            localLoss += region[i]->computeLoss(target);
+        }
+
+        double globalLoss = 0.0;
+        MPI_Allreduce(&localLoss, &globalLoss, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        if (rank == 0) {
+            std::cout << "Global Loss for Stage " << globalLoss << std::endl;
+        }
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    void executeRegionBackward(const std::vector<Node*>& region, int numProcesses, int rank) {
+        int numNodes = region.size();
+        // Split the nodes evenly among processes
+        int nodesPerProcess = numNodes / numProcesses;
+        int startNodeIndex = rank * nodesPerProcess;
+        int endNodeIndex = (rank == numProcesses - 1) ? numNodes : startNodeIndex + nodesPerProcess;
+
+        // Execute nodes assigned to the current process
+        for (int i = startNodeIndex; i < endNodeIndex; ++i) {
+            // Execute the forward pass of the node
+            region[i]->backwardPass();
+        }
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    void executeRegionUpdateParameters(const std::vector<Node*>& region, int numProcesses, int rank) {
+        int numNodes = region.size();
+        // Split the nodes evenly among processes
+        int nodesPerProcess = numNodes / numProcesses;
+        int startNodeIndex = rank * nodesPerProcess;
+        int endNodeIndex = (rank == numProcesses - 1) ? numNodes : startNodeIndex + nodesPerProcess;
+
+        // Execute nodes assigned to the current process
+        for (int i = startNodeIndex; i < endNodeIndex; ++i) {
+            // Execute the forward pass of the node
+            region[i]->updateParameters();
+        }
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    void executePipelineParallel1(const  std::vector<std::vector<Node*>>& repeatedRegions) {
+        // Get the number of MPI processes and rank
+        int numProcesses, rank;
+        MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+        // Execute regions in sequence.
+        for (const auto& region : repeatedRegions) {
+            executeRegionForward(region, numProcesses, rank);
+        }
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        // Execute regions in sequence.
+        std::vector<double> target;
+        for (const auto& region : repeatedRegions) {
+            executeRegionComputeLoss(region, target, numProcesses, rank);
+        }
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        // Execute regions in sequence.
+        for (const auto& region : repeatedRegions) {
+            executeRegionBackward(region, numProcesses, rank);
+        }
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        // Execute regions in sequence.
+        for (const auto& region : repeatedRegions) {
+            executeRegionUpdateParameters(region, numProcesses, rank);
+        }
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+*/
+
+    void executePipelineParallel() {
+        // Get the number of MPI processes and rank
+        int numProcesses, rank;
+        MPI_Comm_size(MPI_COMM_WORLD, &numProcesses);
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+        // Forward Propagation
+        forwardPropagation();
+
+        // Synchronize all processes to ensure all nodes in the region are executed
+        MPI_Barrier(MPI_COMM_WORLD);
+
+    }
+
+    void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts) {
+
+        std::vector<bool> repeatSeq;
+        std::vector<int> repeatCnt;
+
+        for (const auto& item : repeatSequentially) {
+            repeatSeq.push_back(py::cast<bool>(item));
+        }
+
+        for (const auto& item : repeatCounts) {
+            repeatCnt.push_back(py::cast<int>(item));
+        }
+
+
+        std::vector<Node*> nodes = this->getNodes();
+
+        // Sort nodes topologically
+        std::vector<Node*> sortedNodes = topologicalSort(nodes);
+
+        // Group sorted nodes into sequential regions
+        std::vector<std::vector<Node*>> regions = groupNodes(sortedNodes);
+
+        // Repeat regions based on repeatSequentially and repeatCounts
+        std::vector<std::vector<Node*>> repeatedRegions = repeatRegions(regions, repeatSeq, repeatCnt);
+
+            // Initialize MPI
+        MPI_Init(NULL, NULL);
+
+        // Execute Pipeline
+        //executePipelineParallel(repeatedRegions);
+
+        executePipelineParallel();
+
+        // Perform data exchange between regions based on connections
+        // performDataExchange(graph, repeatedRegions);
+
+        // Gather gradients from all regions
+        // std::vector<double> aggregatedGradients(nodes.size());
+        // gatherGradients(repeatedRegions, aggregatedGradients);
+
+        // Aggregate gradients and perform parameter update
+        // aggregateGradients(aggregatedGradients);
+        // performParameterUpdate(nodes);
+
+        // Finalize MPI
+        MPI_Finalize();
+
+    }
+
+};
+
+
+
+PYBIND11_MODULE(genai, m) {
+    m.doc() = "Example C++ module for Python";
+
+    py::enum_<NodeType>(m, "NodeType")
+        .value("Input", NodeType::Input)
+        .value("Hidden", NodeType::Hidden)
+        .value("Output", NodeType::Output)
+        .export_values();
+
+    py::enum_<ReductionType>(m, "ReductionType")
+        .value("SUM", ReductionType::SUM)
+        .value("AVG", ReductionType::AVG)
+        .value("MIN", ReductionType::MIN)
+        .value("MAX", ReductionType::MAX)
+        .value("ARGMIN", ReductionType::ARGMIN)
+        .value("ARGMAX", ReductionType::ARGMAX)
+        .value("MATMUL", ReductionType::MATMUL)
+        .value("MUL", ReductionType::MUL)
+        .export_values();
+
+      py::enum_<ActivationType>(m, "ActivationType")
+        .value("SIGMOID", ActivationType::SIGMOID)
+        .value("TANH", ActivationType::TANH)
+        .value("LEAKYRELU", ActivationType::LEAKYRELU)
+        .value("GELU", ActivationType::GELU)
+        .value("SOFTMAX", ActivationType::SOFTMAX)
+        .export_values();
+
+    py::class_<Node>(m, "Node")
+        .def(py::init<const std::string&, NodeType>())
+        .def("setData", &Node::setData)
+        .def("setOperations", (void (Node::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node::setOperations)
+        .def("forwardPass", &Node::forwardPass)
+        .def("backwardPass", &Node::backwardPass)
+        .def("printValues", &Node::printValues)
+        .def("printGradients", &Node::printGradients);
+
+    py::class_<Graph>(m, "Graph")
+        .def(py::init<>())
+        .def("addNode", [](Graph& graph, const std::string& name, NodeType type, const py::array_t<double>& initialValues) {
+            return graph.createNode(name, type, initialValues);
+        })
+        .def("addNode", [](Graph& graph, const std::string& name, NodeType type) {
+            return graph.createNode(name, type);
+        })
+        .def("setData", &Node::setData)
+        .def("connect", (void (Graph::*)(Node*,Node*)) &Graph::connect, "Connects this node to another node")
+        .def("connect", (void (Graph::*)(Node*,Node*, std::vector<std::shared_ptr<BaseOperator>>&)) &Graph::connect, "Connects this node to another node with functions")
+        .def("connect", (void (Graph::*)(std::vector<Node*>, Node*)) &Graph::connect, "Connects this node to multiple nodes")
+        .def("connect", (void (Graph::*)(std::vector<Node*>, Node*, std::vector<std::shared_ptr<BaseOperator>>&)) &Graph::connect, "Connects this node to multiple nodes with functions")
+        .def("forwardPropagation", &Graph::forwardPropagation)
+        .def("backwardPropagation", &Graph::backwardPropagation)
+        .def("trainModel", (void (Graph::*)(const py::list&,const py::list&)) &Graph::trainModel, "Train this node to another node");
+
+
+    py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
+    py::class_<Linear, BaseOperator, std::shared_ptr<Linear>>(m, "Linear")
+        .def(py::init<int>(), py::arg("size") = 0);
+    py::class_<BatchNorm, BaseOperator, std::shared_ptr<BatchNorm>>(m, "BatchNorm")
+        .def(py::init<int>(), py::arg("size") = 0);
+    py::class_<LayerNorm, BaseOperator, std::shared_ptr<LayerNorm>>(m, "LayerNorm")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Reduct, BaseOperator, std::shared_ptr<Reduct>>(m, "Reduct")
+        .def(py::init<ReductionType>(), py::arg("rtype") = ReductionType::SUM)
+        .def("execute", &Reduct::execute);
+    py::class_<Activate, BaseOperator, std::shared_ptr<Activate>>(m, "Activate")
+        .def(py::init<ActivationType>(), py::arg("atype") = ActivationType::RELU)
+        .def("setAlpha", &Activate::setAlpha);
+    py::class_<Mask, BaseOperator, std::shared_ptr<Mask>>(m, "Mask")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Scale, BaseOperator, std::shared_ptr<Scale>>(m, "Scale")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Dropout, BaseOperator, std::shared_ptr<Dropout>>(m, "Dropout")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Attention, BaseOperator, std::shared_ptr<Attention>>(m, "Attention")
+        .def(py::init<int>(), py::arg("size") = 0); 
+
+    // Define function to print hello
+    m.def("print_string", &print_string, "Print 'string'");
+    m.def("print_double", &print_double, "Print 'double'");
+    m.def("process_array", &process_array, "Process a NumPy array");
+    m.def("process_matrix", &process_matrix, "Process a NumPy array");
+    m.def("matmul", &matmul, "Matrix Multiplication a NumPy array");
+
+}
