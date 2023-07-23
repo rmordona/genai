@@ -320,6 +320,8 @@ using namespace py::literals;
 #define UTF8ANDSHA_H
 
 #include <utf8cpp/utf8.h>
+#include <sstream>
+#include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <iomanip>
 #include <fstream>

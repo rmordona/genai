@@ -366,8 +366,45 @@ std::wstring deserializeWString(const std::vector<unsigned char>& bytes) {
     return wstr;
 }
 
+// Function to calculate SHA-256 and return it as a string
+std::string sha256(const std::wstring& data) {
+    EVP_MD_CTX* mdctx;
+    const EVP_MD* md;
+    unsigned int md_len;
+    unsigned char digest[EVP_MAX_MD_SIZE]; // To store the resulting digest
+
+    // Convert the wide string to a byte sequence (unsigned char array)
+    std::string data_bytes(reinterpret_cast<const char*>(data.c_str()), data.length() * sizeof(wchar_t));
+
+    // Initialize the EVP context
+    mdctx = EVP_MD_CTX_new();
+
+    // Choose the digest algorithm (EVP_sha256 for SHA-256)
+    md = EVP_sha256();
+
+    // Initialize the digest calculation
+    EVP_DigestInit_ex(mdctx, md, NULL);
+
+    // Perform the digest calculation
+    EVP_DigestUpdate(mdctx, reinterpret_cast<const unsigned char*>(data_bytes.c_str()), data_bytes.length());
+
+    // Finalize the digest and store the result in 'digest'
+    EVP_DigestFinal_ex(mdctx, digest, &md_len);
+
+    // Clean up the EVP context
+    EVP_MD_CTX_free(mdctx);
+
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (unsigned int i = 0; i < md_len; ++i) {
+        ss << std::setw(2) << static_cast<int>(digest[i]);
+    }
+
+    return ss.str();
+}
 
 
+/* sha256Context is deprecated 
 // Function to hash a given word token using SHA256
 std::string sha256(const std::wstring& str) {
     std::vector<unsigned char> bytes = serializeWString(str);
@@ -397,6 +434,7 @@ std::string sha256(const std::wstring& str) {
 
     return ss.str();
 }
+*/
 
 double* allocate_matrix(ssize_t rows, ssize_t cols) {
     // Allocate memory for the matrix

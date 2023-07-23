@@ -1,0 +1,14 @@
+README.md
+setup.py
+genai.egg-info/PKG-INFO
+genai.egg-info/SOURCES.txt
+genai.egg-info/dependency_links.txt
+genai.egg-info/top_level.txt
+src/distributed.cpp
+src/embeddings.cpp
+src/genai.cpp
+src/model.cpp
+src/operators.cpp
+src/tokenmodel.cpp
+src/topology.cpp
+src/transformer.cpp
