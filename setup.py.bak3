@@ -1,0 +1,61 @@
+from setuptools import setup, Extension
+from setuptools.command.build_ext import build_ext
+import subprocess
+
+# Set the environment variables for CMAKE_C_COMPILER and CMAKE_CXX_COMPILER
+#os.environ['CMAKE_C_COMPILER'] = '/usr/local/bin/gcc-13'
+#os.environ['CMAKE_CXX_COMPILER'] = '/usr/local/bin/g++-13'
+
+# Subclass build_ext to customize the build process
+class CMakeBuildExt(build_ext):
+    def run(self):
+        # Call CMake to build the C++ code before running setup()
+        subprocess.check_call(['cmake', '.', '-DCMAKE_OSX_BUNDLE=OFF'] + self.cmake_args)
+        subprocess.check_call(['cmake', '--build', '.'])
+        super().run()
+
+# Extension module
+ext_modules = [Extension(
+    'genai', 
+    sources=['genaiproj/src/embeddings.cpp',
+             'genaiproj/src/tokenmodel.cpp',
+             'genaiproj/src/distributed.cpp',
+             'genaiproj/src/operators.cpp',
+             'genaiproj/src/transformer.cpp',
+             'genaiproj/src/topology.cpp',
+             'genaiproj/src/model.cpp',
+             'genaiproj/src/genai.cpp'],
+    include_dirs=['geneaiproj/src/include'
+                  '/usr/local/Cellar/open-mpi/4.1.5/include',
+                  '/usr/local/Cellar/openblas/0.3.23/include',
+                  '/usr/local/Cellar/pybind11/2.11.1/include',
+                  '/usr/local/Cellar/fmt/10.0.0/include',
+                  '/usr/local/Cellar/spdlog/1.12.0/include',
+                  '/usr/local/opt/sqlite/include',
+                  '/usr/local/Cellar/openssl@3/3.1.1_1/include',
+                  '/usr/local/Cellar/utf8cpp/3.2.3/include',
+                  '/usr/local/Cellar/zeromq/4.3.4/include',
+                  '/usr/local/Cellar/libmemcached/1.0.18_2/include'],
+    extra_compile_args = ['-fopenmp', '-Wall', '-fpermissive', '-fPIC', '-shared', '-mavx', '-mfma', '-DEIGEN_USE_BLAS',  '-DFMT_HEADER_ONLY',
+                    '-DENABLE_DEBUG', '-DENABLE_TRACE', '-DENABLE_WARNING', '-DENABLE_INFO', '-DENABLE_ERROR', '-DERROR_CRITICAL'],
+    libraries=['cblas', 'mpi', 'zmq', 'memcached', 'ssl', 'crypto', 'sqlite3', 'fmt'],
+    library_dirs=['/usr/local/Cellar/openmpi/4.1.5/lib',
+                  '/usr/local/Cellar/openblas/0.3.23/lib',
+                  '/usr/local/Cellar/pybind11/2.11.1/lib',
+                  '/usr/local/Cellar/fmt/10.0.0/lib',
+                  '/usr/local/Cellar/spdlog/1.12.0/lib',
+                  '/usr/local/opt/sqlite/lib',
+                  '/usr/local/Cellar/openssl@3/3.1.1_1/lib',
+                  '/usr/local/Cellar/utf8cpp/3.2.3/lib',
+                  '/usr/local/Cellar/zeromq/4.3.4/lib',
+                  '/usr/local/Cellar/libmemcached/1.0.18_2/lib'],
+)]
+
+# Setup configuration
+setup(
+    name='genai',
+    version='1.0',
+    ext_modules=ext_modules,
+    cmdclass={'build_ext': CMakeBuildExt},
+    zip_safe=False,
+)

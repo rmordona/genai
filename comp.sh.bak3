@@ -1,0 +1,7 @@
+WORKDIR=/Users/raymondordona/Workspace/genaiproj
+rm -rf ${WORKDIR}/build
+mkdir ${WORKDIR}/build
+cd ${WORKDIR}/build
+cmake -DCMAKE_C_COMPILER=/usr/local/bin/gcc-13 -DCMAKE_CXX_COMPILER=/usr/local/bin/g++-13 ${WORKDIR} -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+make VERBOSE=1
+

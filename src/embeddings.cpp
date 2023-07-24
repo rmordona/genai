@@ -431,6 +431,11 @@ void Embeddings::prefetchEmbeddingsToCache() {
 // Update Embeddings in the Database
 void Embeddings::updateEmbeddingsInDatabase(const Eigen::MatrixXd& wordEmbeddings,
                                            const Eigen::VectorXd& wordBiases) {
+
+
+    log_tag("Embeddings");
+    log_info("Updating parameters in Embedding ...");
+
     std::cout << "Updating parameters in Embedding: \n" << wordEmbeddings << std::endl;
     for (const auto& indexTokenPair : this->tokenHashToIndex) {
         const std::string& tokenHash = indexTokenPair.first;

@@ -40,6 +40,12 @@ brew install libmemcached
 
     /usr/local/Cellar/libmemcached/1.0.18_2
 
+
+brew install spdlog
+
+    /usr/local/Cellar/fmt/10.0.0
+    /usr/local/Cellar/spdlog/1.12.0
+
 brew install python3
 
     /usr/local/Cellar/python@3.11/3.11.4_1
@@ -51,5 +57,10 @@ Upgrade pip
 
 /usr/local/bin/pip3 install pybind11
 
+/usr/local/bin/pip3 install numpy
+
+
+brew install cmake
+ /usr/local/Cellar/cmake/3.27.0
 
 

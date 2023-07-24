@@ -69,6 +69,6 @@ for x in tokens:
    for y in x:
       print(y)
 
-tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 20);
+tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 1);
 
 ai.print_string("Done.", True)

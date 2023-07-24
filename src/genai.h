@@ -296,8 +296,8 @@
 #include <algorithm>
 #include <map>
 
-
-
+ 
+ 
 /**************************************************************************************************
   Helper Functions shared by other classes
 **************************************************************************************************/
@@ -314,7 +314,6 @@ double* allocate_matrix(ssize_t rows, ssize_t cols);
 
 namespace py = pybind11;
 using namespace py::literals;
-
 
 #ifndef UTF8ANDSHA_H
 #define UTF8ANDSHA_H
@@ -340,6 +339,120 @@ std::wstring deserializeWString(const std::vector<unsigned char>& bytes);
 std::string sha256(const std::wstring& str);
 
 #endif
+
+/**************************************************************************************************
+  LOGGER Class to handle logging for this module.
+**************************************************************************************************/
+
+#ifndef LOGGER_H
+#define LOGGER_H
+
+#include <spdlog/spdlog.h>
+#include <spdlog/cfg/env.h>  // support for loading levels from the environment variable.
+#include "spdlog/sinks/rotating_file_sink.h"
+#include <unistd.h>
+
+namespace spd = spdlog;
+
+class LOGGER {
+private:
+    std::shared_ptr<spdlog::logger> log;
+public:
+    std::string filename = "spdlog.log";
+    LOGGER () {
+
+        char buffer[PATH_MAX];
+        if (getcwd(buffer, sizeof(buffer))) {
+            std::cout << "Current Directory: " << buffer << std::endl;
+        } else {
+            std::cerr << "Error: Unable to get the current directory." << std::endl;
+        }
+
+        auto maxSize = 1048576 * 10; // 10 megabytes 
+        auto maxRotate = 2; // 2 rotation files only
+        log = spd::rotating_logger_mt("LOGGER", filename, maxSize, maxRotate );
+
+        spd::set_level(spd::level::debug);
+
+        log->info("Initializing LOGGER ....");
+    }
+
+    ~LOGGER () {
+        // Flush the log
+        spd::shutdown();
+    }
+
+    void trace(const std::string& msg) { log->trace(msg); }
+
+    void debug(const std::string& msg) { log->debug(msg); }
+
+    void warn(const std::string& msg) { log->warn(msg); }
+
+    // Variadic function Template for info
+    template <typename T, typename ...P>
+    void info(T &&format, P &&... params)
+    {
+        std::string msg = fmt::format(std::forward<T>(format), std::forward<P>(params)...);
+        log->info(msg);
+    }
+
+
+    void error(const std::string& msg) { log->error(msg); }
+
+    void critical(const std::string& msg) { log->critical(msg); }
+
+    void set_tag(const std::string& msg) { } //  log->set_tag(msg); }
+
+};
+
+extern LOGGER* ai_log;
+
+#define log_tag(msg) ai_log->set_tag(msg);
+
+#ifdef ENABLE_TRACE
+#define log_trace(msg) ai_log->trace(msg);
+#else
+#define log_trace(msg)  
+#endif
+
+#ifdef ENABLE_DEBUG
+#define log_debug(msg)  ai_log->debug(msg);
+#else
+#define log_debug(msg)  
+#endif
+
+#ifdef ENABLE_WARNING
+#define log_warning(msg)  ai_log->warn(msg);
+#else
+#define log_warning(msg)  
+#endif
+
+#ifdef ENABLE_INFO
+
+#define info_tag() ai_log->set_tag(__FUNCTION__);
+#define log_info(msg)  ai_log->info(msg);
+#else
+#define info_tag()
+#define log_info(msg)  
+#endif
+
+#ifdef ENABLE_ERROR
+#define log_error(msg)  ai_log->error(msg);
+#else
+#define log_error(msg)  
+#endif
+
+#ifdef ENABLE_CRITICAL
+#define log_critical(msg)  ai_log->critical(msg);
+#else
+#define log_critical(msg)  
+#endif
+
+// extern LOG
+
+
+#endif
+
 
 #ifndef OPERATORS_H
 #define OPERATORS_H

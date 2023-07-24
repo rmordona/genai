@@ -78,7 +78,10 @@ your system carefully to ensure efficient and reliable communication and paralle
 exploring other distributed computing frameworks or platforms (e.g., Apache Spark, Dask) that provide more integrated 
 solutions for both parallel computing and distributed communication.
 ******************************************************************************************************************************/
- #include <genai.h>
+#include <genai.h>
+
+namespace py = pybind11;
+using namespace py::literals;
 
 const int NUM_REPLICAS = 3;
 
