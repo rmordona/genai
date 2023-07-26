@@ -347,12 +347,18 @@ std::string sha256(const std::wstring& str);
 #ifndef LOGGER_H
 #define LOGGER_H
 
+// #define FMT_COMPILE // Add this macro before including fmt/format.h
+#include <fmt/format.h>  // To support Eigen::MatrixXd and Eigen::VectorXd.
+
 #include <spdlog/spdlog.h>
 #include <spdlog/cfg/env.h>  // support for loading levels from the environment variable.
-#include "spdlog/sinks/rotating_file_sink.h"
+#include <spdlog/sinks/rotating_file_sink.h>
+
 #include <unistd.h>
 
 namespace spd = spdlog;
+
+
 
 class LOGGER {
 private:
@@ -382,20 +388,68 @@ public:
         spd::shutdown();
     }
 
+    // Variadic function Template for logging
+    template <typename T, typename ...P>
+    void logging(const std::string& ltype, T &&format, P &&... params)
+    {
+        std::string msg = fmt::format(std::forward<T>(format), std::forward<P>(params)...);
+        if (ltype == "INFO")     { log->info(msg); } else
+        if (ltype == "INFO_INDENT")     { log->info(msg); } else
+        if (ltype == "TRACE")    { log->trace(msg); } else
+        if (ltype == "DEBUG")    { log->debug(msg); } else
+        if (ltype == "WARN")     { log->warn(msg); } else
+        if (ltype == "ERROR")    { log->error(msg); } else
+        if (ltype == "CRITICAL") { log->critical(msg); };
+    }
+
+    // Helper function to log Eigen::Matrix and Eigen::Array
+    template <typename Derived>
+    std::string loggingEigenMatrix(const Eigen::MatrixBase<Derived>& matrix) {
+        std::stringstream ss;
+        for (Eigen::Index i = 0; i < matrix.rows(); ++i) {
+            ss << "                                          ";
+            for (Eigen::Index j = 0; j < matrix.cols(); ++j) {
+                ss << fmt::format("{: 8.5f} ", matrix(i, j));
+            }
+            ss << '\n';
+        }
+        return ss.str();
+    }
+
+    // Variadic function Template for logging detail
+    template <typename T, typename ...P>
+    void logging_detail(T &&format, P &&... params)
+    {
+        std::string indent = "{:>1}{}";
+        std::string msg = fmt::format(indent, "", fmt::format( std::forward<T>(format), std::forward<P>(params)...));
+        log->info(msg);
+    }
+
+    void eigen_matrix(const Eigen::MatrixXd& mat) {
+        Eigen::MatrixXd tmp_mat = mat;
+        std::string msg = fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
+        log->info(msg);
+    }
+
+    void eigen_vector(const Eigen::VectorXd& vec) {
+        Eigen::VectorXd tmp_vec = vec;
+        std::string msg = fmt::format("{:>1}Vector:\n{}", "", loggingEigenMatrix(tmp_vec));
+        log->info(msg);
+    }
+
+    void eigen_rowvector(const Eigen::RowVectorXd& vec) {
+        Eigen::RowVectorXd tmp_vec = vec;
+        std::string msg = fmt::format("{:>1}Row Vector:\n{}", "", loggingEigenMatrix(tmp_vec));
+        log->info(msg);
+    }
+
+    void info(const std::string& msg) { log->info(msg); }
+
     void trace(const std::string& msg) { log->trace(msg); }
 
     void debug(const std::string& msg) { log->debug(msg); }
 
     void warn(const std::string& msg) { log->warn(msg); }
-
-    // Variadic function Template for info
-    template <typename T, typename ...P>
-    void info(T &&format, P &&... params)
-    {
-        std::string msg = fmt::format(std::forward<T>(format), std::forward<P>(params)...);
-        log->info(msg);
-    }
-
 
     void error(const std::string& msg) { log->error(msg); }
 
@@ -409,43 +463,53 @@ extern LOGGER* ai_log;
 
 #define log_tag(msg) ai_log->set_tag(msg);
 
-#ifdef ENABLE_TRACE
-#define log_trace(msg) ai_log->trace(msg);
+// Example use:   log_info("Logging position: {0} {1}", "this", "message");
+//                log_info("Logging a float: {:3.2f}", 20.5);
+//                log_info("Logging a integer: {:03d}", 345);
+#ifdef ENABLE_INFO
+#define info_tag() ai_log->set_tag(__FUNCTION__);
+#define log_info(...) ai_log->logging("INFO", __VA_ARGS__);  
+#define log_detail(...) ai_log->logging_detail(__VA_ARGS__); 
+#define log_matrix(msg) ai_log->eigen_matrix(msg); 
+#define log_vector(msg) ai_log->eigen_vector(msg); 
+#define log_rowvector(msg) ai_log->eigen_rowvector(msg); 
 #else
-#define log_trace(msg)  
+#define info_tag()
+#define log_info(...)  
+#define log_detail(...)  
+#define log_matrix(msg)
+#define log_vector(msg)
+#define log_rowvector(msg)
+#endif
+
+#ifdef ENABLE_TRACE
+#define log_trace(...) ai_log->logging("TRACE",  __VA_ARGS__); 
+#else
+#define log_trace(...)  
 #endif
 
 #ifdef ENABLE_DEBUG
-#define log_debug(msg)  ai_log->debug(msg);
+#define log_debug(...)  ai_log->logging("DEBUG", __VA_ARGS__); 
 #else
-#define log_debug(msg)  
+#define log_debug(...)  
 #endif
 
 #ifdef ENABLE_WARNING
-#define log_warning(msg)  ai_log->warn(msg);
+#define log_warning(...) ai_log->logging("WARNING",  __VA_ARGS__); 
 #else
-#define log_warning(msg)  
-#endif
-
-#ifdef ENABLE_INFO
-
-#define info_tag() ai_log->set_tag(__FUNCTION__);
-#define log_info(msg)  ai_log->info(msg);
-#else
-#define info_tag()
-#define log_info(msg)  
+#define log_warning(...)  
 #endif
 
 #ifdef ENABLE_ERROR
-#define log_error(msg)  ai_log->error(msg);
+#define log_error(...)  ai_log->logging("ERROR",  __VA_ARGS__); 
 #else
-#define log_error(msg)  
+#define log_error(...)  
 #endif
 
 #ifdef ENABLE_CRITICAL
-#define log_critical(msg)  ai_log->critical(msg);
+#define log_critical(...)  ai_log->logging("CRITICAL",  __VA_ARGS__); 
 #else
-#define log_critical(msg)  
+#define log_critical(...)  
 #endif
 
 // extern LOG
@@ -453,11 +517,8 @@ extern LOGGER* ai_log;
 
 #endif
 
-
 #ifndef OPERATORS_H
 #define OPERATORS_H
-
-
 
 struct OperationParams {
     Eigen::MatrixXd weights; // MxW

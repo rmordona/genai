@@ -394,7 +394,7 @@ void Embeddings::prefetchEmbeddingsToCache() {
         sqlite3_close(db);
         return;
     }
-
+ 
     // Fetch and store embeddings in the dynamic embeddings data structure
     // Also create a token hash index structure for fast lookup
     int currentIndex = 0;

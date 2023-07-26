@@ -47,8 +47,8 @@ NodeType Node::nodeType() {
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 void Node::setData(py::array_t<double> embedding) {
 
-    std::cout << "create Node 1 for node " << this->name << " ...\n";
-    std::cout << embedding << "\n";
+    log_info("=================");
+    log_info( "Setting Data ..." );
 
     // Convert values to C++ array
     py::buffer_info values_info = embedding.request();
@@ -58,8 +58,8 @@ void Node::setData(py::array_t<double> embedding) {
     // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
     this->input_data = Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, v_rows, v_cols);
 
-    std::cout << "create Node 2 for node " << this->name << " ...\n";
-    std::cout << input_data << "\n";
+    log_detail( "Input Data For Node Name: {0}", this->name );
+    log_matrix( input_data );
 }
 
 Eigen::MatrixXd Node::getInput() {
@@ -115,34 +115,36 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
     // start with any input_data we keep.
     Eigen::MatrixXd output = input_data;
     // Now add any output data from any source Node that connects to this node.
-    std::cout << "Aggregating Data ...\n";
+
+    log_info( "====================" );
+    log_info( "Aggregating Data ..." );
 
     if (inputs.size() == 0) {
         return input_data;
     }
 
-    std::cout << "Getting size of node input: " << output.size() << " \n";
+    log_detail( "Getting size of node input: {0}", output.size() );
 
     for (Node* node : inputs) {
         Eigen::MatrixXd outputx = node->getOutput();
-        std::cout << "Getting size of node [" << node->getName() << "] output: " << outputx.size() << " \n";
+        log_detail( "Getting size of node [{0}] output: {1}", node->getName(), outputx.size() );
         std::cout << outputx << "\n";
         if (output.size() == 0) {
             output = outputx;
             continue;
         }
         if (reduce == "add" || reduce == "avg") {
-            std::cout << "Aggregating Data by add or average ...\n";
+            log_detail( "Aggregating Data by add or average ..." );
             // change to use more efficient element-wise function which uses GPU/TPU.
             output = output.array() + outputx.array();
         } else
         if (reduce == "mul") {
-            std::cout << "Aggregating Data by mul ...\n";
+            log_detail( "Aggregating Data by mul ..." );
             // change to use more efficient element-wise function which uses GPU/TPU.
             output = output.array() * outputx.array();
         } else
         if (reduce == "matmul") {
-            std::cout << "Aggregating Data by matmul ...\n";
+            log_detail(  "Aggregating Data by matmul ..." );
             // uses cblas_dgemm
             output = BaseOperator::matmul(output, outputx);
         }
@@ -150,11 +152,13 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
     }
     if (reduce == "avg") {
         // change to use more efficient element-wise function which uses GPU/TPU.
-        std::cout << "Aggregating Data by average ...\n";
+        log_detail( "Aggregating Data by average ..." );
         output = output.array() / inputs.size();
     }
-    std::cout << "Aggregated ...\n";
-    std::cout << output << "\n";
+
+    log_detail( "Aggregated output:" );
+    log_matrix( output );
+
     return output;
 }
 
@@ -201,8 +205,12 @@ void Node::propagateGradients(Eigen::MatrixXd& gradients) {
 Eigen::MatrixXd Node::forwardPass() {
     // Propagate forward data to connected nodes
     int size = operations.size();
-    print_string(name + " forward pass ...", true);
-    std::cout << " operation size: " << size << "\n";
+
+    log_info( "**************************************" );
+    log_info( "***      Node Forward Pass  **********" );
+    log_info( "**************************************" );
+
+    log_detail("Node: {0} Size: {1}", name, size);
 
     // See if we can perform reduction.
     Eigen::MatrixXd output = aggregateData(input_data);
@@ -210,37 +218,37 @@ Eigen::MatrixXd Node::forwardPass() {
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
         if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
-            print_string("Linear object", true);
+            log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, size);
             output = linear->forward(output);
             std::cout << output << std::endl;
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
-            print_string("Batchnorm object", true);
+            log_detail("Node [{0}] Batch Normal Operation (Forward Pass)", name );
             output = batchnorm->forward(output);
             std::cout << output << std::endl;
         } else            
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
-            print_string("Layernorm object", true);
+            log_detail("Node [{0}] Layer Normal Operation (Forward Pass)", name );
             output = layernorm->forward(output);
             std::cout << output << std::endl;
         } else           
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
-            print_string("Activate object", true);
+            log_detail("Node [{0}] Activation Operation (Forward Pass)", name );
             output = activate->forward(output);
             std::cout << output << std::endl;
         } else           
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
-            print_string("Attention object", true);
+            log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
             output = attention->forward(output);
             std::cout << output << std::endl;
         } else           
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
-            print_string("FeedForward object", true);
+            log_detail("Node [{0}] FeedForward Operation (Forward Pass)", name );
             output = feedforward->forward(output);
             std::cout << output << std::endl;
         } else           
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
-            print_string("Encoder object", true);
+            log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
             output = encoder->forward(output);
             std::cout << output << std::endl;
         }
@@ -252,8 +260,12 @@ Eigen::MatrixXd Node::forwardPass() {
 void Node::backwardPass() {
     // Propagate backward gradients to connected nodes
     int size = operations.size();
-    print_string(name + " backward pass ...", true);
-    std::cout << " operation size: " << size << "\n";
+
+    log_info( "**************************************" );
+    log_info( "***     Node Backward Pass  **********" );
+    log_info( "**************************************" );
+
+    log_detail("Node: {0} Size: {1}", name, size);
 
     // Create a copy of the original vector
     std::vector<std::shared_ptr<BaseOperator>> reversedOperations = operations;
@@ -265,45 +277,47 @@ void Node::backwardPass() {
     // through setGradients or propagatGradients.
     for (const auto& op : reversedOperations ) {
         if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
-            print_string("Linear object", true);
+            log_detail("Node [{0}] Linear Operation (Backward Pass)", name );
             dInput = linear->backward(dInput);
             std::cout << dInput << std::endl;
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
-            print_string("Batchnorm object", true);
+            log_detail("Node [{0}] Batch Normal Operation (Backward Pass)", name );
             dInput = batchnorm->backward(dInput);
             std::cout << dInput << std::endl;
         } else            
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
-            print_string("Layernorm object", true);
+            log_detail("Node [{0}] Layer Normal Operation (Backward Pass)", name );
             dInput = layernorm->backward(dInput);
             std::cout << dInput << std::endl;
         } else           
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
-            print_string("Activate object", true);
+            log_detail("Node [{0}] Activation Operation (Backward Pass)", name );
             dInput = activate->backward(dInput, this->output_data);
             std::cout << dInput << std::endl;
         } else           
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
-            print_string("Attention object", true);
+            log_detail("Node [{0}] Attention Operation (Backward Pass)", name );
             dInput = attention->backward(dInput);
             std::cout << dInput << std::endl;
         } else           
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
-            print_string("FeedForward object", true);
+            log_detail("Node [{0}] Feedforward Operation (Backward Pass)", name );
             dInput = feedforward->backward(dInput);
             std::cout << dInput << std::endl;
         } else           
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
-            print_string("Encoder object", true);
+            log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = encoder->backward(dInput);
             std::cout << dInput << std::endl;
         } 
     }
 
     // Propagate gradients to next nodes.
-    std::cout << "This node: " << this->getName() << " propagating ...\n";
-    std::cout << dInput << "\n";
+
+    log_detail("Node [{0}] Propagating Gradient", name );
+    log_matrix( dInput );
+
     propagateGradients(dInput);
 
     // Reinitialize dInput for next EPOCH, as long as parameter gradients have been preserved.
@@ -313,31 +327,37 @@ void Node::backwardPass() {
 
 
 void Node::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
-    std::cout << "************************************ Node: " << this->getName() << " ...\n";
+
+    log_info( "*****************************************" );
+    log_info( "***     Node Parameter Update  **********" );
+    log_info( "*****************************************" );
+
+    log_detail("Node: {0}", name );
+
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
         if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
-            print_string("Linear object", true);
+            log_detail("Node [{0}] Linear Operation (Update Params)", name );
             linear->updateParameters(optimizertype, learningRate, iter);
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
-            print_string("Batchnorm object", true);
+            log_detail("Node [{0}] Barch Normal Operation (Update Params)", name );
             batchnorm->updateParameters(optimizertype, learningRate, iter);
         } else            
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
-            print_string("Layernorm object", true);
+            log_detail("Node [{0}] Layer Normal Operation (Update Params)", name );
             layernorm->updateParameters(optimizertype, learningRate, iter);
         } else            
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
-            print_string("Attention object", true);
+            log_detail("Node [{0}] Attention Operation (Update Params)", name );
             attention->updateParameters(optimizertype, learningRate, iter);
         } else            
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
-            print_string("FeedForward object", true);
+            log_detail("Node [{0}] Feedforward Operation (Update Params)", name );
             feedforward->updateParameters(optimizertype, learningRate, iter);
         } else            
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
-            print_string("Encoder object", true);
+            log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             encoder->updateParameters(optimizertype, learningRate, iter);
         }
     }
@@ -407,6 +427,11 @@ void Graph::connect(std::vector<Node*> from_nodes, Node* to, std::vector<std::sh
 }
 
 void Graph::addConnection(Connection* connection) {
+
+    log_info( "***************************************" );
+    log_info( "***    Graph Add Connection  **********" );
+    log_info( "***************************************" );
+
     connections.push_back(connection);
     Node* from = connection->getSource();
     Node* to = connection->getDestination();
@@ -416,8 +441,9 @@ void Graph::addConnection(Connection* connection) {
     to->addInput(from);
     from->addOutput(to);
 
-    std::cout << "Adding Connection\n";
-    std::cout << "Nodes size:" << nodes.size() << "\n";
+    log_detail( "Source Node: {0}", from->getName() );
+    log_detail( "Destination Node: {0}", to->getName() );
+   // log_detail( "Number of Nodes: {:d}", nodes.size() );
 }
 
 std::vector<Node*> Graph::getNodes() {
@@ -426,12 +452,15 @@ std::vector<Node*> Graph::getNodes() {
 
 // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
 Eigen::MatrixXd Graph::forwardPropagation() {
+
     std::queue<Node*> q;
     std::unordered_map<Node*, int> indegree_(indegree); 
 
-    std::cout << "Entering Forward Pass.\n";
+    log_info( "***************************************" );
+    log_info( "*****    Graph Forward Pass  **********" );
+    log_info( "***************************************" );
 
-    std::cout << "Size:" << getNodes().size() << "\n";
+    log_detail( "Number of Nodes: {0}", getNodes().size() );
 
     for (Node* node : nodes) {
         if (indegree[node] == 0) {
@@ -439,26 +468,20 @@ Eigen::MatrixXd Graph::forwardPropagation() {
         }
     }
 
-    std::cout << "Collecting nodes for the queue.\n";
-    std::cout << "Size of queue: " << q.size() << "\n";
+    log_detail( "Graph: Collecting nodes for the queue." );
+    log_detail( "Size of queue: {0}",  q.size() );
 
     Eigen::MatrixXd output(0, 0);
 
-    std::cout << "Entering Queue Loop.\n";
+    log_detail(  "Graph: Entering Queue Loop." );
 
     while (!q.empty()) {
         Node* node = q.front();
         q.pop();
 
-        // Eigen::MatrixXd input_data = node->getInput();
+        log_detail( "*** Graph: Entering forward pass for {0} ****", node->name );
 
-        std::cout << "*** Entering forward pass for " << node->name << " **** \n";
-
-            // output = node->forwardPass(input_data);     
         output = node->forwardPass();     
-
-        std::cout << "Processing completed for node [" << node->name << "]\n";
-        // std::cout << output << std::endl;
 
         for (Connection* connection : connections) {
             if (connection->getSource() == node) {
@@ -477,7 +500,7 @@ Eigen::MatrixXd Graph::forwardPropagation() {
         }
     }
 
-    std::cout << "Forward Processing completed for all nodes.\n";
+    log_detail( "Graph: forward pass completed for all nodes." );
 
     return output;
 }
@@ -486,9 +509,11 @@ Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
     std::queue<Node*> q;
     std::unordered_map<Node*, int> outdegree_(outdegree); 
 
-    std::cout << "\n\nEntering Backward Pass ***************************************\n";
+    log_info( "***************************************" );
+    log_info( "*****    Graph Backward Pass  *********" );
+    log_info( "***************************************" );
 
-    std::cout << "Size:" << getNodes().size() << "\n";
+    log_detail( "Number of Nodes:", getNodes().size() );
 
     for (Node* node : nodes) {
         if (outdegree[node] == 0) {
@@ -497,21 +522,19 @@ Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
         }
     }
 
-    std::cout << "Collecting nodes for the queue.\n";
-    std::cout << "Size of queue: " << q.size() << "\n";
+    log_detail( "Collecting nodes for the queue." );
+    log_detail( "Size of queue: {0}", q.size() );
 
-    std::cout << "Entering Queue Loop.\n";
+    log_detail( "Entering Queue Loop." );
 
     while (!q.empty()) {
         Node* node = q.front();
         q.pop();
 
-        std::cout << "*** Entering backward pass for " << node->name << " **** \n";
+        log_detail( "*** Graph: Entering backward pass for {0} ****", node->name );
 
         // Compute gradients for the node
         node->backwardPass();
-
-        std::cout << "Processing completed for node [" << node->name << "]\n";
 
         for (Connection* connection : connections) {
             if (connection->getDestination() == node) {
@@ -530,31 +553,53 @@ Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
         }
     }
 
-    std::cout << "Backward Processing completed for all nodes.\n";
+    log_detail( "Graph: backward pass completed for all nodes." );
 
     return gradients;
 }
 
 Eigen::MatrixXd Graph::computeLoss(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+
+    log_info( "***************************************************" );
+    log_info( "*****    Graph: Processing Loss Function  *********" );
+    log_info( "***************************************************" );
+
     Loss* obj = new Loss(losstype);
     Eigen::MatrixXd loss = obj->computeLoss(predicted, target);
-    std::cout << "Loss calculated ... \n";
-    std::cout << loss << "\n";
+
+    log_detail( "Loss calculated: " );
+    log_matrix( loss );
+
     return loss;
 }
 
 Eigen::MatrixXd Graph::computeGradients(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+
+    log_info( "*********************************************" );
+    log_info( "*****    Graph: Processing Gradient *********" );
+    log_info( "*********************************************" );
+
     Loss* obj = new Loss(losstype);
     Eigen::MatrixXd gradients = obj->computeGradients(predicted, target);
-    std::cout << "Loss Gradient calculated ... \n";
-    // std::cout << gradients << "\n";
+
+    log_detail( "Loss Gradient calculated ..." );
+    log_matrix( gradients );
+
     return gradients;
 }
 
 void Graph::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+
+    log_info( "*******************************************************" );
+    log_info( "*****    Graph: Processing Parameter Update ***********" );
+    log_info( "*******************************************************" );
+
     for (Node* node: nodes) {
         node->updateParameters(optimizertype, learningRate, iter);
     }
+
+    log_detail( "Graph: parameter update completed for all nodes." );
+
 }
 
 void Graph::nextBatch() {
@@ -568,6 +613,4 @@ void Graph::nextBatch() {
 const std::unordered_map<Node*, int>& Graph::getIndegree() const {
     return indegree;
 }
-
-// };
 

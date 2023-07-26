@@ -13,10 +13,10 @@ class MyModel(ai.BaseModel):
      print("Add Node 1 ...")
      embedding1 = [[1.0, 2.0, 3.0, 4.0], [3.0, 4.0, 5.0, 6.0]]
      node1 = graph.addNode("Node 1", ai.NodeType.Input, embedding1)
-     node1.setOperations([ai.Encoder(heads=2, size=3, bias=True, type="leakyrelu", alpha=0.01)]);
+     # node1.setOperations([ai.Encoder(heads=2, size=3, bias=True, type="leakyrelu", alpha=0.01)]);
      #node1.setOperations([ai.FeedForward(size=2, bias=True, type="leakyrelu", alpha=0.01)]);
      #node1.setOperations([ai.Attention(heads=1, size=2, bias=False), ai.Activation(type="leakyrelu", alpha=0.01)]);
-     #node1.setOperations([ai.Linear(size=2, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
+     node1.setOperations([ai.Linear(size=2, bias=True), ai.BatchNorm(), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 
      print("Add Node 3 ...")
@@ -41,6 +41,6 @@ model = MyModel();
 
 target = [[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]];
 model.setTarget(target);
-model.train(loss="mse", optimizer="adam", learnrate=0.01, iter=200);
+model.train(loss="mse", optimizer="adam", learnrate=0.01, iter=1);
 
 ai.print_string("Done.", True)

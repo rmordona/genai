@@ -11,7 +11,8 @@ def build_cpp_project():
 
 class BuildExt(build_ext):
     def build_extensions(self):
-        self.extensions[0].extra_compile_args.append("-std=c++11")
+        # self.extensions[0].extra_compile_args.append("-std=c++11")
+        self.extensions[0].extra_compile_args.append("-std=gnu++14")
         # self.extensions[0].include_dirs.append("/usr/local/pkg/homebrew/lib/python3.7/site-packages/pybind11/include")
         self.extensions[0].include_dirs.append("/usr/local/Cellar/pybind11/2.11.1/include")
         super().build_extensions()
@@ -19,7 +20,7 @@ class BuildExt(build_ext):
 ext_modules = [
     Extension(
         "genai",
-        sources=["src/embeddings.cpp", "src/tokenmodel.cpp", "src/distributed.cpp","src/operators.cpp", "src/transformer.cpp", "src/topology.cpp", "src/model.cpp", "src/genai.cpp"],
+        sources=["src/operators.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp", "src/distributed.cpp", "src/transformer.cpp", "src/topology.cpp", "src/model.cpp", "src/genai.cpp"],
         include_dirs=['src', 
             # '/usr/local/pkg/homebrew/lib/python3.7/site-packages/pybind11/include',
                     '/usr/local/Cellar/gcc/13.1.0/lib/gcc/current/gcc/x86_64-apple-darwin22/13/include',

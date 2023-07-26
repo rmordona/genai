@@ -271,82 +271,6 @@
 ******************************************************************************************************************************************/
 #include "genai.h"
 
-
-
-// #define SPDLOG_TRACE_ON
-// #define SPDLOG_DEBUG_ON
-
-
-// namespace py = pybind11;
-// using namespace py::literals;
-
-
-/*
-class LibClass
-{
-public:
-  LibClass();
-  ~LibClass();
-
-  static std::string loggerName();
-
-  void testLog();
-
-private:
-  std::shared_ptr<spdlog::logger> m_logger;
-};
-*/
-
-// void registerLogger(std::shared_ptr<spdlog::logger> logger);
-
-/*
-log4cpp::Appender* fileAppender;
-log4cpp::PatternLayout* layout;
-log4cpp::Category* root;
-
-
-void setlogging() {
-    // Create a file appender
-    fileAppender = new log4cpp::FileAppender("fileAppender", "example.log");
-
-    // Create a pattern layout
-    layout = new log4cpp::PatternLayout();
-    layout->setConversionPattern("%d: %p %c: %m%n");
-    fileAppender->setLayout(layout);
-
-    // Get the root logger using a reference
-    root = &log4cpp::Category::getRoot();
-    root->setPriority(log4cpp::Priority::DEBUG);
-
-    // Add the file appender to the root category
-    root->addAppender(fileAppender);
-
-}
-*/
-
-/*
-void setlogging() {
-        // Create a console logger
-    std::shared_ptr<spd::logger> stdout_logger = spd::stdout_color_mt("stdout");
-    spd::set_default_logger(stdout_logger);
-    spd::info("Hello, World!");
-
-    spd::shutdown();
-
-    // auto console_logger = spdlog::stdout_logger_mt("console");
-    console_logger->set_level(spdlog::level::info);
-
-    // Create a file logger
-    auto file_logger = spdlog::basic_logger_mt("file", "log.txt");
-    file_logger->set_level(spdlog::level::trace);
-
-    // Log messages
-    console_logger->info("Hello, this is a console message!");
-    file_logger->trace("This message will be logged to the file only.");
-   
-}
-*/
-
 void log_msg(const std::string& text) {
     std::cout << text << std::endl;
 }
@@ -621,7 +545,7 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
     int rows_a = rows;
     int cols_a = cols;
     int cols_b = cols;
- 
+  
     // Create a new NumPy array with the same shape as the matrix
     // This actually allocates memory.
     py::array_t<double> result({rows, cols});
@@ -641,9 +565,9 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
 
     return result;
 }
-
+ 
 LOGGER* ai_log;
-
+ 
 PYBIND11_MODULE(genai, m) {
     m.doc() = "Example C++ module for Python";
 
@@ -651,7 +575,7 @@ PYBIND11_MODULE(genai, m) {
 
     log_tag("GENAI");
     log_info("Loading GenAI module ... ")
-    log_debug("Debugging");
+    log_info("left aligned");
 
     py::enum_<NodeType>(m, "NodeType")
         .value("Input", NodeType::Input)
