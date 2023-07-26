@@ -5,3 +5,12 @@ __pycache__
 data.db
 packages
 eigen
+spdlog.log
+spdlog.1.log
+spdlog.2.log
+spdlog.3.log
+spdlog.4.log
+spdlog.5.log
+spdlog.6.log
+spdlog.7.log
+spdlog.8.log
