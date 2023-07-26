@@ -274,7 +274,7 @@
 void log_msg(const std::string& text) {
     std::cout << text << std::endl;
 }
-
+ 
 double inf() {
     return std::numeric_limits<double>::infinity();
 }

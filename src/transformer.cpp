@@ -166,11 +166,8 @@ Eigen::MatrixXd Attention::backward(Eigen::MatrixXd& gradients) {
 
 
     // Propagate Gradient to the Q,K,V linear operations.
-    // std::cout << " Backprop to Q ...\n";
     Eigen::MatrixXd  QdInput = Q->backward(QdQK);
-    // std::cout << " Backprop to K ...\n";
     Eigen::MatrixXd  KdInput = V->backward(KdQK);
-    // std::cout << " Backprop to V ...\n";
     Eigen::MatrixXd  VdInput = V->backward(VmInput); 
 
     log_detail( " Done Backprop to Q, K, V ..." );
@@ -387,7 +384,7 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
 
     this->N = input_data.rows();
 
-    std::cout << "Size of input:" << this->input_data.size() << "\n";
+    log_detail( "Size of input: {:d}", this->input_data.size() );
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr) {
         LN2 = new LayerNorm(this->W);

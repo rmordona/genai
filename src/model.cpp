@@ -34,8 +34,7 @@ void BaseModel::setGraph(Graph* graph) {
 
     auto mygraph = dynamic_cast<Graph*>(graph);
     this->graph = mygraph;
-    std::cout << "(setGraph) See the size ...\n";
-    std::cout << this->graph->getNodes().size() << " all size account ... \n";
+    log_detail( "SetGraph ... Node count: {:d}", this->graph->getNodes().size() );
 }
 
 void BaseModel::setLoss(std::string& losstype) {
@@ -46,9 +45,6 @@ void BaseModel::setLoss(std::string& losstype) {
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 void BaseModel::setTarget(py::array_t<double> target) {
 
-    std::cout << "Set Target ...\n";
-    std::cout << target << "\n";
-
     // Convert values to C++ array
     py::buffer_info values_info = target.request();
     double* data = static_cast<double*>(values_info.ptr);
@@ -56,8 +52,6 @@ void BaseModel::setTarget(py::array_t<double> target) {
     int v_cols = values_info.shape[1]; // M
     // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
     this->target = Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, v_rows, v_cols);
-
-    std::cout << this->target << "\n";
 }
 
 Eigen::MatrixXd BaseModel::getTarget() {
@@ -77,8 +71,10 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
     this->optimizertype = optimizertype;
     this->learningRate = learnrate;
 
-    std::cout << "(train) See the size ...\n";
-    std::cout << this->graph->getNodes().size() << " all size account ... \n";
+    log_info( "******************************************************************************************" );
+    log_info( "********************************* Start Training *****************************************")
+    log_info( "******************************************************************************************" );
+    log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
     double epsilon = 1e-3;
     double old_loss = inf();
@@ -89,36 +85,36 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
 
     do {
 
-        std::cout << "<<<<<<<<<<<<<<<<<<<<<<<<< **************** Process batch (iteration " << (iter+1) << ") ************* >>>>>>>>>>>>>>>>>>>>>>>>>> \n";
+        log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter + 1) );
         this->graph->nextBatch();
 
-        std::cout << "Entering Forward Propagation ...\n";
+        log_detail( "Entering Forward Propagation ..." );
         predicted = this->graph->forwardPropagation();
 
-        std::cout << "Predicted Result: \n";
-        std::cout << predicted << "\n";
+        log_detail( "Predicted Result" );
+        log_matrix( predicted );
 
-        std::cout << "Compute Loss ...\n";
         loss = this->graph->computeLoss(losstype, predicted, target);
 
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        std::cout << "---------------------------------------------------------------------------------> Loss:" 
+
+        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", loss.array().sum(),  elapsed_seconds.count(), std::ctime(&next_time)  );
+        std::cout << "-------> Compute Loss:" 
                     << loss 
                     << " ... elapsed " <<  elapsed_seconds.count() 
                     << " at " << std::ctime(&next_time) << "\n";
 
-        std::cout << "Compute Gradient ...\n";
+        log_detail( "Compute Gradient ..." );
         gradients = this->graph->computeGradients(losstype, predicted, target);
-        std::cout << gradients << "\n";
+        log_matrix( gradients );
 
-        std::cout << "Entering Backward Propagation ...\n";
+        log_detail( "Entering Backward Propagation ..." );
         gradients = this->graph->backwardPropagation(gradients); 
 
-        std::cout << "\n\n\n";
-        std::cout << "Updating Parameters ...\n";
+        log_detail( "Updating Parameters ..." );
         this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
 
         iter ++;
@@ -129,7 +125,7 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
 
     } while (abs(old_loss - loss(0,0)) > epsilon);
 
-    std::cout << "Training done ...\n";
+    log_detail( "Training done ..." );
 
     // Finalize MPI
     //MPI_Finalize();

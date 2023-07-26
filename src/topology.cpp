@@ -128,7 +128,7 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
     for (Node* node : inputs) {
         Eigen::MatrixXd outputx = node->getOutput();
         log_detail( "Getting size of node [{0}] output: {1}", node->getName(), outputx.size() );
-        std::cout << outputx << "\n";
+        // std::cout << outputx << "\n";
         if (output.size() == 0) {
             output = outputx;
             continue;
@@ -220,37 +220,37 @@ Eigen::MatrixXd Node::forwardPass() {
         if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
             log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, size);
             output = linear->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
             log_detail("Node [{0}] Batch Normal Operation (Forward Pass)", name );
             output = batchnorm->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else            
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Forward Pass)", name );
             output = layernorm->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else           
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
             log_detail("Node [{0}] Activation Operation (Forward Pass)", name );
             output = activate->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else           
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
             output = attention->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else           
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
             log_detail("Node [{0}] FeedForward Operation (Forward Pass)", name );
             output = feedforward->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         } else           
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
             log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
             output = encoder->forward(output);
-            std::cout << output << std::endl;
+            log_matrix( output );
         }
     }
     this->output_data = output;
@@ -279,37 +279,37 @@ void Node::backwardPass() {
         if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
             log_detail("Node [{0}] Linear Operation (Backward Pass)", name );
             dInput = linear->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
             log_detail("Node [{0}] Batch Normal Operation (Backward Pass)", name );
             dInput = batchnorm->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else            
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Backward Pass)", name );
             dInput = layernorm->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else           
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
             log_detail("Node [{0}] Activation Operation (Backward Pass)", name );
             dInput = activate->backward(dInput, this->output_data);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else           
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
             log_detail("Node [{0}] Attention Operation (Backward Pass)", name );
             dInput = attention->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else           
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
             log_detail("Node [{0}] Feedforward Operation (Backward Pass)", name );
             dInput = feedforward->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } else           
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = encoder->backward(dInput);
-            std::cout << dInput << std::endl;
+            log_matrix( dInput );
         } 
     }
 
@@ -443,7 +443,7 @@ void Graph::addConnection(Connection* connection) {
 
     log_detail( "Source Node: {0}", from->getName() );
     log_detail( "Destination Node: {0}", to->getName() );
-   // log_detail( "Number of Nodes: {:d}", nodes.size() );
+    log_detail( "Number of Nodes: {:d}", nodes.size() );
 }
 
 std::vector<Node*> Graph::getNodes() {

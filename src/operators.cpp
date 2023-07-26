@@ -104,8 +104,8 @@ void Optimizer::adam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int c
     int doublePrecision = std::numeric_limits<double>::digits10;
     std::cout.precision(doublePrecision);
 
-    log_detail( "Beta 1 Calculation: {:2.10f}", beta1_t );
-    log_detail( "Beta 2 Calculation: {:2.10f}", beta2_t );
+    log_detail( "Beta 1 Calculation: {:2.10f} based on beta1: {}", beta1_t, beta1 );
+    log_detail( "Beta 2 Calculation: {:2.10f} based on beta2: {}", beta2_t, beta2 );
 
     log_detail( "Calculating: beta1 * moments.array()" );
     log_matrix( beta1 * moments.array() );
@@ -780,7 +780,8 @@ Eigen::MatrixXd LayerNorm::normalize(const Eigen::MatrixXd& input_data) {
 
     setInitialWeights(input_data.rows());
 
-    std::cout << input_data << std::endl;
+    log_detail(" Input Data ...");
+    log_matrix( input_data );
 
     // Calculate layer mean along the M dimension, but along the N dimension.
     Eigen::VectorXd layerMean = input_data.rowwise().mean();
@@ -1096,8 +1097,8 @@ Eigen::MatrixXd Activation::computeActivation(const Eigen::MatrixXd& input_data)
     if (activationtype == "softmax") {
         output = softmax(input_data);
     }
-    std::cout << "Activation output\n";
-    std::cout << output << "\n";
+    log_detail( "Activation output" );
+    log_matrix( output );
     return output; // this becomes input to the next Node or next Layer.
 }
 

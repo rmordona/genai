@@ -374,8 +374,8 @@ public:
             std::cerr << "Error: Unable to get the current directory." << std::endl;
         }
 
-        auto maxSize = 1048576 * 10; // 10 megabytes 
-        auto maxRotate = 2; // 2 rotation files only
+        auto maxSize = 1048576 * 20; // 20 megabytes 
+        auto maxRotate = 5; // 5 rotation files only
         log = spd::rotating_logger_mt("LOGGER", filename, maxSize, maxRotate );
 
         spd::set_level(spd::level::debug);
@@ -592,33 +592,18 @@ class BaseOperator {
 
     static Eigen::MatrixXd softmax(const Eigen::MatrixXd& input_data) {
 
-        std::cout << "Softmax forward ...\n";
-        std::cout << input_data << "\n";
-
         // Find the maximum value in each column of x
         // Required to handle large numbers.
         double maxVal = input_data.maxCoeff();
 
-        std::cout << "maxVal maxCoeff forward ...\n";
-        std::cout << maxVal << "\n";
-
         // Subtract the maximum value from each element in each column of x and compute the exponential
         Eigen::MatrixXd expX = (input_data.array().colwise() - Eigen::ArrayXd::Constant(input_data.cols(), maxVal)).exp();
-
-        std::cout << "expX forward ...\n";
-        std::cout << expX << "\n";
 
         // Compute the sum of exponential values for each row
         Eigen::VectorXd sumExp = expX.rowwise().sum();
 
-        std::cout << "sumExp forward ...\n";
-        std::cout << sumExp << "\n";
-
         // Compute the softmax probabilities by dividing each element in each row by the sum of exponential values
         Eigen::MatrixXd softmax = expX.array() / sumExp.replicate(1,2).array();
-
-        std::cout << "softmax forward ...\n";
-        std::cout << softmax << "\n";
 
         // Return the computed softmax probabilities 
         return softmax;
@@ -639,12 +624,6 @@ class BaseOperator {
 
         Eigen::MatrixXd dInput(N, M);
         dInput.setZero();
-
-        std::cout << "Softmax Gradient \n";
-        std::cout << "N:" << N << "\n";
-        std::cout << "M:" << M << "\n";
-
-        std::cout << gradients << "\n";
 
         for (int i = 0; i < N; ++i) {
             for (int j = 0; j < M; ++j) {
@@ -794,7 +773,6 @@ public:
     Linear(int size, bool bias = true)  {
         this->W = size;
         this->bias = bias;
-        print_string("Linear operation ...", true);
     }
 
     // This assumes that the input is defined with NxM dimensionality.
