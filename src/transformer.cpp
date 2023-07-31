@@ -200,15 +200,37 @@ void Attention::updateParameters(std::string& optimizertype, double& learningRat
     Wo->updateParameters(optimizertype, learningRate, iter);
 }
 
+std::string Attention::generateDotFormat() {   
+    std::string dot = "{* Attention *}|";  
+    if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
+        dot += "{- No training done yet -}";
+    } else {
+        dot += Q->generateDotFormat("Q") + "|";
+        dot += K->generateDotFormat("K") + "|";
+        dot += V->generateDotFormat("V") + "|";
+        dot += Wo->generateDotFormat("Wo");
+    }
+    return dot; 
+}
 
 /*****************************************************************************************************
-* Base Multi-Head Attention Layer
+* Base Multi-Head Attention Layer:
+*
+*   Note:  WE can define efine the dimensions of the tensor using Map instead of the usual Eigen::Tensor<double, 3>
+*    const int T = 4096; // Number of tokens
+*    const int E = 768;  // Embedding size
+*    const int H = 12;   // Number of attention heads
+*
+*    // Create a data array with shape TxExH
+*    double tensorData[T * E * H];
+*
+*    // Map the data array to an Eigen MatrixXd with shape (T * E) x H
+*    Eigen::Map<Eigen::MatrixXd> tensorMap(tensorData, T * E, H);
 *****************************************************************************************************/
-
 // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is NxW and bias is W.
-Eigen::MatrixXd MultiAttention::forward(Eigen::MatrixXd& input_data) { 
+Eigen::MatrixXd MultiHeadAttention::forward(Eigen::MatrixXd& input_data) { 
 
 
     log_info("===============================================");
@@ -238,6 +260,8 @@ Eigen::MatrixXd MultiAttention::forward(Eigen::MatrixXd& input_data) {
 
     std::vector<Eigen::MatrixXd> outputs;
 
+    // We could have just used Eigen::Tensor<double, 3>, but Eigen::Map<Eigen::MatrixXd>
+    // performs similar structure.
     for (int i = 0; i < this->H; i++) {
         splits = this->Dk * this->N * i; 
         Eigen::Map<Eigen::MatrixXd> O(this->input_data.data()+splits, N, Dk);
@@ -245,7 +269,7 @@ Eigen::MatrixXd MultiAttention::forward(Eigen::MatrixXd& input_data) {
         
     }  
 
-    // Perform Forward pass.
+    // Perform Forward pass. This requires  OpenMP or OpenMPI for multi processing.
     for (int i = 0; i < this->H; i++) {
         outputs[i] = M1[i]->forward(outputs[i]);
     }
@@ -272,7 +296,7 @@ Eigen::MatrixXd MultiAttention::forward(Eigen::MatrixXd& input_data) {
 // They will be used to update the parameters in next parallel operations.
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
-Eigen::MatrixXd MultiAttention::backward(Eigen::MatrixXd& gradients) { 
+Eigen::MatrixXd MultiHeadAttention::backward(Eigen::MatrixXd& gradients) { 
 
     log_info("================================================");
     log_info( "Entering Multi-Head Attention Backward Pass ..." );
@@ -280,14 +304,14 @@ Eigen::MatrixXd MultiAttention::backward(Eigen::MatrixXd& gradients) {
     // Propagate Gradient to multihead operations.
     Eigen::MatrixXd  dInput = Eigen::MatrixXd::Zero(gradients.rows(), gradients.cols());
 
-    // Perform MultiAttention backward pass.
+    // Perform MultiHeadAttention backward pass.
     for (int i = 0; i < this->H; i++) {
         dInput += M1[i]->backward(gradients);
     }
     return dInput;
 }
 
-void MultiAttention::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void MultiHeadAttention::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
 
     log_info("=====================================================");
     log_info( "Entering Multi-Head Attention Update Parameters ..." );
@@ -297,6 +321,15 @@ void MultiAttention::updateParameters(std::string& optimizertype, double& learni
     }
 }
 
+std::string MultiHeadAttention::generateDotFormat() {   
+    std::string dot = "{* MultiHeadAttention *}|";  
+    int cnt = 1;
+    for (int i = 1; i < this->H; i++) {
+        dot +=  M1[i]->generateDotFormat();
+        if (++cnt < (int) this->H) { dot += "|"; }
+    }
+    return dot; 
+}
 
 /*****************************************************************************************************
 * Base FeedForward  Layer
@@ -366,6 +399,17 @@ void FeedForward::updateParameters(std::string& optimizertype, double& learningR
 
 }
 
+std::string FeedForward::generateDotFormat() {
+    std::string dot = "{* FeedForward *}|";  
+    if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
+        dot += "{- No training done yet -}";
+    } else {
+        dot +=  L1->generateDotFormat("L1") + "|";
+        dot +=  A1->generateDotFormat() + "|"; 
+        dot +=  L2->generateDotFormat("L2"); 
+    }
+    return dot; 
+}
 
 /*****************************************************************************************************
 * Base Encoder  Layer
@@ -390,7 +434,7 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
         LN2 = new LayerNorm(this->W);
         F1  = new FeedForward(this->W, this->bias, this->activationtype,  this->alpha);
         LN1 = new LayerNorm(this->W); 
-        M1  = new MultiAttention(this->H, this->W);
+        M1  = new MultiHeadAttention(this->H, this->W);
     }
 
     // Perform Linear Transformation.
@@ -495,6 +539,20 @@ void Encoder::updateParameters(std::string& optimizertype, double& learningRate,
     F1->updateParameters(optimizertype, learningRate, iter);
     M1->updateParameters(optimizertype, learningRate, iter);
 
+}
+
+std::string Encoder::generateDotFormat() {
+    std::string dot = "{* Encoder *}|";
+
+    if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {
+        dot += "{- No training done yet -}";
+    } else {
+        dot +=  M1->generateDotFormat() + "|";
+        dot +=  LN1->generateDotFormat("add_norm1") + "|";
+        dot +=  F1->generateDotFormat() + "|";
+        dot +=  LN2->generateDotFormat("add_norm2");
+    }
+    return dot; 
 }
 
 

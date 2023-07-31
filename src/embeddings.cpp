@@ -59,8 +59,6 @@ void Embeddings::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary)
         record.tokenIndex = currentIndex;
         saveVocabulary(record);
 
-        std::wcout << entry.first << L" : ";
-        std::cout << record.hashKey  << " : " << record.vectorValue << std::endl;
         currentIndex++;
     }
 
@@ -70,6 +68,7 @@ void Embeddings::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary)
 void Embeddings::createVectorDB() {
     int rc = sqlite3_open(dbFileName.c_str(), &this->db);
     if (rc) {
+        log_warning( "Error opening database: {}", sqlite3_errmsg(this->db) );
         std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
         sqlite3_close(this->db);
     }
@@ -86,6 +85,7 @@ void Embeddings::createVectorTable() {
     char* errorMsg;
     int rc = sqlite3_exec(this->db, createTableSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
+        log_warning( "SQL error: {}", errorMsg );
         std::cerr << "SQL error: " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
     }
@@ -103,6 +103,7 @@ void Embeddings::createVocabularyTable() {
     char* errorMsg;
     int rc = sqlite3_exec(this->db, createTableSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
+        log_warning( "SQL error: {}", errorMsg );
         std::cerr << "SQL error: " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
     }
@@ -111,6 +112,7 @@ void Embeddings::createVocabularyTable() {
 
     rc = sqlite3_exec(this->db, createIndexSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
+        log_warning( "SQL error: {}", errorMsg );
         std::cerr << "SQL error: " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
     }
@@ -126,6 +128,7 @@ void Embeddings::saveVocabulary(const Record& record) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, insertSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
+        log_warning( "Error preparing statement: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
@@ -139,6 +142,7 @@ void Embeddings::saveVocabulary(const Record& record) {
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
+        log_warning( "Error inserting data: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error inserting data: " << sqlite3_errmsg(this->db) << std::endl;
     }
 
@@ -153,6 +157,7 @@ void Embeddings::saveEmbeddings(const Record& record) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, insertSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
+        log_warning( "Error preparing statement: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
         return;
     }
@@ -168,6 +173,7 @@ void Embeddings::saveEmbeddings(const Record& record) {
 
     rc = sqlite3_step(stmt);
     if (rc != SQLITE_DONE) {
+        log_warning( "Error inserting data: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error inserting data: " << sqlite3_errmsg(this->db) << std::endl;
     }
 
@@ -182,6 +188,7 @@ bool Embeddings::retrieveEmbeddings(const std::string& hashKey, Record& record) 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
+        log_warning( "Error preparing statement: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
         return false;
     }
@@ -218,6 +225,7 @@ bool Embeddings::retrieveVocabulary(const std::wstring& token, Record& record) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
+        log_warning( "Error preparing statement: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
         return false;
     }
@@ -249,6 +257,7 @@ bool Embeddings::isInVocabulary(const std::wstring& token) {
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
+        log_warning( "Error preparing statement: {}", sqlite3_errmsg(this->db));
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
         return false;
     }
@@ -290,7 +299,10 @@ void Embeddings::initializeVectorandVocabMetadata(std::unordered_map<std::wstrin
 // Cross Reference Vocabulary between memory and DB
 // Sync in-memory vocab into DB.
 void Embeddings::crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary) {
-    std::wcout << L"Cross-reference Vocabulary: " << std::endl;
+
+    log_info( "===============================================================" );
+    log_info( "Entering Cross Reference of Vocabulary between DB and Cache ..." );
+
     this->vocab = vocabulary;
     for (const auto& entry : this->vocab) {
         Record record;
@@ -301,7 +313,7 @@ void Embeddings::crossReferenceVocabularyinDBandCache(std::unordered_map<std::ws
         }
         record.token = entry.first;
         saveVocabulary(record);
-        std::wcout << record.token << L" : " << record.frequency << std::endl;
+        log_wdetail( "{} {:d}", wstringToUtf8(record.token).c_str(), record.frequency );
     }
 }
 
@@ -310,6 +322,8 @@ void Embeddings::prefetchVocabularyToCache(const std::vector<std::vector<std::ws
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
     // with columns "token_hash" (INTEGER) and "embedding" (BLOB)
 
+    log_info( "===============================================" );
+    log_info( "Entering Prefetching of Vocabulary to Cache ..." );
 
     // Open the database and prepare the query
     sqlite3* db;
@@ -317,6 +331,8 @@ void Embeddings::prefetchVocabularyToCache(const std::vector<std::vector<std::ws
     int rc = sqlite3_open(dbFileName.c_str(), &db);
     if (rc != SQLITE_OK) {
         // Handle database open error
+        log_warning( "Error opening database: {}", sqlite3_errmsg(this->db) );
+        std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
         return;
     }
 
@@ -335,6 +351,7 @@ void Embeddings::prefetchVocabularyToCache(const std::vector<std::vector<std::ws
     rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
         // Handle query execution error
+        log_warning( "No vocabulary found ..." );
         sqlite3_close(db);
         return;
     }
@@ -363,12 +380,17 @@ void Embeddings::prefetchEmbeddingsToCache() {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
     // with columns "token_hash" (INTEGER) and "embedding" (BLOB)
 
+    log_info( "==============================================" );
+    log_info( "Entering Prefetching of Embedding to Cache ...");
+
     // Open the database and prepare the query
     sqlite3* db;
     sqlite3_stmt* stmt;
     int rc = sqlite3_open(dbFileName.c_str(), &db);
     if (rc != SQLITE_OK) {
         // Handle database open error
+        log_warning( "Error opening database: {}", sqlite3_errmsg(this->db) );
+        std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
         return;
     }
 
@@ -384,13 +406,11 @@ void Embeddings::prefetchEmbeddingsToCache() {
     query.pop_back(); // Remove the last comma
     query += ");";
 
-    std::cout << "query: " << query << std::endl;
-
     // Execute the query and fetch the embeddings
     rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
         // Handle query execution error
-        std::cout << "No embeddings found ..." << std::endl;
+        log_warning( "No embeddings found ..." );
         sqlite3_close(db);
         return;
     }
@@ -434,9 +454,11 @@ void Embeddings::updateEmbeddingsInDatabase(const Eigen::MatrixXd& wordEmbedding
 
 
     log_tag("Embeddings");
-    log_info("Updating parameters in Embedding ...");
+    log_info( "==========================================" );
+    log_info( "Entering Parameter Update in Embedding ...");
 
-    std::cout << "Updating parameters in Embedding: \n" << wordEmbeddings << std::endl;
+    log_detail( "Word Embeddings" );
+    log_matrix( wordEmbeddings );
     for (const auto& indexTokenPair : this->tokenHashToIndex) {
         const std::string& tokenHash = indexTokenPair.first;
         int index = indexTokenPair.second;

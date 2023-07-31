@@ -337,6 +337,36 @@ std::wstring deserializeWString(const std::vector<unsigned char>& bytes);
 
 // Function to hash a given word token using SHA256
 std::string sha256(const std::wstring& str);
+ 
+#endif
+
+#ifndef OUTPUTFORMATTER_H
+#define OUTPUTFORMATTER_H
+
+class PythonStream {
+public:
+    PythonStream() {}
+
+    template <typename T>
+    PythonStream& operator<<(const T& value) {
+        buffer_ << value;
+        return *this;
+    }
+
+    PythonStream& operator<<(std::ostream& (*func)(std::ostream&)) {
+        if (func == static_cast<std::ostream& (*)(std::ostream&)>(std::endl)) {
+            py::print(buffer_.str());
+            buffer_.str("");
+        }
+        return *this;
+    }
+
+private:
+    std::stringstream buffer_;
+};
+
+// Declare an extern instance of PythonStream
+extern PythonStream py_cout;
 
 #endif
 
@@ -409,7 +439,7 @@ public:
         for (Eigen::Index i = 0; i < matrix.rows(); ++i) {
             ss << "                                          ";
             for (Eigen::Index j = 0; j < matrix.cols(); ++j) {
-                ss << fmt::format("{: 8.5f} ", matrix(i, j));
+                ss << fmt::format("{: 8.8f} ", matrix(i, j));
             }
             ss << '\n';
         }
@@ -423,6 +453,14 @@ public:
         std::string indent = "{:>1}{}";
         std::string msg = fmt::format(indent, "", fmt::format( std::forward<T>(format), std::forward<P>(params)...));
         log->info(msg);
+    }
+
+    template <typename T, typename ...P>
+    void logging_wdetail(T&& format, P&&... params)
+    {
+        std::wstring indent = L"{:>1}{}";
+        std::wstring msg = fmt::format(indent, L"", fmt::format(std::forward<T>(format), std::forward<P>(params)...));
+        log->info(wstringToUtf8(msg));
     }
 
     void eigen_matrix(const Eigen::MatrixXd& mat) {
@@ -470,6 +508,7 @@ extern LOGGER* ai_log;
 #define info_tag() ai_log->set_tag(__FUNCTION__);
 #define log_info(...) ai_log->logging("INFO", __VA_ARGS__);  
 #define log_detail(...) ai_log->logging_detail(__VA_ARGS__); 
+#define log_wdetail(...) ai_log->logging_detail(__VA_ARGS__); 
 #define log_matrix(msg) ai_log->eigen_matrix(msg); 
 #define log_vector(msg) ai_log->eigen_vector(msg); 
 #define log_rowvector(msg) ai_log->eigen_rowvector(msg); 
@@ -477,6 +516,7 @@ extern LOGGER* ai_log;
 #define info_tag()
 #define log_info(...)  
 #define log_detail(...)  
+#define log_wdetail(...)  
 #define log_matrix(msg)
 #define log_vector(msg)
 #define log_rowvector(msg)
@@ -773,6 +813,7 @@ public:
     Linear(int size, bool bias = true)  {
         this->W = size;
         this->bias = bias;
+        log_info( "**** Linear instance created ****" );
     }
 
     // This assumes that the input is defined with NxM dimensionality.
@@ -805,6 +846,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat(const std::string& name = "generic");
 
 };
 
@@ -833,6 +875,7 @@ public:
       // initialize gradients for next iteration.
         dScale.setZero();
         dShift.setZero();
+        log_info( "**** Batch normalization instance created ****" );
     }
 
     // This assumes that the input is defined with NxM dimensionality.
@@ -857,6 +900,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat(const std::string& name = "generic");
 };
 
 class LayerNorm : public BaseOperator {
@@ -883,6 +927,7 @@ public:
       // initialize gradients for next iteration.
         dScale.setZero();
         dShift.setZero();
+        log_info( "**** Layer normalization instance created ****" );
     }
 
     // This assumes that the input is defined with NxM dimensionality.
@@ -907,6 +952,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat(const std::string& name = "generic");
 };
 
 class Activation : public BaseOperator {
@@ -914,6 +960,8 @@ private:
 
     // Cached data for backpropagation.
     Eigen::MatrixXd input_data; // NxW samples 
+    Eigen::MatrixXd dInput;
+    int N = 0, M = 0; // size of dInput.
 
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
@@ -921,12 +969,19 @@ public:
 
     Activation(const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
+        this->dInput = Eigen::MatrixXd::Zero(0, 0);
+        log_info( "**** Activation instance created ****" );
     }
 
     Activation(const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
+        this->dInput = Eigen::MatrixXd::Zero(0, 0);
+        log_info( "**** Activation instance created ****" );
     }
+
+    //  Resize dInput.
+    void setInitSize(const Eigen::MatrixXd& input_data);
 
     // Here, instead of using the term logits, let's just use x.
     Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& x);
@@ -986,7 +1041,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
-
+    std::string generateDotFormat();
 };
 
 /*****************************************************************************************************
@@ -1073,7 +1128,7 @@ public:
         this->W = size;
         this->H = heads;
         this->bias = bias;
-        print_string("Attention operation ...", true);
+        log_info( "**** Attention instance created ****" );
     }
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
@@ -1091,13 +1146,14 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat();
 
 };
 
 /*****************************************************************************************************
 * Base Multi-Head Attention Layer
 *****************************************************************************************************/
-class MultiAttention : public BaseOperator {
+class MultiHeadAttention : public BaseOperator {
 private:
     Eigen::MatrixXd input_data; // NxW samples, by using & 
     std::vector<Attention*> M1;
@@ -1115,12 +1171,12 @@ private:
     float alpha = 0.01; // for leakyReLU
 
 public:
-    MultiAttention(int heads = 3, int size = 3, bool bias = false)  {
+    MultiHeadAttention(int heads = 3, int size = 3, bool bias = false)  {
         this->W = size;
         this->H = heads;
         this->bias = bias;
         // M1.setZero();
-        print_string("MultiAttention operation ...", true);
+        log_info( "**** MultiHeadAttention instance created ****" );
     }
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
@@ -1138,6 +1194,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat();
 };
 
 /*****************************************************************************************************
@@ -1166,7 +1223,7 @@ public:
         this->activationtype = activationtype;
         this->W = size;
         this->bias = bias;
-        print_string("FeedForward operation ...", true);
+        log_info( "**** FeedForward instance created ****" );
     }
 
     FeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
@@ -1174,7 +1231,7 @@ public:
         this->alpha = alpha;
         this->W = size;
         this->bias = bias;
-        print_string("FeedForward operation ...", true);
+        log_info( "**** FeedForward instance created ****" );
     }
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
@@ -1192,6 +1249,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat();
 };
 
 /*****************************************************************************************************
@@ -1200,7 +1258,7 @@ public:
 class Encoder : public BaseOperator {
 private:
     Eigen::MatrixXd input_data; // NxW samples, by using & 
-    MultiAttention* M1 = nullptr;
+    MultiHeadAttention* M1 = nullptr;
     LayerNorm* LN1 = nullptr;
     FeedForward* F1 = nullptr;
     LayerNorm* LN2 = nullptr;
@@ -1224,7 +1282,7 @@ public:
         this->W = size;
         this->bias = bias;
         this->H = heads;
-        print_string("Encoder operation ...", true);
+        log_info( "**** Encoder instance created ****" );
     }
 
     Encoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
@@ -1233,7 +1291,7 @@ public:
         this->W = size;
         this->bias = bias;
         this->H = heads;
-        print_string("Encoder operation ...", true);
+        log_info( "**** Encoder instance created ****" );
     }
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
@@ -1251,6 +1309,7 @@ public:
 
     void forwardPass() {}
     void backwardPass() {}
+    std::string generateDotFormat();
 };
 
 class Reduction : public BaseOperator {
@@ -1309,6 +1368,7 @@ public:
             input_data.setZero();  
             output_data.setZero();
         }
+        log_info( "**** Node instance created ****" );
     }
 
     std::string getName();
@@ -1352,6 +1412,8 @@ public:
     void backwardPass();
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+
+    std::string generateDotFormat();
 
 
 };
@@ -1420,6 +1482,8 @@ public:
     void nextBatch();
 
     const std::unordered_map<Node*, int>& getIndegree() const;
+
+    std::string generateDotFormat();
 
 };
 
@@ -1565,8 +1629,6 @@ public:
     Eigen::MatrixXd& getWordEmbeddings() { return this->wordEmbeddings; }
     Eigen::VectorXd& getWordBiases() { return this->wordBiases; }
     std::unordered_map<std::string, int>& getTokenIndex() { return this->tokenHashToIndex; }
-
-
 };
 
 #endif
@@ -1681,6 +1743,33 @@ public:
 
     // Train BPE Tokenizer
     void train(const std::vector<std::wstring>& sentences, int numMerges);
+
+};
+
+#endif
+
+#ifndef SCRAPER_H
+#define SCRAPER_H
+
+#include <curl/curl.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
+class Scraper {
+private:
+
+public:
+
+    Scraper() {
+        curl_global_init(CURL_GLOBAL_ALL);
+    }
+
+    ~Scraper() {
+        curl_global_cleanup();
+    }
+
+    size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output);
+    bool crawl(const std::string& url, int depth = 0);
 
 };
 

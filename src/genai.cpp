@@ -271,6 +271,9 @@
 ******************************************************************************************************************************************/
 #include "genai.h"
 
+// Define PY as the static member instance of PythonStream
+PythonStream py_cout;
+
 void log_msg(const std::string& text) {
     std::cout << text << std::endl;
 }
@@ -280,13 +283,15 @@ double inf() {
 }
 
 void print_string(const std::string& text, bool printNextLine) {
+    // std::string xyz = "";
+
     if (printNextLine) {
         py::print(text);
     } else {
         py::print(text, py::arg("end") = "");
     }
 }
-
+ 
 void print_double(double value, bool printNextLine) {
     if (printNextLine) {
         py::print(value);
@@ -574,8 +579,9 @@ PYBIND11_MODULE(genai, m) {
     ai_log = new LOGGER();
 
     log_tag("GENAI");
-    log_info("Loading GenAI module ... ")
-    log_info("left aligned");
+    log_info( "***********************************" );
+    log_info( "******** Loading GenAI module *****" )
+    log_info( "***********************************" );
 
     py::enum_<NodeType>(m, "NodeType")
         .value("Input", NodeType::Input)
@@ -625,7 +631,8 @@ PYBIND11_MODULE(genai, m) {
         .def("connect", (void (Graph::*)(std::vector<Node*>, Node*)) &Graph::connect, "Connects this node to multiple nodes")
         .def("connect", (void (Graph::*)(std::vector<Node*>, Node*, std::vector<std::shared_ptr<BaseOperator>>&)) &Graph::connect, "Connects this node to multiple nodes with functions")
         .def("forwardPropagation", &Graph::forwardPropagation)
-        .def("backwardPropagation", &Graph::backwardPropagation);
+        .def("backwardPropagation", &Graph::backwardPropagation)
+        .def("generateDotFormat", &Graph::generateDotFormat);
 
     py::class_<BaseModel>(m, "BaseModel")
         .def(py::init<>())
@@ -664,7 +671,7 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("heads") = 1,
                 py::arg("size") = 3, py::arg("bias") = true,
                 py::arg("type") = "relu", py::arg("alpha") = 0.01);
-
+ 
     // Definitions for TokenModel APIs
     py::class_<TokenModel, std::shared_ptr<TokenModel>>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&>(), py::arg("losstype") = "mse", py::arg("optimizer") = "adagrad")
@@ -687,6 +694,11 @@ PYBIND11_MODULE(genai, m) {
             py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
         .def("train", (void (BPETokenizer::*)(const std::vector<std::wstring>&, int)) &BPETokenizer::train, 
             py::arg("corpus"), py::arg("merges"), "Train a BPE tokenizer");
+
+    // Definitions for Scraper APIs
+    py::class_<Scraper>(m, "Scraper")
+        .def(py::init<>())
+        .def("crawl", (void (Scraper::*)(std::string&, int)) &Scraper::crawl, py::arg("url"), py::arg("depth") = 0, "Simple crawler");
 
     // Define function to print hello
     m.def("print_string", &print_string, "Print 'string'");

@@ -9,6 +9,7 @@ src/embeddings.cpp
 src/genai.cpp
 src/model.cpp
 src/operators.cpp
+src/scraper.cpp
 src/tokenmodel.cpp
 src/topology.cpp
 src/transformer.cpp

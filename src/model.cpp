@@ -62,6 +62,7 @@ void BaseModel::useCrossEntropy() {
 
 }
 
+
 void BaseModel::train(std::string& losstype, std::string& optimizertype, double learnrate , int itermax) {
 
         // Initialize MPI
@@ -83,6 +84,8 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
 
     auto start_time = std::chrono::system_clock::now();
 
+    py_cout << "Starting Iteration ..." << std::endl;
+
     do {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter + 1) );
@@ -94,18 +97,7 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
         log_detail( "Predicted Result" );
         log_matrix( predicted );
 
-        loss = this->graph->computeLoss(losstype, predicted, target);
-
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-        std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
-        start_time = end_time;
-
-        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", loss.array().sum(),  elapsed_seconds.count(), std::ctime(&next_time)  );
-        std::cout << "-------> Compute Loss:" 
-                    << loss 
-                    << " ... elapsed " <<  elapsed_seconds.count() 
-                    << " at " << std::ctime(&next_time) << "\n";
+        loss = this->graph->computeLoss(losstype, predicted, target); 
 
         log_detail( "Compute Gradient ..." );
         gradients = this->graph->computeGradients(losstype, predicted, target);
@@ -117,11 +109,22 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
         log_detail( "Updating Parameters ..." );
         this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
 
+        // Calculate Time, then display loss
+        auto end_time = std::chrono::system_clock::now();
+        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+        std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
+        start_time = end_time;
+        py_cout << "-------> Compute Loss:";
+        py_cout << loss;
+        py_cout << " ... elapsed " <<  elapsed_seconds.count();
+        py_cout << " at " << std::ctime(&next_time) << std::endl;
+
+        // Also, log the result if Logging INFO is enabled
+        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", loss.array().sum(),  elapsed_seconds.count(), std::ctime(&next_time) );
+
         iter ++;
 
-        if (iter >= itermax) break; 
-
-
+        if (iter >= itermax) break;
 
     } while (abs(old_loss - loss(0,0)) > epsilon);
 

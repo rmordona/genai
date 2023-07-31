@@ -52,10 +52,6 @@ tokenizer.train(corpus = new_corpus1, merges = 10);
 
 tokenizer.train(corpus = new_corpus2, merges = 10);
 
-# tokenizer.printVocabulary(rows=50);
-
-# tokenizer.printWordEmbeddings(rows=50);
-
 
 sentences = [
         "This is the second sentence.",
@@ -65,10 +61,11 @@ tokens = tokenizer.tokenize(sentences);
 
 print("Got the tokens:");
 
-for x in tokens:
-   for y in x:
-      print(y)
 
-tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 1);
+#for x in tokens:
+#   for y in x:
+#      print(y)
+
+tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 100);
 
 ai.print_string("Done.", True)

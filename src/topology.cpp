@@ -359,12 +359,56 @@ void Node::updateParameters(std::string& optimizertype, double& learningRate, in
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             encoder->updateParameters(optimizertype, learningRate, iter);
-        }
+        } 
     }
 }
 
+std::string removeSpace(Node* node) {
+    std::string s = node->getName();
+    s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+    return s;
+}
 
+std::string replaceSpace(Node* node) {
+    std::string nodename = node->getName();
+    std::replace(nodename.begin(), nodename.end(), ' ', '_');
+    return nodename;
+}
 
+std::string Node::generateDotFormat() {
+    std::string nodename = replaceSpace(this);
+    std::string nodelabel = nodename + "_label";
+    std::string dot_ = "";
+    int cnt = 0; 
+    for (const auto& op : operations ) {
+            // Check the dynamic type of the object using dynamic_cast
+        if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
+            dot_ +=  linear->generateDotFormat();
+        } else
+        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
+            dot_ +=  batchnorm->generateDotFormat();
+        } else            
+        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
+            dot_ += layernorm->generateDotFormat();
+        } else               
+        if (auto activation = std::dynamic_pointer_cast<Activation>(op)) {
+            dot_ += activation->generateDotFormat();
+        } else
+        if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
+            dot_ += attention->generateDotFormat();
+        } else            
+        if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
+            dot_ += feedforward->generateDotFormat();
+        } else            
+        if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
+            dot_ += encoder->generateDotFormat();
+        } 
+        if (++cnt < (int) operations.size()) { dot_ += "|"; }
+    }
+    dot_ = nodelabel + " [shape=record, label=\"" + dot_ + "\"]; ";
+    dot_ += nodename + "->" + nodelabel + ";";
+    return dot_;
+}
 
 /*****************************************************************************************************
 * Base Connection Functions
@@ -483,7 +527,7 @@ Eigen::MatrixXd Graph::forwardPropagation() {
 
         output = node->forwardPass();     
 
-        for (Connection* connection : connections) {
+        for (Connection* connection : this->connections) {
             if (connection->getSource() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
@@ -536,7 +580,7 @@ Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
         // Compute gradients for the node
         node->backwardPass();
 
-        for (Connection* connection : connections) {
+        for (Connection* connection : this->connections) {
             if (connection->getDestination() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
@@ -602,6 +646,29 @@ void Graph::updateParameters(std::string& optimizertype, double& learningRate, i
 
 }
 
+std::string Graph::generateDotFormat() {
+    std::string dot = 
+        "digraph G {  node [shape=circle]; rankdir=LR; ";
+
+    for (Node* node: nodes) {
+        dot += removeSpace(node) + "; ";
+    }
+
+    for (Connection* connection : this->connections) {
+        Node *source = connection->getSource();
+        Node *destination = connection->getDestination();
+        std::string edge = removeSpace(source) + "->" + removeSpace(destination) + ";";
+        dot += edge;
+    }
+
+    for (Node* node: nodes) {
+        dot += node->generateDotFormat();
+    }
+
+    dot += "}";
+    return dot;
+}
+
 void Graph::nextBatch() {
     for (Node* node: nodes) {
         if (node->nodeType() == NodeType::Input)  {
@@ -613,4 +680,6 @@ void Graph::nextBatch() {
 const std::unordered_map<Node*, int>& Graph::getIndegree() const {
     return indegree;
 }
+
+
 

@@ -41,6 +41,10 @@ brew install libmemcached
     /usr/local/Cellar/libmemcached/1.0.18_2
 
 
+brew install libxml2
+
+  /usr/local/Cellar/libxml2/2.11.4_1
+
 brew install spdlog
 
     /usr/local/Cellar/fmt/10.0.0

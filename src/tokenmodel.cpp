@@ -184,6 +184,9 @@ std::vector<std::wstring> TokenModel::splitString(const std::wstring& str) {
 std::vector<std::wstring> BPETokenizer::tokenizeCorpus(const std::vector<std::wstring>& corpus) {
     std::vector<std::wstring> tokens;
 
+    log_info( "===========================" );
+    log_info( "Tokenizing into Corpus  ..." );
+
     for (const std::wstring& sentence : corpus) {
         for (auto it = sentence.begin(); it != sentence.end(); ++it) {
             wchar_t ch = *it;
@@ -242,21 +245,23 @@ void BPETokenizer::mergeTokens(std::vector<std::wstring>& tokens, int numMerges)
         for (const auto& entry : pairCounts) {
             // const std::pair<std::wstring, std::wstring>& pair = entry.first;
             int count = entry.second;
-            std::wcout << "  Pairing: " << ( entry.first.first ) << " " << entry.first.second << ":" << entry.second << std::endl;
+            log_wdetail( "Pairing: {} {} :  {:d}", 
+                        wstringToUtf8(entry.first.first).c_str() , 
+                        wstringToUtf8(entry.first.second).c_str() , count );
             if (count > maxCount || count > 2) {
                 maxCount = count;
                 myPair[std::make_pair(entry.first.first, entry.first.second)] = entry.second;
             }
         }
 
-    std::wcout << "Found pair: " << ( maxPair.first + maxPair.second) << " " << maxCount << std::endl;
+        log_wdetail( "Found pair: {} {:d}",  wstringToUtf8( maxPair.first + maxPair.second).c_str(), maxCount );
 
         // If no more frequent pair is found, exit the merge loop
         if (maxCount == 0) {
             break;
         }
  
-    std::wcout << "passed: " << maxCount << std::endl;
+        log_detail( "Max Count found: {:d}",  maxCount );
 
         for (const auto& pair : myPair) {
            const std::pair<std::wstring, std::wstring>& pair_ = pair.first;
@@ -289,6 +294,10 @@ void BPETokenizer::pretrain(const std::vector<std::wstring>& sentences, int numM
 // Function to train the tokenizer on a corpus.
 // This is where we fine-tune the vocabulary.
 void BPETokenizer::train(const std::vector<std::wstring>& sentences, int numMerges) {
+
+    log_info( "=======================================" );
+    log_info( "Entering Training for BPETokenizer  ..." );
+
     buildVocabulary(sentences, numMerges);
     // No need to rebuild the Vector Metadata in DB.
     // We only need to sync new word from sentences to the vocabulary; sort of train new words.
@@ -308,6 +317,9 @@ std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {
     std::vector<std::wstring> tokens;
     std::wstring currentToken;
 
+    log_info( "=================================" );
+    log_info( "Tokenizing a sentence  ..." );
+
     std::vector<std::wstring> words;
     words = splitString(sentence);
 
@@ -316,7 +328,6 @@ std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {
         std::wstring unit = word + TK_SPACE_;
 
         if (embeddings->isInVocabulary(unit)) { 
-        // if (vocabulary.find(unit) != vocabulary.end()) {
             found = true;
             tokens.push_back(unit);
         } else {
@@ -326,7 +337,6 @@ std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {
            for (size_t i = start + 1; i <= end; ++i) {
                std::wstring token = unit.substr(start, end - start);
                if (embeddings->isInVocabulary(token)) {
-               // if (vocabulary.find(token) != vocabulary.end()) {
                    found = true;
                    tokens.push_back(unit);
                }
@@ -346,6 +356,9 @@ std::vector<std::vector<std::wstring>> TokenModel::tokenize(const std::vector<st
     std::vector<std::vector<std::wstring>> corpus;
     std::wstring currentToken;
 
+    log_info( "=================================" );
+    log_info( "Tokenizing Sentences  ..." );
+
     for (const auto& sentence : sentences) {
 
         std::vector<std::wstring> tokens;
@@ -356,7 +369,6 @@ std::vector<std::vector<std::wstring>> TokenModel::tokenize(const std::vector<st
             bool found = false;
             std::wstring unit = word + TK_SPACE_;
             if (embeddings->isInVocabulary(unit)) {
-            // if (vocabulary.find(unit) != vocabulary.end()) {
                 found = true;
                 tokens.push_back(unit);
             } else {
@@ -366,7 +378,6 @@ std::vector<std::vector<std::wstring>> TokenModel::tokenize(const std::vector<st
             for (size_t i = start + 1; i <= end; ++i) {
                 std::wstring token = unit.substr(start, end - start);
                 if (embeddings->isInVocabulary(token)) {
-                // if (vocabulary.find(token) != vocabulary.end()) {
                     found = true;
                     tokens.push_back(unit);
                 }
@@ -409,13 +420,16 @@ void TokenModel::printWordEmbeddings(int rows) {
     }
 }
 
-// Function to train GloVe model. We tokenize a sentence such that the tokenize function
+// Function to train GloVe-like model. We tokenize a sentence such that the tokenize function
 // requires already the existence of the constructed vocabulary.
 void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
                             float learningRate, int maxIterations) {
 
     this->learningRate = learningRate;
     this->maxIterations = maxIterations;
+
+    log_info( "=================================" );
+    log_info( "Entering GloVe-like Training  ..." );
 
     std::vector<std::vector<std::wstring>> corpus = tokenize(sentences);
 
@@ -432,7 +446,9 @@ void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
     int embeddingSize = wordEmbeddings.cols();
     int tokenSize = tokenHashToIndex.size();
 
-    std::cout << "Glove 1: " << vocabSize << "," << embeddingSize << "," << tokenSize << std::endl;
+    log_detail( "Vocabulary Size: {:d}",  vocabSize );
+    log_detail( "Embedding Size: {:d}",  embeddingSize );
+    log_detail( "Token Size: {:d}", tokenSize );
 
     // Initialize Adagrad gradients
     Eigen::MatrixXd adagradGradients = Eigen::MatrixXd::Constant(vocabSize, embeddingSize, 1e-8);
@@ -462,7 +478,6 @@ void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
 
     // Iterate over the corpus in batches
     for (int iteration = 0; iteration < this->maxIterations; ++iteration) {
-        std::cout << "Iteration: " << iteration + 1 << std::endl;
 
         // Initialize the gradients for the batch
          Eigen::MatrixXd batchGradients = Eigen::MatrixXd::Zero(vocabSize, embeddingSize);
@@ -498,16 +513,13 @@ void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
                         int targetIndex = tokenHashToIndex[sha256(targetWord)];
                         int contextIndex = tokenHashToIndex[sha256(contextWord)];
 
-                        std::cout << "Indexes: " << targetIndex << " : " << contextIndex << std::endl;
-
-
                         // Compute the co-occurrence weight
                         float weight = 1.0f / (std::abs(j - k) * 1.0f);
 
                         double dotProduct = (wordEmbeddings.row(targetIndex) * wordEmbeddings.row(contextIndex).transpose()).sum();
                         dotProduct += wordBiases(targetIndex) + wordBiases(contextIndex);
 
-                        // Compute the loss and gradient
+                        // Compute the loss and gradient (based on cross-entropy)
                         double loss = std::pow(dotProduct - std::log(weight), 2.0);
                         double gradient = 2.0 * (dotProduct - std::log(weight));
 
@@ -527,6 +539,8 @@ void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
 
         // Compute the average loss
         double averageLoss = totalLoss / totaliter; 
+
+        log_detail("Average Loss: {:8.10f}", averageLoss );
         std::cout << "Average Loss: " << averageLoss << std::endl;
 
         // Clip the gradients to a specified threshold
@@ -537,25 +551,27 @@ void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
         // Accumulate gradients for Adagrad
         adagradGradients += batchGradients.array().square().matrix();
 
-        std::cout << "Glove 8a \n" <<  (this->learningRate * batchGradients.array()) << std:: endl;
-        std::cout << "Glove 8b \n" <<  batchGradients  << std:: endl;
-        std::cout << "Glove 8c \n" <<  adagradGradients  << std:: endl;
-        std::cout << "Glove 8e \n" <<  (this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt().array())  << std:: endl;
+        log_detail( "Calculation of Gradient (Iteration {}):",  iteration );
+        log_matrix(  (this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt().array())  );
 
-        std::cout << "Before Updating parameters: \n" << wordEmbeddings << std::endl;
+        log_detail( "Updating Parameters (Before image) (Iteration {})...", iteration );
+        log_matrix( wordEmbeddings );
 
         wordEmbeddings.array() -= this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt();
         wordBiases.array() -= this->learningRate * batchBiasGradients.array();
 
-        //std::cout << "Updating parameters in TokenModel: \n" << wordEmbeddings << std::endl;
+        log_detail( "Updated Parameters (After image) (Iteration {})...", iteration );
+        log_matrix( wordEmbeddings );
 
         // Apply regularization
         wordEmbeddings *= (1.0 - this->learningRate * this->regularization);
 
         //std::cout << "Updating parameters in Learning: \n" << wordEmbeddings << std::endl;
 
-        // Checkpointing at every iteration
-        embeddings->updateEmbeddingsInDatabase(wordEmbeddings, wordBiases);
+        // Checkpointing at every 10th iteration
+        if (iteration % 10 == 0 ) {
+            embeddings->updateEmbeddingsInDatabase(wordEmbeddings, wordBiases);
+        }
     }
 }
 

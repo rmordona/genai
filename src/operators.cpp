@@ -502,6 +502,22 @@ void Linear::updateParameters(std::string& optimizertype, double& learningRate, 
     gradients.biases.setZero();
 }
 
+std::string Linear::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Linear Transformation (" + name + ") *}|";  
+    double min_weights = 0.0, max_weights = 0.0;
+    double min_biases = 0.0, max_biases = 0.0;
+    if (this->M != 0) // if weights are already initialized.
+    try {
+        min_weights = parameters.weights.minCoeff();
+        max_weights = parameters.weights.maxCoeff();
+        min_biases = parameters.biases.minCoeff();
+        max_biases = parameters.biases.maxCoeff();
+    } catch (...) {};
+    dot += "{Weights|min=" + std::to_string(min_weights) + "|max=" + std::to_string(max_weights) + "}|";    
+    dot += "{Biases|min=" + std::to_string(min_biases) + "|max=" + std::to_string(max_biases) + "}"; 
+    return dot;
+}
+
 /*****************************************************************************************************
 * Base Batch Normalization Function
 * Suppose we have a sample input represented as a matrix of NxM where N=number of samples
@@ -739,6 +755,22 @@ void BatchNorm::updateParameters(std::string& optimizertype, double& learningRat
     dScale.setZero();
     dShift.setZero();
 
+}
+
+std::string BatchNorm::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Batch Normalization (" + name + ") *}|";  
+    double min_scale = 0.0, max_scale = 0.0;
+    double min_shift = 0.0, max_shift = 0.0;
+    if (this->M != 0) // if weights are already initialized.
+    try {
+        max_scale = scale.maxCoeff();
+        min_scale = scale.minCoeff();
+        max_shift = shift.maxCoeff();
+        min_shift = shift.minCoeff();
+    } catch (...) {};
+    dot += "{Shape|min=" + std::to_string(min_scale) + "|max=" + std::to_string(max_scale) + "}|";
+    dot += "{Shift|min=" + std::to_string(min_shift) + "|max=" + std::to_string(max_shift) + "}";
+    return dot;
 }
 
 
@@ -992,6 +1024,21 @@ void LayerNorm::updateParameters(std::string& optimizertype, double& learningRat
 
 }
 
+std::string LayerNorm::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Layer Normalization (" + name + ") *}|"; 
+    double min_scale = 0.0, max_scale = 0.0;
+    double min_shift = 0.0, max_shift = 0.0;
+    if (this->N != 0) // if weights are already initialized.
+    try {
+        max_scale = scale.maxCoeff();
+        min_scale = scale.minCoeff();
+        max_shift = shift.maxCoeff();
+        min_shift = shift.minCoeff();
+    } catch (...) {};
+    dot += "{Shape|min=" + std::to_string(min_scale) + "|max=" + std::to_string(max_scale) + "}|";
+    dot += "{Shift|min=" + std::to_string(min_shift) + "|max=" + std::to_string(max_shift) + "}";
+    return dot;   
+}
 
 /*****************************************************************************************************
 * Base Activation Functions
@@ -1077,8 +1124,27 @@ Eigen::MatrixXd Activation::geluGradient(const Eigen::MatrixXd& gradients) {
     return 0.5 * (1.0 + (cdf.array() + gradients.array() * pdf.array() + 0.044715 * gradients.array().cube())).matrix();
 }
 
+
+// This assumes that the input is defined with NxM dimensionality.
+// Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
+void Activation::setInitSize(const Eigen::MatrixXd& input_data) {
+
+    // if size is already set, 
+    // it means weights have previously already been set by an initial forward pass
+    if (this->N != 0 || this->M != 0) return;
+
+    this->N = input_data.rows();
+    this->M = input_data.cols();
+
+    // Initialize scaling and shifting parameters   
+    this->dInput.resize(this->N, this->M); // allocates memory
+}
+
 Eigen::MatrixXd Activation::computeActivation(const Eigen::MatrixXd& input_data) { 
     Eigen::MatrixXd output;
+
+    setInitSize(input_data);
+
     if (activationtype == "sigmoid") {
         output = sigmoid(input_data);
     } else
@@ -1127,7 +1193,7 @@ Eigen::MatrixXd Activation::computeGradient(const Eigen::MatrixXd& gradients, co
 
 Eigen::MatrixXd Activation::forward(Eigen::MatrixXd& input_data) { 
 
-    log_info("=====================================");
+    log_info( "=====================================" );
     log_info( "Entering Activation Forward Pass ..." );
 
     // Cache for later back propagation.
@@ -1143,17 +1209,28 @@ Eigen::MatrixXd Activation::forward(Eigen::MatrixXd& input_data) {
 }
 
 Eigen::MatrixXd Activation::backward(const Eigen::MatrixXd& gradient, const Eigen::MatrixXd& output_data) {
-
     log_info("=====================================");
     log_info( "Entering Activation Backward Pass ..." );
 
     // Perform Gradient
-    Eigen::MatrixXd dInput = computeGradient(gradient, output_data);
+    this->dInput = computeGradient(gradient, output_data);
 
     log_detail("Activation Gradient Result" );
-    log_matrix( dInput );
+    log_matrix( this->dInput );
 
-    return dInput; // this becomes input to the next Node or next Layer.
+    return this->dInput; // this becomes input to the next Node or next Layer.
+}
+
+std::string Activation::generateDotFormat() {
+    std::string dot = "{* Activation (" + activationtype + ")*}|";
+    double min_input = 0.0, max_input = 0.0;
+    if (this->N != 0 || this->M != 0) 
+    try {
+       max_input = this->dInput.maxCoeff();
+       min_input = this->dInput.minCoeff();
+    } catch (...) {};
+    dot += "{dInput|min=" + std::to_string(min_input) + "|max=" + std::to_string(max_input) + "}";  
+    return dot;
 }
 
 /*****************************************************************************************************
