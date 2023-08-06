@@ -410,53 +410,11 @@ std::string PolitenessQueueService::getNextSite() {
     }
 }
 
-/*
-// Dequeue and exhaust URLs from a site's queue
-void PolitenessQueueService::processSiteQueue(const std::string& site) {
-    while (true) {
-        std::unique_lock<std::mutex> lock(mutex);
-        condition.wait(lock, [&]() {
-            return !siteQueues[site].empty();
-        });
-
-        if (siteQueues[site].empty()) {
-            break; // Exit the loop if the site queue is empty
-        }
-
-        SiteInfo siteInfo = siteQueues[site].top();
-        siteQueues[site].pop();
-
-        // Unlock the mutex before processing the URL to avoid holding the lock during processing
-        lock.unlock();
-
-        // Process the URL
-        processUrl(siteInfo.url);
-    }
-}
-*/
-
-/*
-SiteInfo PolitenessQueueService::getNextSite() {
-    std::unique_lock<std::mutex> lock(mutex);
-    condition.wait(lock, [this] { return !sitePolitenessQueues.empty(); });
-
-    auto& minSiteQueue = sitePolitenessQueues.top().second;
-
-    SiteInfo site = minSiteQueue.front();
-    minSiteQueue.pop();
-    if (minSiteQueue.empty()) {
-        sitePolitenessQueues.pop();
-    }
-    return site;
-}
-*/
-
 /*************************************************************************************************
 * RouterAgent (RT):
 * - Get the next URLs  from the PriorityQueueService (PrQS) using the getNextUrl() function.
 * - Routes the URLs to the PolitenessQueueService.
 *************************************************************************************************/
-
 void RouterAgent::workerThread(const std::string& identity) {
 
     while (running) {
@@ -486,7 +444,6 @@ void RouterAgent::workerThread(const std::string& identity) {
 * - Selects the next URL to crawl based on the heap and timestamp.
 * - Routes the selected URL to the Crawler.
 *************************************************************************************************/
-
 void SelectorAgent::workerThread() {
     while (running) {
         std::string site;
