@@ -386,8 +386,6 @@ extern PythonStream py_cout;
 
 namespace spd = spdlog;
 
-
-
 class LOGGER {
 private:
     std::shared_ptr<spdlog::logger> log;
