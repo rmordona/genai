@@ -25,7 +25,7 @@
  *
  */
 
- /**************************************************************************************************************************
+/**************************************************************************************************************************
 * Notes:
 *
 * PUB-SUB (Publish-Subscribe): This pattern is not well-suited for a URL frontier because it involves broadcasting 
@@ -72,8 +72,6 @@ a server (replier). It might not be the best fit for a URL frontier where you wa
 * - Selects the next URL to crawl based on the heap and timestamp.
 * - Routes the selected URL to the Crawler.
 **************************************************************************************************************************/
-
-
 
 extern int getPriorityPercentageFromUrl(const std::string& url, int defaultPriorityPercentage);
 
@@ -234,9 +232,9 @@ public:
 
 };
 
-/********************************************************************************************************************
+/*************************************************************************************************
 * Politeness Queue Service
-*********************************************************************************************************************/
+*************************************************************************************************/
 /*************************************************************************************************
 * PolitenessQueueService (PoQS):
 * - Handles the politeness queue functionality for different sites.
@@ -336,19 +334,6 @@ private:
 
 public:
 
-/*
-    RouterAgent(const std::string& priorityQueueAddress, const std::string& politenessQueueAddress)
-        : priorityQueueService(priorityQueueAddress),
-        politenessQueueService(politenessQueueAddress)
-    {
-        routerQueueSocket = zmq::socket_t(context, zmq::socket_type::pull);
-        routerQueueSocket.connect(priorityQueueAddress);
-
-        politenessQueueSocket = zmq::socket_t(context, zmq::socket_type::push);
-        politenessQueueSocket.connect(politenessQueueAddress);
-    }
-*/
-
     // Constructor that takes references to PriorityQueueService and PolitenessQueueService
     RouterAgent(PriorityQueueService& prQueueService, PolitenessQueueService& pqService) 
         : priorityQueueService(prQueueService), politenessQueueService(pqService), running(true) {
@@ -370,15 +355,6 @@ public:
     }
 
     void workerThread(const std::string& identity);
-
-    // Implementation of dequeue from the PriorityQueue
-    // std::string dequeueFromPriorityQueue() ;
-
-    // void routeURLs();
-
-    // Worker thread function
-    // void startWorkerThreads(int numThreads);
-    // void startWorkerThread();
 
 };
  
@@ -438,16 +414,9 @@ private:
     RouterAgent routerAgent;
     SelectorAgent selectorAgent;
 
-
     const int PRIORITY_THRESHOLD = 50; // You can set the desired threshold value here
 
-    // std::thread urlFrontierThread;
-    // std::thread routerThread;
-    // std::thread selectorThread;
-    // std::thread selectorThread;
     std::vector<std::thread> urlFrontierThread;
-    // std::vector<std::thread> routerThreads;
-    // std::vector<std::thread> selectorThreads;
     int numThreads = 2;
 
     std::queue<std::string> urlQueue;  // Declare the urlQueue
@@ -486,11 +455,8 @@ public:
         routerAgent(priorityQueueService, politenessQueueService),
         selectorAgent(politenessQueueService, crawlerService, numThreads)
     {
-        // Start the worker threads for RouterAgent second since this connects to the Push socket for the PoQS
-        // Also this , this binds to Pull sockets for the PrQS
-        // routerAgent.startWorkerThreads(numThreads);
 
-        // Create and start threads for URLFrontier third since this connects to the Push sockets for the PrQS
+        // Create and start threads for URLFrontier  since this connects to the Push sockets for the PrQS
         // Start worker threads for URLFrontier
         startWorkerThreads(numThreads);
 
@@ -498,15 +464,7 @@ public:
 
     // Join the worker threads on destruction. Joining" a thread in C++ means to wait for the thread 
     // to complete its execution before moving on. 
-    ~URLFrontier() {
-
-        // for (std::thread& thread : routerThreads) {
-        //    thread.join();
-        // }
-        // for (std::thread& thread : selectorThreads) {
-        //    thread.join();
-        // }
-    }
+    ~URLFrontier() {}
 
     void setPolitenessDelay(int delayMilliseconds);
 
