@@ -530,7 +530,6 @@ void SelectorAgent::processSite(std::string& site) {
 * - Calculates the priority percentage of a URL using getPriorityPercentageFromUrl. 
 * - Enqueues the URL to the PriorityQueueService using the enqueue function.
 *************************************************************************************************/
-
 // Set the politeness delay
 void URLFrontier::setPolitenessDelay(int delayMilliseconds) {
     if (delayMilliseconds >= 0) {
@@ -602,7 +601,6 @@ void URLFrontier::startWorkerThread() {
         processUrl(url);
     }
 }
-
 
 /*
 

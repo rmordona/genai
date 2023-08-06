@@ -399,7 +399,6 @@ private:
     std::condition_variable condition;
     size_t siteIndex = 0;
 
-
 public:
     SelectorAgent(PolitenessQueueService& politenessQueueService,  CrawlerService& crawlerService, int numThreads)
         : politenessQueueService(politenessQueueService), crawlerService(crawlerService), running(true) {
@@ -470,7 +469,6 @@ private:
     }
 
 public:
-
     // Constructor with default arguments
     /****************************************************************************************************************************
     * The PriorityQueueService creates a PUSH socket and a PULL socket using the same address (priorityQueueAddress).
