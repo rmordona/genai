@@ -270,6 +270,7 @@
 * computations on each worker, aggregating gradients, updating parameters, and ensuring synchronization to achieve distributed training and collaboration.
 ******************************************************************************************************************************************/
 #include "genai.h"
+#include "scraper.h"
 
 // Define PY as the static member instance of PythonStream
 PythonStream py_cout;
@@ -706,6 +707,14 @@ PYBIND11_MODULE(genai, m) {
     m.def("process_array", &process_array, "Process a NumPy array");
     m.def("process_matrix", &process_matrix, "Process a NumPy array");
     m.def("matmul", &matmul, "Matrix Multiplication a NumPy array");
+
+
+    // Definitions for URLFrontier APIs
+    py::class_<URLFrontier>(m, "URLFrontier")
+        .def(py::init<int, const std::string&>(), py::arg("max_urls"), py::arg("queue_address"))
+        .def("enqueue",  (void (URLFrontier::*)(const std::string&, int)) &URLFrontier::enqueue, 
+                py::arg("url"), py::arg("priority_percentage"))
+        .def("start_worker_threads", (void (URLFrontier::*)()) &URLFrontier::startWorkerThread);
 
     // Set std::cout precision display
     std::cout.precision(12);

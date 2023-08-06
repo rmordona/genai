@@ -295,8 +295,6 @@
 
 #include <algorithm>
 #include <map>
-
- 
  
 /**************************************************************************************************
   Helper Functions shared by other classes
@@ -1747,6 +1745,77 @@ public:
 };
 
 #endif
+
+/*
+#ifndef URLFRONTIER_H
+#define URLFRONTIER_H
+
+#include <iostream>
+#include <queue>
+#include <unordered_set>
+#include <string>
+#include <functional>
+#include <openssl/sha.h>
+#include <chrono>
+#include <thread>
+
+// Define a type for the custom comparison function
+using QueueSelector = std::function<bool(const std::pair<int, std::string>&, const std::pair<int, std::string>&)>;
+
+class URLFrontier {
+private:
+    int maxUrls;
+    int politenessDelay = 1000; // Default politeness delay in milliseconds
+    std::priority_queue<std::pair<int, std::string>, std::vector<std::pair<int, std::string>>, QueueSelector> urlQueue;
+    std::unordered_set<std::string> visitedUrls;
+
+    std::string getUrlHash(const std::string& url) const {
+        unsigned char hash[SHA256_DIGEST_LENGTH];
+        SHA256((const unsigned char*)url.c_str(), url.length(), hash);
+        std::string hashStr;
+        for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+            hashStr += hash[i];
+        }
+        return hashStr;
+    }
+
+public:
+    URLFrontier(int maxUrls = 1000) : maxUrls(maxUrls) {}
+
+    // Add a URL to the URL frontier with an optional priority value
+    void enqueue(const std::string& url, int priority = 0);
+
+    // Retrieve and remove the next URL from the URL frontier based on priority
+    std::string dequeue();
+
+        // Check if the URL frontier is empty
+    bool isEmpty() const {
+        return urlQueue.empty();
+    }
+
+    // Check if there are more URLs to be processed
+    bool hasMoreUrls() const {
+        return visitedUrls.size() < maxUrls;
+    }
+
+    // Set the politeness delay in milliseconds between consecutive URL fetches
+    void setPolitenessDelay(int milliseconds) {
+        politenessDelay = milliseconds;
+    }
+
+     // Set the custom queue selector function for ordering URLs in the priority queue
+    void setQueueSelector(QueueSelector selector) {
+        queueSelector = selector;
+    }
+
+    // Process the next URL in the URL frontier with politeness delay and custom queue selection
+    void processNextUrl();
+
+};
+
+
+#endif
+*/
 
 #ifndef SCRAPER_H
 #define SCRAPER_H
