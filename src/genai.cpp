@@ -708,7 +708,6 @@ PYBIND11_MODULE(genai, m) {
     m.def("process_matrix", &process_matrix, "Process a NumPy array");
     m.def("matmul", &matmul, "Matrix Multiplication a NumPy array");
 
-
     // Definitions for URLFrontier APIs
     py::class_<URLFrontier>(m, "URLFrontier")
         .def(py::init<int, const std::string&>(), py::arg("max_urls"), py::arg("queue_address"))
