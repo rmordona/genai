@@ -471,6 +471,8 @@ void SelectorAgent::workerThread() {
     }
 }
 
+// TODO: We can decouple The selector agent from crawler using Kafka interfaces to stream URLs
+// to Crawler engine.
 void SelectorAgent::processSite(std::string& site) {
     while (true) {
        std::string url = politenessQueueService.dequeue(site);
