@@ -626,14 +626,24 @@ class BaseOperator {
         return C;
     }
 
-    static Eigen::MatrixXd softmax(const Eigen::MatrixXd& input_data) {
+    // Apply the tanh function element-wise to a matrix
+    static Eigen::MatrixXd tanh(const Eigen::MatrixXd& output_data) {
+        return output_data.array().tanh();
+    }
+
+    // Apply the sigmoid function element-wise to a matrix
+    static Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& output_data) {
+        return 1.0 / (1.0 + (-output_data.array()).exp());
+    }
+
+    static Eigen::MatrixXd softmax(const Eigen::MatrixXd& output_data) {
 
         // Find the maximum value in each column of x
         // Required to handle large numbers.
-        double maxVal = input_data.maxCoeff();
+        double maxVal = output_data.maxCoeff();
 
         // Subtract the maximum value from each element in each column of x and compute the exponential
-        Eigen::MatrixXd expX = (input_data.array().colwise() - Eigen::ArrayXd::Constant(input_data.cols(), maxVal)).exp();
+        Eigen::MatrixXd expX = (output_data.array().colwise() - Eigen::ArrayXd::Constant(output_data.cols(), maxVal)).exp();
 
         // Compute the sum of exponential values for each row
         Eigen::VectorXd sumExp = expX.rowwise().sum();
