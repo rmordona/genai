@@ -626,14 +626,14 @@ class BaseOperator {
         return C;
     }
 
-    // Apply the tanh function element-wise to a matrix
-    static Eigen::MatrixXd tanh(const Eigen::MatrixXd& output_data) {
-        return output_data.array().tanh();
-    }
-
     // Apply the sigmoid function element-wise to a matrix
     static Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& output_data) {
         return 1.0 / (1.0 + (-output_data.array()).exp());
+    }
+
+    // Apply the tanh function element-wise to a matrix
+    static Eigen::MatrixXd tanh(const Eigen::MatrixXd& output_data) {
+        return output_data.array().tanh();
     }
 
     static Eigen::MatrixXd softmax(const Eigen::MatrixXd& output_data) {

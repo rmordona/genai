@@ -39,11 +39,11 @@ class CellBase {
 class RNNCell : public CellBase {
 
 private:
-    Eigen::MatrixXd U;  // Weight for the Hidden State  (h x h)  (rows x columns)
     Eigen::MatrixXd W;  // Weight for the Input   (p x h)
+    Eigen::MatrixXd U;  // Weight for the Hidden State  (h x h)  (rows x columns)
     Eigen::MatrixXd V;  // Weight for the predicted output  (h x o)
-    Eigen::VectorXd bh; // Hidden bias
-    Eigen::VectorXd bo; // Bias for the predicted output
+    Eigen::RowVectorXd bh; // Hidden bias
+    Eigen::RowVectorXd bo; // Bias for the predicted output
     Eigen::MatrixXd H;  // Hidden state  (n x h) where n = number of words, h = hidden size
 
     Eigen::MatrixXd dX; // Gradient with respect to Input
@@ -57,25 +57,23 @@ private:
     // Y.hat, target
     Eigen::MatrixXd Yhat, Y; // (n x o)
 
-    // Activation function.
-    Eigen::VectorXd tanh(const Eigen::VectorXd& x) {
-        return x.array().tanh();
-    }
-
 public:
-    RNNCell(int input_size, int hidden_size, int output_size, double learning_rate) : learning_rate(learning_rate) {
+    RNNCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate) : 
+            learning_rate(learning_rate) {
         // Initialize parameters, gates, states, etc.
-        W.resize(input_size, hidden_size);
-        U.resize(input_size, hidden_size);
-        V.resize(input_size, hidden_size);
+        W.resize(param_size, hidden_size);
+        U.resize(hidden_size, hidden_size);
+        V.resize(hidden_size, output_size);
+
         BaseOperator::heInitialization(W);
         BaseOperator::heInitialization(U);
         BaseOperator::heInitialization(V);
-        bh = Eigen::VectorXd::Zero(hidden_size);
-        bo = Eigen::VectorXd::Zero(output_size);
 
-        Yhat = Eigen::MatrixXd::Random(input_size, output_size);
-        H = Eigen::MatrixXd::Zero(input_size, hidden_size);
+        bh = Eigen::RowVectorXd::Zero(hidden_size);
+        bo = Eigen::RowVectorXd::Zero(output_size);
+
+        H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+        Yhat = Eigen::MatrixXd::Zero(input_size, output_size);
 
         learning_rate = 0.01;
     }
@@ -84,7 +82,7 @@ public:
 
         // Store input for backward pass.
         // this can be the prev_hidden_state
-        this->X = input_data;
+        X = input_data;
 
         // Compute hidden state.
         //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
@@ -117,10 +115,10 @@ public:
         dX = dtanh * W.transpose();
 
         // Compute gradient with respect to hidden bias bh.
-        Eigen::VectorXd dbh = dtanh.colwise().sum(); 
+        Eigen::RowVectorXd dbh = dtanh.colwise().sum(); 
 
         // Compute gradient with respect to output bias bo.
-        Eigen::VectorXd dbo = Y.colwise().sum();
+        Eigen::RowVectorXd dbo = Y.colwise().sum();
 
         // Update weights and biases.
         W -= learning_rate * dW;
@@ -147,150 +145,170 @@ public:
 class LSTMCell : public CellBase {
 private:
     // Parameters (weights and biases)
-    Eigen::MatrixXd Wxf;   // Weight matrix for input gate from input x
-    Eigen::MatrixXd Wxi;   // Weight matrix for input gate from input x
-    Eigen::MatrixXd Wxo;   // Weight matrix for output gate from input x
-    Eigen::MatrixXd Wxc;   // Weight matrix for candidate state from input x
-    Eigen::MatrixXd Whf;   // Weight matrix for input gate from previous hidden state
-    Eigen::MatrixXd Whi;   // Weight matrix for input gate from previous hidden state
-    Eigen::MatrixXd Who;   // Weight matrix for output gate from previous hidden state
-    Eigen::MatrixXd Whc;   // Weight matrix for candidate state from previous hidden state
-    Eigen::VectorXd bf;    // Bias vector for input gate
-    Eigen::VectorXd bi;    // Bias vector for input gate
-    Eigen::VectorXd bo;    // Bias vector for output gate
-    Eigen::VectorXd bc;    // Bias vector for candidate state
+    Eigen::MatrixXd Wf;   // Weight matrix for input gate from input x         (p + h) x h
+    Eigen::MatrixXd Wi;   // Weight matrix for input gate from input x         (p + h) x h
+    Eigen::MatrixXd Wo;   // Weight matrix for output gate from input x        (p + h) x h
+    Eigen::MatrixXd Wc;   // Weight matrix for candidate state from input x    (p + h) x h
+    Eigen::MatrixXd V;    // Weight for Output (h x o)
 
-    double learning_rate;  // Learning rate for parameter updates
+    Eigen::RowVectorXd bf;   // Bias vector for input gate        (1xh)
+    Eigen::RowVectorXd bi;   // Bias vector for input gate        (1xh)
+    Eigen::RowVectorXd bo;   // Bias vector for output gate       (1xh)
+    Eigen::RowVectorXd bc;   // Bias vector for candidate state   (1xh)
 
-    // Stored states and gates for use in backward pass
-    Eigen::VectorXd stored_input_gate;      // Stored input gate values
-    Eigen::VectorXd stored_forget_gate;     // Stored forget gate values
-    Eigen::VectorXd stored_output_gate;     // Stored output gate values
-    Eigen::VectorXd stored_candidate_state; // Stored candidate state values
-    Eigen::VectorXd stored_cell_state;      // Stored cell state values
-    Eigen::VectorXd hidden_state;           // Hidden state of the cell
+    Eigen::MatrixXd Ft;   // Forget Gate       (nxh)
+    Eigen::MatrixXd It;   // Input Gate        (nxh)
+    Eigen::MatrixXd Ot;   // Output Gate        (nxh)
+    Eigen::MatrixXd Gt;   // Candidate State    (nxh)
 
-    Eigen::VectorXd stored_dprev_h; // Gradient with respect to Hidden state
-    Eigen::VectorXd stored_dprev_c; // Gradient with respect to Cell state
+    Eigen::Matrix H;         // Hidden state (n x h)
+    Eigen::Matrix C;         // Cell state (n x h)
 
-    // Stored data for backward pass.
-    Eigen::MatrixXd input_data;
+    Eigen::MatrixXd X;       // (n x p)
+    Eigen::MatrixXd Yhat, Y; // ( n x o)
 
-    // Helper activation functions
-    Eigen::VectorXd sigmoid(const Eigen::VectorXd& x);  // Sigmoid activation function
-    Eigen::VectorXd tanh(const Eigen::VectorXd& x);     // Hyperbolic tangent activation function
+    Eigen::MatrixXd XH;  
 
+    double learning_rate; // Learning rate for parameter updates
+
+    Eigen::MatrixXd dH; // Gradient with respect to Hidden state
+    Eigen::MatrixXd dC; // Gradient with respect to Cell state
 
 public:
-    LSTMCell(int input_size, int hidden_size, double learning_rate);
-    Eigen::VectorXd forward(const Eigen::VectorXd& x);
-    void backward(const Eigen::VectorXd& dnext_h, const Eigen::VectorXd& dnext_c);
+    LSTMCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate);
+    const Eigen::MatrixXd& forward(const Eigen::MatrixXd& input_data);
+    const Eigen::MatrixXd& backward(const Eigen::MatrixXd& dnext_h);
 
 };
 
-LSTMCell::LSTMCell(int input_size, int hidden_size, double learning_rate)
+LSTMCell::LSTMCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate)
     : learning_rate(learning_rate) {
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
-    Wxf = Eigen::MatrixXd::Random(hidden_size, input_size);
-    Wxi = Eigen::MatrixXd::Random(hidden_size, input_size);
-    Wxo = Eigen::MatrixXd::Random(hidden_size, input_size);
-    Wxc = Eigen::MatrixXd::Random(hidden_size, input_size);
-    Whf = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-    Whi = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-    Who = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-    Whc = Eigen::MatrixXd::Random(hidden_size, hidden_size);
-    bf = Eigen::VectorXd::Zero(hidden_size);
-    bi = Eigen::VectorXd::Zero(hidden_size);
-    bo = Eigen::VectorXd::Zero(hidden_size);
-    bc = Eigen::VectorXd::Zero(hidden_size);
+    Wf.resize(param_size + hidden_size, hidden_size);
+    Wi.resize(param_size + hidden_size, hidden_size);
+    Wo.resize(param_size + hidden_size, hidden_size);
+    Wg.resize(param_size + hidden_size, hidden_size);
+    V.resize(hidden_size, output_size);
+
+    BaseOperator::heInitialization(Wf);
+    BaseOperator::heInitialization(Wi);
+    BaseOperator::heInitialization(Wo);
+    BaseOperator::heInitialization(Wg);
+
+    bf = Eigen::RowVectorXd::Zero(hidden_size);
+    bi = Eigen::RowVectorXd::Zero(hidden_size);
+    bo = Eigen::RowVectorXd::Zero(hidden_size);
+    bg = Eigen::RowVectorXd::Zero(hidden_size);
+
+    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    C    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    Yhat = Eigen::MatrixXd::Zero(input_size, output_size);
+
+    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
+
 }
 
-Eigen::VectorXd LSTMCell::sigmoid(const Eigen::VectorXd& x) {
-    return 1.0 / (1.0 + (-x.array()).exp());
-}
+const Eigen::MatrixXd& LSTMCell::forward(const Eigen::MatrixXd& input_data) {
 
-Eigen::VectorXd LSTMCell::tanh(const Eigen::VectorXd& x) {
-    return x.array().tanh();
-}
+    // Store input for backward pass.
+    // this can be the prev_hidden_state
+    X = input_data;
 
-std::tuple<Eigen::MatrixXd, Eigen::VectorXd> LSTMCell::forward(const Eigen::MatrixXd& input_data) {
-    // Calculate the input gate values
-    stored_input_gate = sigmoid(Wxi * input_data + Whi * hidden_state + bi);
+    // Concatenate input and hidden state.
+    XH << X, H;
 
     // Calculate the forget gate values
-    stored_forget_gate = sigmoid(Wxf * input_data + Whf * hidden_state + bf);
+    Ft = BaseOperator::sigmoid(XH * Wf + bf);
+
+    // Calculate the input gate values
+    It = BaseOperator::sigmoid(XH * Wi + bi);
 
     // Calculate the output gate values
-    stored_output_gate = sigmoid(Wxo * input_data + Who * hidden_state + bo);
+    Ot = BaseOperator::sigmoid(XH * Wo + bo);
 
     // Calculate the candidate state values
-    stored_candidate_state = tanh(Wxc * input_data + Whc * hidden_state + bc);
+    Gt = BaseOperator::tanh(XH * Wc + bc);
 
     // Calculate the new cell state by updating based on the gates
-    stored_cell_state = stored_forget_gate.cwiseProduct(stored_cell_state) +
-                        stored_input_gate.cwiseProduct(stored_candidate_state);
+    C = Ft * C + It + Gt;
 
     // Calculate the new hidden state by applying the output gate and tanh activation
-    hidden_state = stored_output_gate.cwiseProduct(stored_cell_state.unaryExpr(tanh));
-
-    // cache input
-    // this can be the prev_hidden_state
-    this->input_data = input_data;
+    H = BaseOperator::tanh(C) * Ot;
 
     // Return the updated hidden state and stored_cell_state
     return std::make_tuple(hidden_state, stored_cell_state);
+
+    // Compute Yhat.
+    //     (nxo) =  (nxh) * (hxo) + h
+    Yhat = BaseOperator::softmax(H * V + bo);
+
+    // We return the prediction for layer forward pass.
+    // For the Cell State and Hidden State output, we cache them instead for time step forward pass.
+    return Yhat; 
+
 }
 
-Eigen::MatrixXd LSTMCell::backward(const Eigen::MatrixXd& dnext_h, const Eigen::MatrixXd& dnext_c) {
-    // Backpropagation logic for LSTM
-    // Compute gradients with respect to hidden-to-hidden weights Whf, Whi, Who, Whc
-    Eigen::MatrixXd dWhf = dnext_h * stored_cell_state.unaryExpr(tanh).cwiseProduct(dnext_c).transpose();
-    Eigen::MatrixXd dWhi = dnext_h * stored_candidate_state.cwiseProduct(dnext_c).transpose();
-    Eigen::MatrixXd dWho = dnext_h * stored_cell_state.unaryExpr(tanh).transpose();
-    Eigen::MatrixXd dWhc = dnext_h * stored_input_gate.cwiseProduct(dnext_c).transpose();
+std::tuple <const Eigen::MatrixXd& X, const Eigen::MatrixXd& H> LSTMCell::Split(const Eigen::MatrixXd& XH) {
+    return std::make_tuple(XH.block(0, 0, param_size, hidden_size), 
+                           XH.block(param_size, 0, param_size + hidden_size, hidden_size));
+}
 
-    // Compute gradients with respect to input-to-hidden weights Wxf, Wxi, Wxo, Wxc
-    Eigen::MatrixXd dWxf = dnext_h * stored_cell_state.unaryExpr(tanh).cwiseProduct(dnext_c) * this->input_data.transpose();
-    Eigen::MatrixXd dWxi = dnext_h * stored_candidate_state.cwiseProduct(dnext_c) * this->input_data.transpose();
-    Eigen::MatrixXd dWxo = dnext_h * stored_cell_state.unaryExpr(tanh) * this->input_data.transpose();
-    Eigen::MatrixXd dWxc = dnext_h * stored_input_gate.cwiseProduct(dnext_c) * this->input_data.transpose();
+const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& dnext_h, const Eigen::MatrixXd& dnext_c) {
+    // Backpropagation logic for LSTM
+
+
+    // Compute gradients with respect to the gates
+    Eigen::MatrixXd dFt = (dC.array() * C.array()) * Ft.array() * (1 - Ft;
+    Eigen::MatrixXd dIt = (dC.array() * Gt.array()) * It.array() * (1 - It);
+    Eigen::MatrixXd dGt = (dC.array() * It.array()) * (1 - Gt.array().square());
+    Eigen::MatrixXd dOt = dnext_h.array() * BaseOperator::tanh(Ct) * Ot.array() * ( 1 - Ot);
+
+    // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
+    Eigen::MatrixXd dWf = XH.tranpose() * dFt;
+    Eigen::MatrixXd dWi = XH.tranpose() * dIt;
+    Eigen::MatrixXd dWg = XH.tranpose() * dGt;
+    Eigen::MatrixXd dWo = XH.tranpose() * dOt;
+
 
     // Compute gradients with respect to hidden biases bf, bi, bo, bc
-    Eigen::VectorXd dbf = dnext_h * stored_cell_state.unaryExpr(tanh).cwiseProduct(dnext_c);
-    Eigen::VectorXd dbi = dnext_h * stored_candidate_state.cwiseProduct(dnext_c);
-    Eigen::VectorXd dbo = dnext_h * stored_cell_state.unaryExpr(tanh);
-    Eigen::VectorXd dbc = dnext_h * stored_input_gate.cwiseProduct(dnext_c);
+    Eigen::VectorXd dbf = dFt.colwise().sum();
+    Eigen::VectorXd dbi = dIt.colwise().sum();
+    Eigen::VectorXd dbo = dOt.colwise().sum();
+    Eigen::VectorXd dbg = dGt.colwise().sum();
 
     // Compute gradient with respect to the cell state C (dC)
-    Eigen::VectorXd dC = dnext_c + dnext_h.cwiseProduct(stored_output_gate).cwiseProduct(stored_cell_state.unaryExpr(tanh).cwiseProduct(dnext_c));
+    Eigen::VectorXd dC = dC.array() * Ft.array();
 
     // Compute gradient with respect to input (dInput)
-    Eigen::VectorXd dInput = Wxf.transpose() * (dnext_h * stored_cell_state.unaryExpr(tanh).cwiseProduct(dnext_c)) +
-                             Wxi.transpose() * (dnext_h * stored_candidate_state.cwiseProduct(dnext_c)) +
-                             Wxo.transpose() * (dnext_h * stored_cell_state.unaryExpr(tanh)) +
-                             Wxc.transpose() * (dnext_h * stored_input_gate.cwiseProduct(dnext_c));
+    Eigen::VectorXd dX = dFt * Split(Wf).H.tranpose() 
+                       + dIt * Split(Wi).H.tranpose()  
+                       + dOt * Split(Wo).H.tranpose()
+                       + dgt * Split(Wg).H.tranpose();
 
-
+    // Compute gradient with respect to input (dInput)
+    Eigen::VectorXd dH = dFt * Split(Wf).X.tranpose() 
+                       + dIt * Split(Wi).X.tranpose()  
+                       + dOt * Split(Wo).X.tranpose()
+                       + dgt * Split(Wg).X.tranpose();
 
     // Update parameters and stored states
-    Whf -= learning_rate * dWhf;
-    Whi -= learning_rate * dWhi;
-    Who -= learning_rate * dWho;
-    Whc -= learning_rate * dWhc;
-    Wxf -= learning_rate * dWxf;
-    Wxi -= learning_rate * dWxi;
-    Wxo -= learning_rate * dWxo;
-    Wxc -= learning_rate * dWxc;
+    Wf -= learning_rate * dWf;
+    Wi -= learning_rate * dWi;
+    Wo -= learning_rate * dWo;
+    Wg -= learning_rate * dWg;
     bf -= learning_rate * dbf;
     bi -= learning_rate * dbi;
     bo -= learning_rate * dbo;
     bc -= learning_rate * dbc;
 
-    hidden_state -= learning_rate * dprev_h;
+    H -= learning_rate * dH;
+    C -= learning_rate * dC;
 
     // Return gradient with respect to input.
-    return dInput;
+    // We return the gradient wrt X for each layer, not wrt H & C for each time step.
+    // for the gradient wrt H & C, we just cache it for time step propagation, but layer propagation.
+    return dX;
 }
 
 /***************************************************************************************************************************
