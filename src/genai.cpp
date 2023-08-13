@@ -271,6 +271,7 @@
 ******************************************************************************************************************************************/
 #include "genai.h"
 #include "scraper.h"
+#include "recurrent.h"
 
 // Define PY as the static member instance of PythonStream
 PythonStream py_cout;
@@ -672,6 +673,21 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("heads") = 1,
                 py::arg("size") = 3, py::arg("bias") = true,
                 py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<RNN, BaseOperator, std::shared_ptr<RNN>>(m, "RNN")
+        .def(py::init<int, int, int, int, double, int, bool, RNNType>(), 
+                py::arg("input_size") = 3, py::arg("param_size") = 3,
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
+    py::class_<LSTM, BaseOperator, std::shared_ptr<LSTM>>(m, "LSTM")
+        .def(py::init<int, int, int, int, double, int, bool, RNNType>(), 
+                py::arg("input_size") = 3, py::arg("param_size") = 3,
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
+    py::class_<GRU, BaseOperator, std::shared_ptr<GRU>>(m, "GRU")
+        .def(py::init<int, int, int, int, double,  int, bool, RNNType>(), 
+                py::arg("input_size") = 3, py::arg("param_size") = 3,
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
  
     // Definitions for TokenModel APIs
     py::class_<TokenModel, std::shared_ptr<TokenModel>>(m, "TokenModel")
@@ -680,14 +696,11 @@ PYBIND11_MODULE(genai, m) {
                 "Tokenize a Sentence")
         .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::tokenize, 
                 "Tokenize a set of Sentences")
-        // .def("initializeWordEmbeddings", (void (TokenModel::*)(int)) &TokenModel::initializeWordEmbeddings,
-        //        py::arg("size") = 5, "Initial Word Embedding")
         .def("printVocabulary",  &TokenModel::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
         .def("printWordEmbeddings",  &TokenModel::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
         .def("trainGloVe", (void (TokenModel::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel::trainGloVe,
                   py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
                   py::arg("maxiteration"), "Train Word Embedding using GloVe");
-        // .def("createVectorDB", &TokenModel::createVectorDB, "Create simple SQLite3 Vector DB");
 
     py::class_<BPETokenizer, TokenModel, std::shared_ptr<BPETokenizer>>(m, "BPETokenizer")
         .def(py::init<>())

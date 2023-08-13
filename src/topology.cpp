@@ -25,7 +25,9 @@
  *
  *
 */
+
 #include "genai.h"
+#include "recurrent.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -199,7 +201,7 @@ void Node::propagateGradients(Eigen::MatrixXd& gradients) {
         }
     }
 }
-
+ 
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
 Eigen::MatrixXd Node::forwardPass() {
