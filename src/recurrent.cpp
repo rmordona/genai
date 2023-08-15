@@ -25,38 +25,64 @@
  *
  */
 
+/************************************************************************************************************
+* Note that the design of the Recurrent Network Cells is based on using a matrix with dimension NxP
+* where N is the number of words and P is the embedding size (the dimension).
+* Each word in N does does not belong to one sequence, rather is a set of sequences.
+* Here is a better illustration for an input matrix of 5xP:
+* 
+* Input Data (5xP):
+* step t      step t+1    step t+2        step t+P-1
+* word1_embed word2_embed word3_embed ... wordP_embed (sequence 1)
+* word1_embed word2_embed word3_embed ... wordP_embed (sequence 2)
+* ...
+* word1_embed word2_embed word3_embed ... wordP_embed (sequence 5)
+*
+* This will allow us to process sequences in batches instead of just looping over one step at a time
+* for a single sequence. Now, if that's the case, we pad each sequence to achieve uniform sequence lengths.
+*************************************************************************************************************/
+ 
 #include "genai.h"
 #include "recurrent.h"
- 
+
 /***************************************************************************************************************************
 *********** IMPLEMENTING RNNCell
 ****************************************************************************************************************************/
-RNNCell::RNNCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate) 
-    : input_size(input_size), param_size(param_size), hidden_size(hidden_size), output_size(output_size), 
-        learning_rate(learning_rate) {
+RNNCell::RNNCell(int hidden_size, double learning_rate) 
+    : hidden_size(hidden_size), learning_rate(learning_rate) {
+    learning_rate = 0.01;
+}
+
+const Eigen::MatrixXd& RNNCell::getHiddenState() {
+    return H;
+}
+
+void RNNCell::setInitialWeights(int N, int P) {
     // Initialize parameters, gates, states, etc.
+    if (this->input_size !=0 || this->param_size != 0) return;
+
+    this->input_size = N;  
+    this->param_size = P;  
+
     W.resize(param_size, hidden_size);
     U.resize(hidden_size, hidden_size);
-    V.resize(hidden_size, output_size);
 
     BaseOperator::heInitialization(W);
     BaseOperator::heInitialization(U);
-    BaseOperator::heInitialization(V);
 
     bh = Eigen::RowVectorXd::Zero(hidden_size);
-    bo = Eigen::RowVectorXd::Zero(output_size);
 
     H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
-    Yhat = Eigen::MatrixXd::Zero(input_size, output_size);
-
-    learning_rate = 0.01;
 }
 
 const Eigen::MatrixXd& RNNCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Store input for backward pass.
     // this can be the prev_hidden_state
-    X = input_data;
+    // this->X = input_data;
+    const Eigen::MatrixXd& X = input_data;
+
+    setInitialWeights(input_data.rows(), input_data.cols());
 
     // Compute hidden state.
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
@@ -64,14 +90,16 @@ const Eigen::MatrixXd& RNNCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
-    Yhat = BaseOperator::softmax(H * V + bo);
+    // Yhat = BaseOperator::softmax(H * V + bo);
 
-    // We return the prediction for layer forward pass.
-    // For the Hidden State output, we cache it instead for time step forward pass.
-    return Yhat; 
+    // We return the Hidden State as output;
+    return H; 
 }
 
-const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& dnext_h) {
+const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
+    // Backpropagation logic for RNN
+
+    const Eigen::MatrixXd& X = input_data;
 
     // Compute gradient with respect to tanh
     Eigen::MatrixXd dtanh = (1.0 - H.array().square()).array() * dnext_h.array();
@@ -92,13 +120,13 @@ const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& dnext_h) {
     Eigen::RowVectorXd dbh = dtanh.colwise().sum(); 
 
     // Compute gradient with respect to output bias bo.
-    Eigen::RowVectorXd dbo = Y.colwise().sum();
+    //Eigen::RowVectorXd dbo = Y.colwise().sum();
 
     // Update weights and biases.
     W -= learning_rate * dW;
     U -= learning_rate * dU;
     bh -= learning_rate * dbh;
-    bo -= learning_rate * dbo;
+    // bo -= learning_rate * dbo;
 
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H for each time step.
@@ -109,6 +137,12 @@ const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& dnext_h) {
 /***************************************************************************************************************************
 *********** IMPLEMENTING LSTMCell
 ****************************************************************************************************************************/
+LSTMCell::LSTMCell(int hidden_size, double learning_rate) 
+    : hidden_size(hidden_size), learning_rate(learning_rate) {
+    learning_rate = 0.01;
+}
+
+/*
 LSTMCell::LSTMCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate)
     : input_size(input_size), param_size(param_size), hidden_size(hidden_size), output_size(output_size), 
       learning_rate(learning_rate) {
@@ -138,12 +172,54 @@ LSTMCell::LSTMCell(int input_size, int param_size, int hidden_size, int output_s
     XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
 
 }
+*/
+
+const Eigen::MatrixXd& LSTMCell::getHiddenState() {
+    return H;
+}
+
+const Eigen::MatrixXd& LSTMCell::getCellState() {
+    return C;
+}
+
+void LSTMCell::setInitialWeights(int N, int P) {
+    // Initialize parameters, gates, states, etc.
+    if (this->input_size !=0 || this->param_size != 0) return;
+
+    this->input_size = N;  
+    this->param_size = P;  
+
+    // Initialize parameters (weights and biases)
+    // Note: Initialize these parameters according to your initialization strategy
+    Wf.resize(param_size + hidden_size, hidden_size);
+    Wi.resize(param_size + hidden_size, hidden_size);
+    Wo.resize(param_size + hidden_size, hidden_size);
+    Wg.resize(param_size + hidden_size, hidden_size);
+
+    BaseOperator::heInitialization(Wf);
+    BaseOperator::heInitialization(Wi);
+    BaseOperator::heInitialization(Wo);
+    BaseOperator::heInitialization(Wg);
+
+    bf = Eigen::RowVectorXd::Zero(hidden_size);
+    bi = Eigen::RowVectorXd::Zero(hidden_size);
+    bo = Eigen::RowVectorXd::Zero(hidden_size);
+    bg = Eigen::RowVectorXd::Zero(hidden_size);
+
+    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    C    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+
+    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
+
+}
 
 const Eigen::MatrixXd& LSTMCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Store input for backward pass.
-    // this can be the prev_hidden_state
-    X = input_data;
+    // this->X = input_data;
+    const Eigen::MatrixXd& X = input_data;
+
+    setInitialWeights(input_data.rows(), input_data.cols());
 
     // Concatenate input and hidden state.
     XH << X, H;
@@ -168,16 +244,17 @@ const Eigen::MatrixXd& LSTMCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
-    Yhat = BaseOperator::softmax(H * V + by);
+    // Yhat = BaseOperator::softmax(H * V + by);
 
-    // We return the prediction for layer forward pass.
-    // For the Cell State and Hidden State output, we cache them instead for time step forward pass.
-    return Yhat; 
+    // We return the Hidden State as output;
+    return H; 
 
 }
 
-const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& dnext_h) {
+const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
     // Backpropagation logic for LSTM
+
+    const Eigen::MatrixXd& X = input_data;
 
     // Compute gradients with respect to the gates
     dC = (Ot.array() * (1 - BaseOperator::tanh(C.array()).array().square()) * dnext_h.array()) + dC.array();
@@ -220,7 +297,7 @@ const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& dnext_h) {
         + dGt * Split(Wg, ps, hs).transposedH();
 
     // Compute gradient with respect to output bias bo.
-    Eigen::RowVectorXd dby = Y.colwise().sum();
+    // Eigen::RowVectorXd dby = Y.colwise().sum();
 
     // Update parameters and stored states
     Wf -= learning_rate * dWf;
@@ -231,7 +308,7 @@ const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& dnext_h) {
     bi -= learning_rate * dbi;
     bo -= learning_rate * dbo;
     bg -= learning_rate * dbg;
-    by -= learning_rate * dby;
+    // by -= learning_rate * dby;
 
     // Update hidden state  and cell state
     H -= learning_rate * dH;
@@ -252,6 +329,12 @@ const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& dnext_h) {
 /***************************************************************************************************************************
  *********** IMPLEMENTING GRUCell
 ****************************************************************************************************************************/
+GRUCell::GRUCell(int hidden_size, double learning_rate) 
+    : hidden_size(hidden_size), learning_rate(learning_rate) {
+    learning_rate = 0.01;
+}
+
+/*
 GRUCell::GRUCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate) 
         : input_size(input_size), param_size(param_size), hidden_size(hidden_size), output_size(output_size), 
           learning_rate(learning_rate) {
@@ -278,12 +361,47 @@ GRUCell::GRUCell(int input_size, int param_size, int hidden_size, int output_siz
     XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
 
 }
+*/
+
+const Eigen::MatrixXd& GRUCell::getHiddenState() {
+    return H;
+}
+
+void GRUCell::setInitialWeights(int N, int P) {
+    // Initialize parameters, gates, states, etc.
+    if (this->input_size !=0 || this->param_size != 0) return;
+
+    this->input_size = N;  
+    this->param_size = P;  
+
+    // Initialize parameters (weights and biases)
+    // Note: Initialize these parameters according to your initialization strategy
+    Wz.resize(param_size + hidden_size, hidden_size);
+    Wr.resize(param_size + hidden_size, hidden_size);
+    Wg.resize(param_size + hidden_size, hidden_size);
+
+    BaseOperator::heInitialization(Wz);
+    BaseOperator::heInitialization(Wr);
+    BaseOperator::heInitialization(Wg);
+
+    bz = Eigen::RowVectorXd::Zero(hidden_size);
+    br = Eigen::RowVectorXd::Zero(hidden_size);
+    bg = Eigen::RowVectorXd::Zero(hidden_size);
+
+    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+
+    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
+
+}
 
 const Eigen::MatrixXd& GRUCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Store input for backward pass.
     // this can be the prev_hidden_state
-    X = input_data;
+    // X = input_data;
+    const Eigen::MatrixXd& X = input_data;
+
+    setInitialWeights(input_data.rows(), input_data.cols());
 
     // Concatenate input and hidden state.
     XH << X, H;
@@ -308,15 +426,17 @@ const Eigen::MatrixXd& GRUCell::forward(const Eigen::MatrixXd& input_data) {
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
-    Yhat = BaseOperator::softmax(H * V + bo);
+    // Yhat = BaseOperator::softmax(H * V + bo);
 
-    // We return the prediction for layer forward pass.
-    // For the Hidden State output, we cache them instead for time step forward pass.
-    return Yhat; 
+    // We return the Hidden State as output;
+    return H;
 }
 
-const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& dnext_h) {
+const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
     // Backpropagation logic for GRU
+
+    const Eigen::MatrixXd& X = input_data;
+
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
 
     int ps = param_size, hs = hidden_size;
@@ -353,7 +473,7 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& dnext_h) {
         + dGt * Split(Wg, ps, hs).transposedH();
 
     // Compute gradient with respect to output bias bo.
-    Eigen::RowVectorXd dbo = Y.colwise().sum();
+    // Eigen::RowVectorXd dbo = Y.colwise().sum();
 
     // Update parameters
     Wz -= learning_rate * dWz;
@@ -362,7 +482,7 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& dnext_h) {
     bz -= learning_rate * dbz;
     br -= learning_rate * dbr;
     bg -= learning_rate * dbg;
-    bo -= learning_rate * dbo;
+    // bo -= learning_rate * dbo;
 
     // Update hidden state  
     H -= learning_rate * dH;
@@ -379,258 +499,51 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& dnext_h) {
 }
 
 
-/**********************************************************************************************
+/*****************************************************************************************************************
 * Implement Recurrent Network
-**********************************************************************************************/
-const Eigen::MatrixXd& RNN::forward(const Eigen::MatrixXd& input_data) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = forwardManyToOne(input_data, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = forwardOneToMany(input_data, this); 
-    } else {// MANYTOMANY 
-        output = forwardManyToMany(input_data, this); 
-    }
-    return output;
+*****************************************************************************************************************/
+
+/*****************************************************************************************************************
+* This forward function will capture the final output of each step in each layer. Which therefore means that
+* it can support many-to-one, one-to-many, and many-to-many scenario. By default, it already gives support to 
+* the one-to-many and many-to-many-scenario. For many-to-one, just extract the last step in each layer. However, 
+* for bidrectional, user should choose how to merge the last steps (one for the forward direction and the other 
+* for the backward direction).
+*
+* This implementation allows to flexibly use different merge strategies (sum, concat, avg) and supports 
+* different scenarios by capturing outputs at each step in each layer. The merging of outputs can be useful 
+* for bidirectional RNNs, where one needs to merge the outputs from both directions in some way to obtain 
+* a final output.
+*****************************************************************************************************************/
+
+const std::vector<Eigen::MatrixXd>&  RNN::forward(const Eigen::Tensor<double, 3>& input_data) {
+    this->Yhat = forwarding(input_data, this);
+    return this->Yhat;
 }
 
-const Eigen::MatrixXd& RNN::backward(const Eigen::MatrixXd& gradients) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = backwardManyToOne(gradients, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = backwardOneToMany(gradients, this); 
-    } else {// MANYTOMANY 
-        output = backwardManyToMany(gradients, this); 
-    }
-    return output;
+const std::vector<Eigen::MatrixXd>&  RNN::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+    this->gradients = backprop(gradients, this);
+    return this->gradients;
 }
 
-const Eigen::MatrixXd& LSTM::forward(const Eigen::MatrixXd& input_data) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = forwardManyToOne(input_data, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = forwardOneToMany(input_data, this); 
-    } else {// MANYTOMANY 
-        output = forwardManyToMany(input_data, this); 
-    }
-    return output;
+const std::vector<Eigen::MatrixXd>&  LSTM::forward(const Eigen::Tensor<double, 3>& input_data) {
+    this->Yhat = forwarding(input_data, this);
+    return this->Yhat;
 }
 
-const Eigen::MatrixXd& LSTM::backward(const Eigen::MatrixXd& gradients) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = backwardManyToOne(gradients, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = backwardOneToMany(gradients, this); 
-    } else {// MANYTOMANY 
-        output = backwardManyToMany(gradients, this); 
-    }
-    return output;
+const std::vector<Eigen::MatrixXd>&  LSTM::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+    this->gradients = backprop(gradients, this);
+    return this->gradients;
 }
 
-const Eigen::MatrixXd& GRU::forward(const Eigen::MatrixXd& input_data) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = forwardManyToOne(input_data, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = forwardOneToMany(input_data, this); 
-    } else {// MANYTOMANY 
-        output = forwardManyToMany(input_data, this); 
-    }
-    return output;
+const std::vector<Eigen::MatrixXd>&  GRU::forward(const Eigen::Tensor<double, 3>& input_data) {
+    this->Yhat = forwarding(input_data, this);
+    return this->Yhat;
 }
 
-const Eigen::MatrixXd& GRU::backward(const Eigen::MatrixXd& gradients) {
-    RNNType rnntype = this->rnntype;
-    if (rnntype == MANY_TO_ONE) {
-        output = backwardManyToOne(gradients, this); 
-    } else
-    if (rnntype == ONE_TO_MANY) {
-        output = backwardOneToMany(gradients, this); 
-    } else {// MANYTOMANY 
-        output = backwardManyToMany(gradients, this); 
-    }
-    return output;
-}
-
-
-// Many-To-One Scenario
-template <typename CellType>
-const Eigen::MatrixXd& forwardManyToOne(const Eigen::MatrixXd& input_data, CellType& rnn) {
-    Eigen::VectorXd last_output(rnn->num_directions);
-
-    rnn->input_data = input_data;
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        Eigen::VectorXd input_step;
-        // Forward pass: Run from first to last time step
-        for (int step = 0; step < rnn->sequence_length; ++step) {
-            if (direction == 0) {
-                input_step = input_data.row(step);
-            } else {
-                input_step = input_data.row(rnn->sequence_length - step - 1);
-            }
-
-            // Forward pass through each layer of the RNN
-            for (int layer = 0; layer < rnn->num_layers; ++layer) {
-                input_step = rnn->cells[layer].forward(input_step);
-            }
-
-            // Store the output of the last time step
-            if (step == rnn->sequence_length - 1) {
-                last_output[direction] = input_step;
-            }
-        }
-    }
-    return last_output;
-}
-
-// One-To-Many Scenario
-template <typename CellType>
-const Eigen::MatrixXd& forwardOneToMany(const Eigen::MatrixXd& input_data, CellType& rnn) {
-    Eigen::MatrixXd all_outputs(rnn->sequence_length, rnn->num_directions);
-
-    rnn->input_data = input_data;
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        Eigen::VectorXd input_step = input_data;
-
-        // Forward pass: Generate outputs for each time step
-        for (int step = 0; step < rnn->sequence_length; ++step) {
-            Eigen::VectorXd output_step;
-
-            // Forward pass through each layer of the RNN
-            for (int layer = 0; layer < rnn->num_layers; ++layer) {
-                output_step = rnn->cells[layer].forward(input_step);
-                input_step = output_step;  // Use the output as input for the next layer
-            }
-
-            // Store the output of the current time step
-            all_outputs(step, direction) = output_step;
-        }
-    }
-    return all_outputs;
-}
-
-// Many-To-Many Scenario
-template <typename CellType>
-const Eigen::MatrixXd& forwardManyToMany(const Eigen::MatrixXd& input_data, CellType& rnn) {
-    Eigen::MatrixXd all_outputs(rnn->sequence_length, rnn->num_directions);
-
-    rnn->input_data = input_data;
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        Eigen::VectorXd input_step;
-        Eigen::VectorXd output_step;
-
-        // Forward pass: Run from first to last time step
-        for (int step = 0; step < rnn->sequence_length; ++step) {
-            if (direction == 0) {
-                input_step = input_data.row(step);
-            } else {
-                input_step = input_data.row(rnn->sequence_length - step - 1);
-            }
-
-            // Forward pass through each layer of the RNN
-            for (int layer = 0; layer < rnn->num_layers; ++layer) {
-                output_step = rnn->cells[layer].forward(input_step);
-                input_step = output_step;  // Use the output as input for the next layer
-            }
-
-            // Store the output of the current time step
-            all_outputs(step, direction) = output_step;
-        }
-    }
-    return all_outputs;
-}
-
-// Many-To-One Scenario: Backward Pass
-template <typename CellType>
-const Eigen::MatrixXd& backwardManyToOne(const Eigen::MatrixXd& gradients, CellType& rnn) {
-    Eigen::MatrixXd loss_gradients(rnn->sequence_length, rnn->num_directions);
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        for (int step = rnn->sequence_length - 1; step >= 0; --step) {
-           // Eigen::VectorXd input_step = direction == 0 ? input_data.row(step) : input_data.row(rnn->sequence_length - step - 1);
-
-            // Backward pass through each layer of the RNN
-            for (int layer = rnn->num_layers - 1; layer >= 0; --layer) {
-                loss_gradients = rnn->cells[layer].backward(loss_gradients);
-            }
-        }
-    }
-
-    return loss_gradients;
-}
-
-// One-To-Many Scenario: Backward Pass
-template <typename CellType>
-const Eigen::MatrixXd& backwardOneToMany(const Eigen::MatrixXd& gradient, CellType& rnn) {
-    Eigen::MatrixXd loss_gradients(rnn->sequence_length, rnn->num_directions);
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        Eigen::VectorXd input_step = rnn->input_data;
-
-        // Backward pass: Compute gradients for each time step
-        for (int step = rnn->sequence_length - 1; step >= 0; --step) {
-            Eigen::VectorXd output_step;  // Output of the RNNCell's forward pass
-
-            // Backward pass through each layer of the RNN
-            for (int layer = rnn->num_layers - 1; layer >= 0; --layer) {
-                output_step = rnn->cells[layer].forward(input_step);  // Forward pass for the current step
-                loss_gradients = rnn->cells[layer].backward(loss_gradients);
-                input_step = output_step;  // Use the output as input for the next layer
-            }
-
-            // Store the loss gradient with respect to the input of the current step
-            if (direction == 0) {
-                loss_gradients(step) = loss_gradients;
-            } else {
-                loss_gradients(rnn->sequence_length - step - 1) = loss_gradients;
-            }
-        }
-    }
-
-    return loss_gradients;
-}
-
-// Many-To-Many Scenario: Backward Pass
-template <typename CellType>
-const Eigen::MatrixXd& backwardManyToMany(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& input_data, CellType& rnn) {
-    Eigen::MatrixXd loss_gradients(rnn->sequence_length, rnn->num_directions);
-
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
-
-        for (int step = rnn->sequence_length - 1; step >= 0; --step) {
-           // Eigen::VectorXd input_step = direction == 0 ? input_data.row(step) : input_data.row(rnn->sequence_length - step - 1);
-
-            // Backward pass through each layer of the RNN
-            for (int layer = rnn->num_layers - 1; layer >= 0; --layer) {
-                loss_gradients(step, direction) = loss_gradients;
-                loss_gradients = rnn->cells[layer].backward(loss_gradients);
-            }
-        }
-    }
-
-    return loss_gradients;
+const std::vector<Eigen::MatrixXd>&  GRU::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+    this->gradients = backprop(gradients, this);
+    return this->gradients;
 }
 
 void RNN::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
@@ -641,4 +554,210 @@ void LSTM::updateParameters(std::string& optimizertype, double& learningRate, in
 
 void GRU::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
 }
+
+
+template <typename CellType>
+std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd> setInitialWeights(int step, Eigen::MatrixXd out, CellType& rnn) {
+
+    if (rnn->iniitalized) {
+        return std::make_tuple(rnn->V[step], rnn->bo[step]);
+    }
+
+    Eigen::MatrixXd v(out.rows(), rnn->output_size);
+    Eigen::RowVectorXd bo(out.cols());
+    BaseOperator::heInitialization(v);
+    bo.Zero(out.cols());
+    return std::make_tuple(v, bo);
+}
+
+template <typename CellType>
+const std::vector<Eigen::MatrixXd>& processOutputs(CellType& rnn) {
+
+    const Eigen::MatrixXd& out, v, yhat;
+    const Eigen::RowVectorXd bo;
+
+    for (int step = 0; step < rnn->sequence_length; ++step) {
+
+        // merge bidirectional outputs
+        if (rnn->rtype == ReductionType::SUM) {
+            out = rnn->foutput[step].array() + rnn->boutput[step].array();
+        } else 
+        if (rnn->rtype == ReductionType::AVG) {
+            out = ( rnn->foutput[step].array() + rnn->boutput[step].array() ) / 2;
+        } else 
+        if (rnn->rtype == ReductionType::CONCAT) {
+            out << rnn->foutput[step], rnn->boutput[step];
+        }
+
+        // Initialize the weights for the output;
+        std::tie(v, bo) = setInitialWeights(step, out, rnn);
+
+        if (rnn->otype == ActivationType::SOFTMAX) {
+            yhat = BaseOperator::softmax(out * v + bo);
+        } else 
+        if (rnn->otype == ActivationType::TANH) {
+            yhat = BaseOperator::tanh(out * v + bo);
+        } else
+        if (rnn->otype == ActivationType::SIGMOID) {
+            yhat = BaseOperator::sigmoid(out * v + bo);
+        } else {
+            rnn->output_size = rnn->hidden_size;
+            yhat = out; // no activation, pure Hidden State output
+        }
+
+        if (rnn->initialized) {
+            rnn->outputs[step] = out;
+            rnn->Yhat[step] = yhat;
+        } else { 
+            rnn->outputs.push_back( out );
+            rnn->V.push_back( v );
+            rnn->bo.push_back( bo );
+            rnn->Yhat.push_back( yhat );
+        }
+    }
+
+    return rnn->Yhat; // Cache output for backward pass while also pass it to next operations.
+}
+
+template <typename CellType>
+void processGradients(const std::vector<Eigen::MatrixXd>& gradients, CellType& rnn) {
+
+    const Eigen::MatrixXd& dOut, out, yhat;
+
+    // Gradient will have dimension of: sequence_size, batch_size, output_size (instead of hidden_size)
+
+    for (int step = 0; step < rnn->sequence_length; ++step) {
+
+        // Process gradient for the activation operation
+        dOut = gradients[step];
+        out  = rnn->outputs[step];
+        yhat = rnn->Yhat[step];
+        if (rnn->otype == ActivationType::SOFTMAX) {
+            dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
+            rnn->dV[step] = dOut * out.transpose();
+            rnn->dbo[step] = dOut.colwise().sum;
+
+        } else 
+        if (rnn->otype == ActivationType::TANH) {
+            dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
+            rnn->dV[step] = dOut * out.transpose();
+            rnn->dbo[step] = dOut.colwise().sum;
+        } else
+        if (rnn->otype == ActivationType::SIGMOID) {
+            dOut = BaseOperator::sigmoidGradient(dOut, yhat);  // dsigmoidV
+            rnn->dV[step] = dOut * out.transpose();
+            rnn->dbo[step] = dOut.colwise().sum;
+        }
+
+        gradients[step] = dOut * rnn->V[step].transpose(); // get dInput
+
+    }
+}
+
+template <typename CellType>
+const std::vector<Eigen::MatrixXd>& forwarding(const Eigen::Tensor<double, 3>& input_data, CellType& rnn) {
+
+    rnn->input_data = input_data;
+    rnn->otype = ActivationType::SOFTMAX;
+    rnn->rtype = ReductionType::AVG;
+
+    int batch_size = input_data.dimension(0);
+    int embedding_size = input_data.dimension(1);
+    rnn->sequence_length = input_data.dimension(2);
+
+    for (int direction = 0; direction < rnn->num_directions; ++direction) {
+        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
+
+        // Forward pass: Run from first to last time step
+        for (int step = 0; step < rnn->sequence_length; ++step) {
+            Eigen::MatrixXd input_batch = input_data.chip(step, 2);
+
+            // Forward pass through each layer of the RNN
+            for (int layer = 0; layer < rnn->num_layers; ++layer) {
+                input_batch = rnn->cells[layer].forward(input_batch); // This is the Hidden State
+            }
+
+            if (direction == 0) {
+                rnn->foutput.push_back(input_batch);
+            } else {
+                rnn->boutput.push_back(input_batch);
+            }
+        }
+    }
+
+    const std::vector<Eigen::MatrixXd>& Yhat = processOutputs(rnn);
+
+    // marker to indicate the weights are all initialized, as they depend on these sizes.
+    rnn->initialized = true;
+
+    return Yhat;
+}
+
+
+template <typename CellType>
+const std::vector<Eigen::MatrixXd>& backprop(const std::vector<Eigen::MatrixXd>& gradients, CellType& rnn) {
+
+    const Eigen::Tensor<double, 3>& input_data = rnn->input_data;
+
+    int batch_size = input_data.dimension(0);
+    int embedding_size = input_data.dimension(1);
+    int sequence_length = input_data.dimension(2);
+
+    processGradients(gradients, rnn);
+
+    std::vector<Eigen::MatrixXd> dOutf, dOutb;
+    Eigen::MatrixXd dOuts;
+
+    // Now, let us see if we need to split;
+    // Process gradient for the reduction operation
+    for (int step = sequence_length - 1; step >= 0; --step) {
+        Eigen::MatrixXd seq_f, seq_b;
+        if (rnn->rtype == ReductionType::SUM) {
+            seq_f = gradients[step];
+            seq_b = gradients[step];
+        } else 
+        if (rnn->rtype == ReductionType::AVG) {
+            seq_f = gradients[step] / 2;
+            seq_b = gradients[step] / 2;
+        } else 
+        if (rnn->rtype == ReductionType::CONCAT) {
+            seq_f = gradients[step].block(0, 0, batch_size, sequence_length * embedding_size);
+            seq_b = gradients[step].block(0, sequence_length * embedding_size, batch_size, sequence_length * embedding_size);
+        }
+        dOutf.push_back(seq_f);
+        dOutb.push_back(seq_b);
+    }
+
+    // We need to send back the same structure of input_gradients as the input to the forward pass
+    std::vector<Eigen::MatrixXd> input_gradients;
+
+    for (int direction = 0; direction < rnn->num_directions; ++direction) {
+        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
+
+        // Backward pass: Run from last to first time step
+        for (int step = sequence_length - 1; step >= 0; --step) {
+            // Eigen::MatrixXd input_batch = direction == 0 ? input_data.chip(step, 1).reshape(batch_size, embedding_size) : 
+            //            input_data.chip(sequence_length - step - 1, 1).reshape(batch_size, embedding_size);
+            Eigen::MatrixXd input_batch = input_data.chip(step, 2);
+
+            if (direction == 0) {
+                dOuts = dOutf[step];
+            } else {
+                dOuts = dOutb[step];
+            }
+
+            // Backward pass through each layer of the RNN
+            for (int layer = rnn->num_layers - 1; layer >= 0; --layer) {
+                dOuts = rnn->cells[layer].backward(input_batch, dOuts);
+                input_batch = rnn->cells[layer].getHiddenState();
+            }
+
+            // Store the gradients for input data
+            input_gradients.push_back(dOuts);
+        }
+    }
+    return input_gradients;
+}
+
+
 

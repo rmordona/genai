@@ -674,18 +674,15 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("size") = 3, py::arg("bias") = true,
                 py::arg("type") = "relu", py::arg("alpha") = 0.01);
     py::class_<RNN, BaseOperator, std::shared_ptr<RNN>>(m, "RNN")
-        .def(py::init<int, int, int, int, double, int, bool, RNNType>(), 
-                py::arg("input_size") = 3, py::arg("param_size") = 3,
+        .def(py::init<int, int, double, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
                 py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
     py::class_<LSTM, BaseOperator, std::shared_ptr<LSTM>>(m, "LSTM")
-        .def(py::init<int, int, int, int, double, int, bool, RNNType>(), 
-                py::arg("input_size") = 3, py::arg("param_size") = 3,
+        .def(py::init<int, int, double, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
                 py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
     py::class_<GRU, BaseOperator, std::shared_ptr<GRU>>(m, "GRU")
-        .def(py::init<int, int, int, int, double,  int, bool, RNNType>(), 
-                py::arg("input_size") = 3, py::arg("param_size") = 3,
+        .def(py::init<int, int, double,  int, bool, RNNType>(), 
                 py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
                 py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
  

@@ -1044,39 +1044,6 @@ std::string LayerNorm::generateDotFormat(const std::string& name) {
 * Base Activation Functions
 *****************************************************************************************************/
 
-// Here, instead of using the term logits, let's just use x.
-Eigen::MatrixXd Activation::sigmoid(const Eigen::MatrixXd& x) {
-    return (1.0 / (1.0 + (-x).array().exp())).matrix();
-}
-
-/*****************************************************************************************************
- * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
- * dy/dz = propagated_gradient * sigmoid(z) * (1 - sigmoid(z))
- * Or if output (y) is cached, where y = sigmoid(z)
- * then we use the output such that:
- * dy/dz = propagated_gradient * y * (1 - y)
- *****************************************************************************************************/
-Eigen::MatrixXd Activation::sigmoidGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
-    Eigen::MatrixXd dInput = gradients.array() * output_data.array() * ( 1 - output_data.array());
-    return dInput;
-}
-
-Eigen::MatrixXd Activation::tanh(const Eigen::MatrixXd& x) {
-    return x.array().tanh();
-}
-
-/*****************************************************************************************************
- * So, the gradient of the tanh function with respect to its input (z) can be expressed as follows:
- * dy/dz = propagated_gradient * (1 - tanh(z)^2)
- * Or if output (y) is cached, where y = tanh(z)
- * then we use the output such that:
- * dy/dz = propagated_gradient * y * (1 - y^2)
- *****************************************************************************************************/
-Eigen::MatrixXd Activation::tanhGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
-    Eigen::MatrixXd dInput =  gradients.array() *  ( 1 - output_data.array().pow(2));
-    return dInput;
-}
-
 Eigen::MatrixXd Activation::relu(const Eigen::MatrixXd& x) {
     return x.array().max(0.0);
 }

@@ -286,6 +286,7 @@
 #include <mpi.h>
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <unsupported/Eigen/CXX11/Tensor>
 #include <memory>
 #include <queue>
 #include <thread>
@@ -581,7 +582,8 @@ enum class ReductionType {
     ARGMAX,
     ARGMIN,
     MATMUL,
-    MUL
+    MUL,
+    CONCAT
 };
 
 enum class ActivationType {
@@ -599,10 +601,20 @@ enum class ActivationType {
 *****************************************************************************************************/
 class BaseOperator {
     private:
-        OperType otype;
+       // ActivationType otype;
     public:
     virtual void forwardPass() = 0;
     virtual void backwardPass() = 0;
+
+/*
+    void setActivationOperation(OperType otype) {
+        this->otype = otype;
+    }
+
+    OperType getActivationOperation() {
+        return this->otype;
+    }
+*/
 
     // Perform Matrix Multiplication. 
     static Eigen::MatrixXd matmul(Eigen::MatrixXd A, Eigen::MatrixXd B) {
@@ -631,9 +643,33 @@ class BaseOperator {
         return 1.0 / (1.0 + (-output_data.array()).exp());
     }
 
+    /*****************************************************************************************************
+    * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
+    * dy/dz = propagated_gradient * sigmoid(z) * (1 - sigmoid(z))
+    * Or if output (y) is cached, where y = sigmoid(z)
+    * then we use the output such that:
+    * dy/dz = propagated_gradient * y * (1 - y)
+    *****************************************************************************************************/
+    static Eigen::MatrixXd sigmoidGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
+        Eigen::MatrixXd dInput = gradients.array() * output_data.array() * ( 1 - output_data.array());
+        return dInput;
+    }
+
     // Apply the tanh function element-wise to a matrix
     static Eigen::MatrixXd tanh(const Eigen::MatrixXd& output_data) {
         return output_data.array().tanh();
+    }
+
+    /*****************************************************************************************************
+    * So, the gradient of the tanh function with respect to its input (z) can be expressed as follows:
+    * dy/dz = propagated_gradient * (1 - tanh(z)^2)
+    * Or if output (y) is cached, where y = tanh(z)
+    * then we use the output such that:
+    * dy/dz = propagated_gradient * y * (1 - y^2)
+    *****************************************************************************************************/
+    static Eigen::MatrixXd tanhGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
+        Eigen::MatrixXd dInput =  gradients.array() *  ( 1 - output_data.array().pow(2));
+        return dInput;
     }
 
     static Eigen::MatrixXd softmax(const Eigen::MatrixXd& output_data) {
@@ -1360,10 +1396,15 @@ private:
     Eigen::MatrixXd input_data;
     Eigen::MatrixXd output_data;
     Eigen::MatrixXd dInput;
+
     // Reduction* reduce_op = nullptr;
     ssize_t repeat = 1;
     std::string reduce = "add";
 
+    // Handles Tensor
+    Eigen::Tensor<double,3> input_data_tensor;
+    std::vector<Eigen::MatrixXd> dInput_vector;
+    bool tensor = false;
 
 public:
     std::string name;
@@ -1388,6 +1429,9 @@ public:
     // The input is assumed to have NxM where N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
     void setData(py::array_t<double> embedding);
+
+    // Let's handle Tensors
+    void setDataTensor(py::array_t<double> embedding);
 
     Eigen::MatrixXd getInput();
 
