@@ -47,13 +47,13 @@ NodeType Node::nodeType() {
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-void Node::setData(py::array_t<double> embedding) {
+void Node::setData(py::array_t<double> input_data) {
 
     log_info("=================");
     log_info( "Setting Data ..." );
 
     // request a buffer descriptor from Python
-    py::buffer_info buffer_info = embedding.request();
+    py::buffer_info buffer_info = input_data.request();
 
     // extract data an shape of input array
     double* data = static_cast<double*>(buffer_info.ptr);
@@ -64,12 +64,12 @@ void Node::setData(py::array_t<double> embedding) {
     this->input_data = Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, dim0, dim1);
 
     log_detail( "Input Data For Node Name: {0}", this->name );
-    log_matrix( input_data );
+    log_matrix( this->input_data );
 }
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-void Node::setDataTensor(py::array_t<double> embedding) {
+void Node::setDataTensor(py::array_t<double> input_data) {
 
     log_info("=================");
     log_info( "Setting Data (Tensor) ..." );
@@ -77,16 +77,16 @@ void Node::setDataTensor(py::array_t<double> embedding) {
     log_detail( "Input Data For Node Name: {0}", this->name );
 
     // request a buffer descriptor from Python
-    py::buffer_info buffer_info = embedding.request();
+    py::buffer_info buffer_info = input_data.request();
 
     // extract data an shape of input array
     double* data = static_cast<double *>(buffer_info.ptr);
     std::vector<ssize_t> shape = buffer_info.shape;
 
     // Get the dimensions of the py::array_t
-    ssize_t dim0 = shape[0];
-    ssize_t dim1 = shape[1];
-    ssize_t dim2 = shape[2];
+    ssize_t dim0 = shape[0]; // Batch Size
+    ssize_t dim1 = shape[1]; // Input Size
+    ssize_t dim2 = shape[2]; // Parameter / Embedding Size
 
     // Create an Eigen::Map to map the raw data to an Eigen::Tensor
     // Eigen::Map<Eigen::Tensor<double,3>> tensor_map(data, dim0, dim1, dim2);
@@ -102,17 +102,18 @@ void Node::setDataTensor(py::array_t<double> embedding) {
         }
     }
 
-    this->input_data_tensor = tensor;
-
     this->tensor = true;
+
+    this->input_data = tensor;
+
 }
 
 
-Eigen::MatrixXd Node::getInput() {
+const aitensor& Node::getInput() {
     return input_data;
 }
 
-Eigen::MatrixXd Node::getOutput() {
+const aitensor& Node::getOutput() {
     return output_data;
 }
 
@@ -157,9 +158,9 @@ void Node::parallel(ssize_t repeat, std::string& reduce) {
 }
 
 
-Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
+const aitensor& Node::aggregateData(const aitensor& input_data) {
     // start with any input_data we keep.
-    Eigen::MatrixXd output = input_data;
+    aitensor output = input_data;
     // Now add any output data from any source Node that connects to this node.
 
     log_info( "====================" );
@@ -172,7 +173,7 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
     log_detail( "Getting size of node input: {0}", output.size() );
 
     for (Node* node : inputs) {
-        Eigen::MatrixXd outputx = node->getOutput();
+        aitensor outputx = node->getOutput();
         log_detail( "Getting size of node [{0}] output: {1}", node->getName(), outputx.size() );
         // std::cout << outputx << "\n";
         if (output.size() == 0) {
@@ -195,10 +196,10 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
             output = BaseOperator::matmul(output, outputx);
         } else
         if (reduce == "concat") { // Assume adding two samples rowwise.
-                Eigen::MatrixXd concatOuput(output.rows() + outputx.rows(), output.cols());
+                aitensor concatOuput(output.rows() + outputx.rows(), output.cols());
 
                 concatOuput << output,
-                                outputx;
+                               outputx;
                 return concatOuput;
         }
 
@@ -215,11 +216,11 @@ Eigen::MatrixXd Node::aggregateData(Eigen::MatrixXd& input_data) {
     return output;
 }
 
-void Node::setGradients(Eigen::MatrixXd gradients) {
+void Node::setGradients(const aitensor& gradients) {
     dInput = gradients;
 }
 
-void Node::propagateGradients(Eigen::MatrixXd& gradients) {
+void Node::propagateGradients(const aitensor& gradients) {
     // Now handle all other gradients for other inputs.
     if (inputs.size() != 0)
     for (Node* node : inputs) {
@@ -231,7 +232,7 @@ void Node::propagateGradients(Eigen::MatrixXd& gradients) {
         } else
         if (reduce == "mul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
-            Eigen::MatrixXd dInput = gradients;
+            aitensor dInput = gradients;
             for (Node* nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
                     dInput = dInput.array() * nodex->getOutput().array();
@@ -241,7 +242,7 @@ void Node::propagateGradients(Eigen::MatrixXd& gradients) {
         } else
         if (reduce == "matmul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
-            Eigen::MatrixXd dInput = gradients;
+            aitensor dInput = gradients;
             for (Node* nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
                     dInput = BaseOperator::matmul(dInput, nodex->getOutput());
@@ -255,7 +256,7 @@ void Node::propagateGradients(Eigen::MatrixXd& gradients) {
  
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
-Eigen::MatrixXd Node::forwardPass() {
+const aitensor& Node::forwardPass() {
     // Propagate forward data to connected nodes
     int size = operations.size();
 
@@ -266,10 +267,10 @@ Eigen::MatrixXd Node::forwardPass() {
     log_detail("Node: {0} Size: {1}", name, size);
 
     // See if we can perform reduction.
-    Eigen::MatrixXd output = aggregateData(this->input_data); // see Node.setData
+    aitensor output = aggregateData(this->input_data); // see Node.setData
 
     // If we are dealing with 3D
-    Eigen::Tensor<double, 3> output_tensor = this->input_data_tensor; // see Node.setDataTensor
+    aitensor output_tensor = this->input_data_tensor; // see Node.setDataTensor
 
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
@@ -282,56 +283,51 @@ Eigen::MatrixXd Node::forwardPass() {
             log_detail("Node [{0}] Batch Normal Operation (Forward Pass)", name );
             output = batchnorm->forward(output);
             log_matrix( output );
-        } else            
+        } else
         if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Forward Pass)", name );
             output = layernorm->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
             log_detail("Node [{0}] Activation Operation (Forward Pass)", name );
             output = activate->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
             output = attention->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
             log_detail("Node [{0}] FeedForward Operation (Forward Pass)", name );
             output = feedforward->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
             log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
             output = encoder->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto rnn = std::dynamic_pointer_cast<RNN>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
-            output_tensor = rnn->forward(output_tensor);
+            output = rnn->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto lstm = std::dynamic_pointer_cast<LSTM>(op)) {
             log_detail("Node [{0}] LSTM Operation (Forward Pass)", name );
-            output_tensor = lstm->forward(output_tensor);
+            output = lstm->forward(output);
             log_matrix( output );
-        } else           
+        } else
         if (auto gru = std::dynamic_pointer_cast<GRU>(op)) {
             log_detail("Node [{0}] gru Operation (Forward Pass)", name );
-            output_tensor = gru->forward(output_tensor);
+            output = gru->forward(output);
             log_matrix( output );
         }
     }
 
     this->output_data = output;
     return this->output_data;
-}
-
-// Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
-// nodes whose source nodes are already processed.
-std::vector<Eigen::MatrixXd> Node::forwardPass() {
 }
 
 void Node::backwardPass() {
@@ -348,7 +344,7 @@ void Node::backwardPass() {
     std::vector<std::shared_ptr<BaseOperator>> reversedOperations = operations;
 
     // If we are dealing with 3D
-    std::vector<Eigen::MatrixXd> dInput_vector = this->gradients;
+    aitensor dInput = this->gradients; // initially generated through Graph.backwardPropagation()
 
     // Reverse the elements in the copied vector
     std::reverse(reversedOperations.begin(), reversedOperations.end());
@@ -373,7 +369,7 @@ void Node::backwardPass() {
         } else           
         if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
             log_detail("Node [{0}] Activation Operation (Backward Pass)", name );
-            dInput = activate->backward(dInput, this->output_data);
+            dInput = activate->backward(dInput);
             log_matrix( dInput );
         } else           
         if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
@@ -393,17 +389,17 @@ void Node::backwardPass() {
         } else           
         if (auto rnn = std::dynamic_pointer_cast<RNN>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
-            dInput_vector = rnn->backward(dInput_vector);
+            dInput = rnn->backward(dInput);
             // log_matrix( dInput );
         } else           
         if (auto lstm = std::dynamic_pointer_cast<LSTM>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
-            dInput_vector = lstm->backward(dInput_vector);
+            dInput = lstm->backward(dInput);
             // log_matrix( dInput );
         } else           
         if (auto gru = std::dynamic_pointer_cast<GRU>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
-            dInput_vector = gru->backward(dInput_vector);
+            dInput = gru->backward(dInput);
             // log_matrix( dInput );
         } 
     }
@@ -416,7 +412,7 @@ void Node::backwardPass() {
     propagateGradients(dInput);
 
     // Reinitialize dInput for next EPOCH, as long as parameter gradients have been preserved.
-    dInput.setZero();
+    dInput.empty();
 
 }
 
@@ -603,7 +599,7 @@ std::vector<Node*> Graph::getNodes() {
 
 // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
 template <class T>
-Eigen::MatrixXd Graph::forwardPropagation() {
+const aitensor& Graph::forwardPropagation() {
 
     std::queue<Node*> q;
     std::unordered_map<Node*, int> indegree_(indegree); 
@@ -623,7 +619,7 @@ Eigen::MatrixXd Graph::forwardPropagation() {
     log_detail( "Graph: Collecting nodes for the queue." );
     log_detail( "Size of queue: {0}",  q.size() );
 
-    Eigen::Tensor<T,3> output(0, 0, 0);
+    const aitensor& output(0, 0, 0);
 
     log_detail(  "Graph: Entering Queue Loop." );
 
@@ -657,7 +653,7 @@ Eigen::MatrixXd Graph::forwardPropagation() {
     return output;
 }
 
-Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
+const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
     std::queue<Node*> q;
     std::unordered_map<Node*, int> outdegree_(outdegree); 
 
@@ -710,14 +706,15 @@ Eigen::MatrixXd Graph::backwardPropagation(Eigen::MatrixXd& gradients) {
     return gradients;
 }
 
-Eigen::MatrixXd Graph::computeLoss(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+const aimatrix& Graph::computeLoss(std::string losstype, const aitensor& predicted, const aitensor& target) {
 
     log_info( "***************************************************" );
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    Loss* obj = new Loss(losstype);
-    Eigen::MatrixXd loss = obj->computeLoss(predicted, target);
+    this->lossobj = new Loss(losstype);
+
+    aimatrix loss = this->lossobj->computeLoss(predicted, target);
 
     log_detail( "Loss calculated: " );
     log_matrix( loss );
@@ -725,14 +722,13 @@ Eigen::MatrixXd Graph::computeLoss(std::string losstype, Eigen::MatrixXd& predic
     return loss;
 }
 
-Eigen::MatrixXd Graph::computeGradients(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+const aitensor& Graph::computeGradients(const aitensor& predicted, const const aitensor& target) {
 
     log_info( "*********************************************" );
     log_info( "*****    Graph: Processing Gradient *********" );
     log_info( "*********************************************" );
 
-    Loss* obj = new Loss(losstype);
-    Eigen::MatrixXd gradients = obj->computeGradients(predicted, target);
+    aitensor gradients = this->lossobj->computeGradients(predicted, target);
 
     log_detail( "Loss Gradient calculated ..." );
     log_matrix( gradients );

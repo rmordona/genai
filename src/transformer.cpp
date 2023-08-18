@@ -35,10 +35,10 @@ using namespace py::literals;
 * Base Attention Head Layer
 *****************************************************************************************************/
 
-// While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
-// We only need the M dimension from an NxM input to generate parameter matrix.
-// where weights is NxW and bias is W.
-Eigen::MatrixXd Attention::forward(Eigen::MatrixXd& input_data) { 
+// While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+// We only need the M dimension from an BxNxM input to generate parameter matrix.
+// where weights is BxNxW and bias is W.
+const aitensor& Attention::forward(const aitensor& input_data) { 
 
     log_info("=====================================");
     log_info( "Entering Attention Forward Pass ..." );
@@ -46,17 +46,19 @@ Eigen::MatrixXd Attention::forward(Eigen::MatrixXd& input_data) {
     // Cache for later back propagation.
     this->input_data = input_data;
 
-    this->N = input_data.rows();
-    this->M = input_data.cols();
+    this->B  = input_data.dimension(0);
+    this->N  = input_data.dimension(1);
+    this->M  = input_data.dimension(2);
+
     this->Dk = this->M / this->H;
 
-    log_detail( "Size of input:", this->input_data.size() );
+    log_detail( "Size of input:", input_data.size() );
 
     if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
-        Q  = new Linear(this->W, bias);
-        K  = new Linear(this->W, bias);
-        V  = new Linear(this->W, bias);
-        Wo = new Linear(this->M, bias);
+        Q  = new Linear(this->W, this->bias);
+        K  = new Linear(this->W, this->bias);
+        V  = new Linear(this->W, this->bias);
+        Wo = new Linear(this->M, this->bias);
     }
 
     // Perform Linear Transformation.
@@ -73,39 +75,58 @@ Eigen::MatrixXd Attention::forward(Eigen::MatrixXd& input_data) {
     log_detail( "V Linear output" );
     log_matrix( Vout );
 
-    // MatMul (QK^T)
-    Eigen::MatrixXd QK = BaseOperator::matmul(Qout, Kout.transpose());
 
-    log_detail( "QK matmul" );
-    log_matrix( QK );
+    const aitensor& voutputs(this->B, this->N, this->W); // Dimension: BxNxW
+    QKsoft.resize(this->B, this->N, this->N); // Dimension: BxNxN
 
-    // Include some Masking (still to be implemented)
+    aimatrix mQout, mKout, mVout, mQKsoft, mQKsoftV, QK;
 
-    // Scale sqrt(Dk)
-    QK = QK.array() / sqrt(Dk);
+    for (int i = 0; i < this->B; ++i) {
 
-    log_detail( "Scaling -> QK / sqrt(Dk)" );
-    log_matrix( QK );
+        mQout = Quot.chip(i, 0); // NxW
+        mKout = Kout.chip(i, 0); // NxW
+        mVout = Vout.chip(i, 0); // NxW
 
-    // Mask if required (Decoder)
-    // ...
+        // MatMul (QK^T)
+        QK = BaseOperator::matmul(mQuot, mKuot.transpose()); // NxN
 
-    // Perform Softmax
-    QKsoft = BaseOperator::softmax(QK);
+        log_detail( "QK matmul" );
+        log_matrix( QK );
 
-    log_detail( "Softmax QKsoft output" );
-    log_matrix(  QKsoft );
+        // Include some Masking (still to be implemented)
 
-    log_detail( "Vout output" );
-    log_matrix(  Vout  );
+        // Scale sqrt(Dk)
+        QK = QK.array() / sqrt(this->Dk);
 
-    // Include dropout (still to be implemented)
+        log_detail( "Scaling -> QK / sqrt(Dk)" );
+        log_matrix( QK );
 
-    // Perform matmul with V
-    QKsoftV = BaseOperator::matmul(QKsoft, Vout);
+        // Mask if required (Decoder)
+        // ...
+
+        // Perform Softmax
+        mQKsoft = BaseOperator::softmax(QK);
+
+        log_detail( "Softmax QKsoft output" );
+        log_matrix(  mQKsoft );
+
+        log_detail( "Vout output" );
+        log_matrix(  mVout  );
+
+        // Cache to be used by Back propagation
+        QKsoft.chip(i, 0) = mQKsoft;
+
+        // Include dropout (still to be implemented)
+
+        // Perform matmul with V
+        mQKsoftV = BaseOperator::matmul(mQKsoft, mVout);
+
+        voutputs.chip(i, 0) = mQKsoftV;
+    
+    }
 
     // Perform another transform to align dimension.
-    Eigen::MatrixXd output = Wo->forward(QKsoftV);
+    aitensor output = Wo->forward(voutputs);
 
     log_detail( "Attention forward pass output ..." );
     log_matrix( output );
@@ -118,75 +139,85 @@ Eigen::MatrixXd Attention::forward(Eigen::MatrixXd& input_data) {
 // They will be used to update the parameters in next parallel operations.
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
-Eigen::MatrixXd Attention::backward(Eigen::MatrixXd& gradients) { 
+const aitensor& Attention::backward(const aitensor& gradients) { 
 
     log_info("=====================================");
     log_info( "Entering Attention Backward Pass ..." );
 
     // Gradient with Respect to W linear operations.
-    Eigen::MatrixXd WodInput = Wo->backward(gradients); 
+    aitensor WodInput = Wo->backward(gradients); 
 
-    // Gradient with Respect to QKsoft (matmul operation)
-    Eigen::MatrixXd dQKsoft = BaseOperator::matmul(WodInput, Vout.transpose());
+    aimatrix mWodInput, mVout, mQKsoft;
 
-    log_detail( "dQKsoft gradient" );
-    log_matrix( dQKsoft );
+    aitensor dInput(this->B, this->N, this->M);
 
-    // Gradient with Respect to Vout (matmul operation)
-    Eigen::MatrixXd VmInput = BaseOperator::matmul(QKsoft.transpose(), WodInput);
+    for (int i = 0; i < this->B; ++i) {
 
-    log_detail( "VmInput gradient" );
-    log_matrix( VmInput );
+        mWodInput = WodInput.chip(i, 0);
+        mVout = Vout.chip(i, 0);
+        mQKsoft = QKsoft.chip(i, 0);
+
+        // Gradient with Respect to QKsoft (matmul operation)
+        aimatrix dQKsoft = BaseOperator::matmul(mWodInput, mVout.transpose());
+
+        log_detail( "dQKsoft gradient" );
+        log_matrix( dQKsoft );
+
+        // Gradient with Respect to Vout (matmul operation)
+        aimatrix VmInput = BaseOperator::matmul(mQKsoft.transpose(), mWodInput);
+
+        log_detail( "VmInput gradient" );
+        log_matrix( VmInput );
+
+        // Propagate Gradient to softmax operation.
+        aimatrix dInput = BaseOperator::softmaxGradient(dQKsoft, QKsoft);
+
+        log_detail( "dInput gradient" );
+        log_matrix( dInput );
+
+        // Propagate Gradient to scale operation.
+        aimatrix dScale = -0.5 * dInput.array() * (1.0 / std::sqrt(this->Dk));
+
+        log_detail( "dScale gradient" );
+        log_matrix( dInput );
+
+        // Gradient with Respect to Q (matmul operation)
+        aimatrix QdQK = BaseOperator::matmul(dScale, Kout); // Kout was already tranposed during forward.
+
+        log_detail( "QdQK gradient" );
+        log_matrix( QdQK );
+
+        // Gradient with Respect to V (matmul operation)
+        aimatrix KdQK = BaseOperator::matmul(Qout.transpose(), dScale);
+
+        log_detail( "KdQK gradient" );
+        log_matrix( KdQK );
 
 
+        // Propagate Gradient to the Q,K,V linear operations.
+        aimatrix  QdInput = Q->backward(QdQK);     // NxM
+        aimatrix  KdInput = V->backward(KdQK);     // NxM
+        aimatrix  VdInput = V->backward(VmInput);  // NxM
 
-    // Propagate Gradient to softmax operation.
-    Eigen::MatrixXd dInput = BaseOperator::softmaxGradient(dQKsoft, QKsoft);
+        log_detail( " Done Backprop to Q, K, V ..." );
 
-    log_detail( "dInput gradient" );
-    log_matrix( dInput );
+        log_detail( "VdInput gradient" );
+        log_matrix( VdInput );
 
-    // Propagate Gradient to scale operation.
-    Eigen::MatrixXd dScale = -0.5 * dInput.array() * (1.0 / std::sqrt(Dk));
+        log_detail( "QdInput gradient" );
+        log_matrix( QdInput );
 
-    log_detail( "dScale gradient" );
-    log_matrix( dInput );
+        log_detail( "KdInput gradient" );
+        log_matrix( KdInput );
 
-    // Gradient with Respect to Q (matmul operation)
-    Eigen::MatrixXd QdQK = BaseOperator::matmul(dScale, Kout); // Kout was already tranposed during forward.
+        dInput.chip(i, 0) =  QdInput + KdInput + VdInput; // BxNxM
 
-    log_detail( "QdQK gradient" );
-    log_matrix( QdQK );
+        log_detail( "dInput gradient" );
+        log_matrix( dInput );
 
-    // Gradient with Respect to V (matmul operation)
-    Eigen::MatrixXd KdQK = BaseOperator::matmul(Qout.transpose(), dScale);
+    }
 
-    log_detail( "KdQK gradient" );
-    log_matrix( KdQK );
-
-
-    // Propagate Gradient to the Q,K,V linear operations.
-    Eigen::MatrixXd  QdInput = Q->backward(QdQK);
-    Eigen::MatrixXd  KdInput = V->backward(KdQK);
-    Eigen::MatrixXd  VdInput = V->backward(VmInput); 
-
-    log_detail( " Done Backprop to Q, K, V ..." );
-
-    log_detail( "VdInput gradient" );
-    log_matrix( VdInput );
-
-    log_detail( "QdInput gradient" );
-    log_matrix( QdInput );
-
-    log_detail( "KdInput gradient" );
-    log_matrix( KdInput );
-
-    dInput = QdInput + KdInput + VdInput;
-
-    log_detail( "dInput gradient" );
-    log_matrix( dInput );
-
-    return dInput;
+    return dInput;  
 }
 
 void Attention::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
@@ -215,22 +246,11 @@ std::string Attention::generateDotFormat() {
 
 /*****************************************************************************************************
 * Base Multi-Head Attention Layer:
-*
-*   Note:  WE can define efine the dimensions of the tensor using Map instead of the usual Eigen::Tensor<double, 3>
-*    const int T = 4096; // Number of tokens
-*    const int E = 768;  // Embedding size
-*    const int H = 12;   // Number of attention heads
-*
-*    // Create a data array with shape TxExH
-*    double tensorData[T * E * H];
-*
-*    // Map the data array to an Eigen MatrixXd with shape (T * E) x H
-*    Eigen::Map<Eigen::MatrixXd> tensorMap(tensorData, T * E, H);
 *****************************************************************************************************/
-// While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
+// While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
-// where weights is NxW and bias is W.
-Eigen::MatrixXd MultiHeadAttention::forward(Eigen::MatrixXd& input_data) { 
+// where weights is BxNxW and bias is W.
+const aitensor& MultiHeadAttention::forward(const aitensor& input_data) { 
 
 
     log_info("===============================================");
@@ -239,68 +259,97 @@ Eigen::MatrixXd MultiHeadAttention::forward(Eigen::MatrixXd& input_data) {
     // Cache for later back propagation.
     this->input_data = input_data;
 
-    this->N = input_data.rows();
-    this->M = input_data.cols();
+    this->B  = input_data.dimension(0);
+    this->N  = input_data.dimension(1);
+    this->M  = input_data.dimension(2);
+    this->Dk = this->M / this->H;
 
-    log_detail( "Size of input: {:d}" , this->input_data.size() );
-    log_detail( "Size of Head: {:d}", H  );
+    log_detail( "Size of input: {:d}" , input_data.size() );
+    log_detail( "Size of Head: {:d}", this->H );
 
     if (M1.empty()) {
         for (int i = 0; i < this->H; i++) {
-            Attention* A1  = new Attention(1, this->W);
+            Attention* A1  = new Attention(this->H, this->W);
             M1.push_back(A1);
         }
     }
 
-
-    this->Dk = this->M / this->H;
     int splits = 0; 
 
     log_detail( "Size of DK ...{:d}" , Dk );
 
-    std::vector<Eigen::MatrixXd> outputs;
+    const aitensor& output(this->B, this->N, this->M);
 
-    // We could have just used Eigen::Tensor<double, 3>, but Eigen::Map<Eigen::MatrixXd>
-    // performs similar structure.
-    for (int i = 0; i < this->H; i++) {
+    for (int i = 0; i < this->H; i++)
         splits = this->Dk * this->N * i; 
-        Eigen::Map<Eigen::MatrixXd> O(this->input_data.data()+splits, N, Dk);
-        outputs.push_back(O);
-        
-    }  
-
-    // Perform Forward pass. This requires  OpenMP or OpenMPI for multi processing.
-    for (int i = 0; i < this->H; i++) {
-        outputs[i] = M1[i]->forward(outputs[i]);
+        aitensor input_head = input_data.chip(splits,2,this->Dk);
+        aitensor output.chip(splits, 2, this->Dk) = M1[i]->forward(input_head);
     }
 
-    int totalCols = 0;
-    for (const auto& output : outputs) {
-        totalCols += output.cols();
-    }
+    /*
+        input = input_data.chip(i, 0);
 
-    // now concatenate
-    Eigen::MatrixXd concatenated_output = Eigen::MatrixXd::Zero(outputs[0].rows(), totalCols);
-    int colOffset = 0;
-    for (const auto& output : outputs) {
-        concatenated_output.block(0, colOffset, output.rows(), output.cols()) = output;
-        colOffset += output.cols();
-    }
+        input_data.chip(B,2,this->Dk);
+
+        // performs similar structure.
+       
+        // for (int i = 0; i < this->H; i++) {
+        //    splits = this->Dk * this->N * i; 
+        //    Eigen::Map<Eigen::MatrixXd> O(input.data()+splits, N, Dk);
+        //    outputs.push_back(O);
+        // }
+
+        // Perform Forward pass. This requires  OpenMP or OpenMPI for multi processing.
+        for (int i = 0; i < this->H; i++) {
+            outputs[i] = M1[i]->forward(outputs[i]);
+        }
+
+        int totalCols = 0;
+        for (const auto& output : outputs) {
+            totalCols += output.cols();
+        }
+
+        // now concatenate
+        Eigen::MatrixXd concatenated_output = Eigen::MatrixXd::Zero(outputs[0].rows(), totalCols);
+        int colOffset = 0;
+        for (const auto& output : outputs) {
+            concatenated_output.block(0, colOffset, output.rows(), output.cols()) = output;
+            colOffset += output.cols();
+        }
+    */
 
     log_detail( "MultiAttention Forward pass done ..." );
 
-    return concatenated_output;
+    return output;
 }
 
 // Leave the gradients as is. They are cached in the Node. 
 // They will be used to update the parameters in next parallel operations.
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
-Eigen::MatrixXd MultiHeadAttention::backward(Eigen::MatrixXd& gradients) { 
+const aitensor& MultiHeadAttention::backward(const aitensor& gradients) { 
 
     log_info("================================================");
     log_info( "Entering Multi-Head Attention Backward Pass ..." );
 
+    this->B  = input_data.dimension(0);
+    this->N  = input_data.dimension(1);
+    this->M  = input_data.dimension(2);
+    this->Dk = this->M / this->H;
+
+    int splits = 0; 
+
+    log_detail( "Size of DK ...{:d}" , Dk );
+
+    const aitensor& dInput(this->B, this->N, this->M);
+
+    for (int i = 0; i < this->H; i++)
+        splits = this->Dk * this->N * i; 
+        aitensor gradient_head = gradients.chip(splits,2,this->Dk);
+        aitensor dInput.chip(splits, 2, this->Dk) = M1[i]->forward(gradient_head);
+    }
+
+    /*
     // Propagate Gradient to multihead operations.
     Eigen::MatrixXd  dInput = Eigen::MatrixXd::Zero(gradients.rows(), gradients.cols());
 
@@ -308,6 +357,8 @@ Eigen::MatrixXd MultiHeadAttention::backward(Eigen::MatrixXd& gradients) {
     for (int i = 0; i < this->H; i++) {
         dInput += M1[i]->backward(gradients);
     }
+    */
+
     return dInput;
 }
 
@@ -338,7 +389,7 @@ std::string MultiHeadAttention::generateDotFormat() {
 // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is NxW and bias is W.
-Eigen::MatrixXd FeedForward::forward(Eigen::MatrixXd& input_data) { 
+const aitensor& FeedForward::forward(const aitensor& input_data) { 
 
     log_info("=====================================================");
     log_info( "Entering Feedforward Forward Pass ..." );
@@ -349,8 +400,9 @@ Eigen::MatrixXd FeedForward::forward(Eigen::MatrixXd& input_data) {
     log_detail( "Input Result" );
     log_matrix( input_data );
 
-    this->N = input_data.rows();
-    this->M = input_data.cols();
+    this->B  = input_data.dimension(0);
+    this->N  = input_data.dimension(1);
+    this->M  = input_data.dimension(2);
 
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
         L1 = new Linear(this->W, bias);
@@ -360,8 +412,8 @@ Eigen::MatrixXd FeedForward::forward(Eigen::MatrixXd& input_data) {
 
     // Perform Linear Transformation.
     L1out = L1->forward(input_data);  // Cache output for use by backward activation later
-    Eigen::MatrixXd A1out = A1->forward(L1out);
-    Eigen::MatrixXd output = L2->forward(A1out);
+    const aitensor& A1out = A1->forward(L1out);
+    const aitensor& output = L2->forward(A1out);
 
     log_detail( "Output Result" );
     log_matrix( output );
@@ -373,15 +425,15 @@ Eigen::MatrixXd FeedForward::forward(Eigen::MatrixXd& input_data) {
 // They will be used to update the parameters in next parallel operations.
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
-Eigen::MatrixXd FeedForward::backward(Eigen::MatrixXd& gradients) { 
+const aitensor& FeedForward::backward(const aitensor& gradients) { 
     // Propagate Gradient to feedforward operations.
 
     log_info("=======================================");
     log_info( "Entering Feedforward Backward Pass ..." );
 
-    Eigen::MatrixXd  L2gradients = L2->backward(gradients); 
-    Eigen::MatrixXd  A1gradients = A1->backward(L2gradients, L1out);
-    Eigen::MatrixXd  dInput = L1->backward(A1gradients);
+    aitensor L2gradients = L2->backward(gradients); 
+    aitensor A1gradients = A1->backward(L2gradients);
+    aitensor dInput = L1->backward(A1gradients);
 
     log_detail( "dInput" );
     log_matrix( dInput );
@@ -415,10 +467,10 @@ std::string FeedForward::generateDotFormat() {
 * Base Encoder  Layer
 *****************************************************************************************************/
 
-// While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
+// While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
-// where weights is NxW and bias is W.
-Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) { 
+// where weights is BxNxW and bias is W.
+const aitensor& Encoder::forward(const aitensor& input_data) { 
 
     log_info("=====================================================");
     log_info( "Entering Encoder Forward Pass ..." );
@@ -426,7 +478,9 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
     // Cache for later back propagation.
     this->input_data = input_data;
 
-    this->N = input_data.rows();
+    this->B  = input_data.dimension(0);
+    this->N  = input_data.dimension(1);
+    this->M  = input_data.dimension(2);
 
     log_detail( "Size of input: {:d}", this->input_data.size() );
 
@@ -446,7 +500,7 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
     log_detail( "Encoder Attention forward output ..." );
     log_matrix( M1out );
 
-    Eigen::MatrixXd InputM1out = M1out.array() + input_data.array();
+    aitensor InputM1out = M1out.array() + input_data.array();
 
     log_detail( "Encoder Add 1 forward output ..." );
     log_matrix( InputM1out  );
@@ -461,12 +515,12 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
     log_detail( "Encoder FeedForward forward output ..." );
     log_matrix( F1out  );
 
-    Eigen::MatrixXd LN1F1out = F1out.array() + LN1out.array();
+    aitensor LN1F1out = F1out.array() + LN1out.array();
 
     log_detail( "Encoder Add 2 forward output ..." );
     log_matrix( LN1F1out  );
 
-    Eigen::MatrixXd output = LN2->forward(LN1F1out);
+    aitensor output = LN2->forward(LN1F1out);
 
     log_detail( "Encoder LN2 forward output ..." );
     log_matrix( output  );
@@ -478,26 +532,26 @@ Eigen::MatrixXd Encoder::forward(Eigen::MatrixXd& input_data) {
 // They will be used to update the parameters in next parallel operations.
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
-Eigen::MatrixXd Encoder::backward(Eigen::MatrixXd& gradients) { 
+const aitensor& Encoder::backward(const aitensor& gradients) { 
 
     log_info("=====================================================");
     log_info( "Entering Encoder Backward Pass ..." );
 
     log_detail( "Entering Encoder backpropagation ..." );
     // Propagate Gradient to Encoder.
-    Eigen::MatrixXd  LN2gradients = LN2->backward(gradients); 
+    aitensor  LN2gradients = LN2->backward(gradients); 
 
     log_detail( "Encoder LN2 backprop output ..." );
     log_matrix( LN2gradients );
 
-    Eigen::MatrixXd F1LN2gradients = LN2gradients.array(); // F1out.array() * LN2gradients.array();
+    aitensor F1LN2gradients = LN2gradients.array(); // F1out.array() * LN2gradients.array();
 
-    Eigen::MatrixXd F1gradients = F1->backward(F1LN2gradients);
+    aitensor F1gradients = F1->backward(F1LN2gradients);
 
     log_detail( "Encoder F1 backprop output ..." );
     log_matrix( F1gradients );
 
-    Eigen::MatrixXd InputLN2gradients = LN2gradients.array(); // LN1out.array() * LN2gradients.array();
+    aitensor InputLN2gradients = LN2gradients.array(); // LN1out.array() * LN2gradients.array();
 
     log_detail( "Encoder input * F1 backprop output ..." );
     log_matrix( InputLN2gradients );
@@ -507,21 +561,21 @@ Eigen::MatrixXd Encoder::backward(Eigen::MatrixXd& gradients) {
     log_detail( "Encoder (InputLN1gradients + F1gradients) backprop output ..." );
     log_matrix( F1gradients );
 
-    Eigen::MatrixXd  LN1gradients = LN1->backward(F1gradients);
+    aitensor  LN1gradients = LN1->backward(F1gradients);
 
     log_detail( "Encoder LN1 backprop output ..." );
     log_matrix( LN1gradients );
 
-    Eigen::MatrixXd M1LN1gradients = LN1gradients.array(); // A1out.array() * LN1gradients.array();
+    aitensor M1LN1gradients = LN1gradients.array(); // A1out.array() * LN1gradients.array();
 
-    Eigen::MatrixXd  M1gradients =  M1->backward(M1LN1gradients);
+    aitensor  M1gradients =  M1->backward(M1LN1gradients);
 
     log_detail( "Encoder A1 backprop output ..." );
     log_matrix( M1gradients );
 
-    Eigen::MatrixXd LN1outLN1gradients = LN1gradients.array(); // input_data.array() * LN1gradients.array();
+    aitensor LN1outLN1gradients = LN1gradients.array(); // input_data.array() * LN1gradients.array();
 
-    Eigen::MatrixXd dInput = LN1outLN1gradients + M1gradients;      
+    aitensor dInput = LN1outLN1gradients + M1gradients;      
 
     log_detail( "Encoder dInput ..." );
     log_matrix( dInput );

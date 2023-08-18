@@ -41,17 +41,17 @@ public:
 
     class Split {
     private:
-        Eigen::MatrixXd A;
-        Eigen::MatrixXd B;
+        aimatrix A;
+        aimatrix B;
     public:
-        Split(const Eigen::MatrixXd& XH, int param_size, int hidden_size) {
+        Split(const aimatrix& XH, int param_size, int hidden_size) {
             A = XH.block(0, 0, param_size, hidden_size);
             B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
         }
-        Eigen::MatrixXd transposedX() {
+        aimatrix transposedX() {
             return A.transpose();
         }
-        Eigen::MatrixXd transposedH() {
+        aimatrix transposedH() {
             return B.transpose();
         }
 
@@ -77,23 +77,23 @@ public:
 class RNNCell : public CellBase {
 private:
    // Parameters (weights and biases)
-    Eigen::MatrixXd W;  // Weight for the Input   (p x h)
-    Eigen::MatrixXd U;  // Weight for the Hidden State  (h x h)  (rows x columns)
-    // Eigen::MatrixXd V;  // Weight for the predicted output  (h x o)
-    Eigen::RowVectorXd bh; // Hidden bias
-    // Eigen::RowVectorXd bo; // Bias for the predicted output
-    Eigen::MatrixXd H;  // Hidden state  (n x h) where n = number of words, h = hidden size
+    aimatrix W;  // Weight for the Input   (p x h)
+    aimatrix U;  // Weight for the Hidden State  (h x h)  (rows x columns)
+    // aimatrix V;  // Weight for the predicted output  (h x o)
+    airowvector bh; // Hidden bias
+    // airowvector bo; // Bias for the predicted output
+    aimatrix H;  // Hidden state  (n x h) where n = number of words, h = hidden size
 
-    Eigen::MatrixXd dX; // Gradient with respect to Input
-    Eigen::MatrixXd dH; // Gradient with respect to Hidden state
+    aimatrix dX; // Gradient with respect to Input
+    aimatrix dH; // Gradient with respect to Hidden state
 
-    // Eigen::MatrixXd input_data;
+    // aimatrix input_data;
 
     // Stored data for backward pass.
-    Eigen::MatrixXd X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
+    aimatrix X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
 
     // Y.hat, target
-    // Eigen::MatrixXd Yhat, Y; // (n x o)
+    // aimatrix Yhat, Y; // (n x o)
 
     int input_size = 0;
     int param_size = 0;
@@ -105,45 +105,45 @@ private:
 public:
     // RNNCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate);
     RNNCell(int hidden_size, double learning_rate);
-    const Eigen::MatrixXd& getHiddenState();
+    const aimatrix& getHiddenState();
     void setInitialWeights(int N, int P);
-    const Eigen::MatrixXd& forward(const Eigen::MatrixXd& input_data);
-    const Eigen::MatrixXd& backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h);
+    const aimatrix& forward(const aimatrix& input_data);
+    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
 
 };
  
 class LSTMCell : public CellBase {
 private:
     // Parameters (weights and biases)
-    Eigen::MatrixXd Wf;      // Weight matrix for input gate from input x         (p + h) x h
-    Eigen::MatrixXd Wi;      // Weight matrix for input gate from input x         (p + h) x h
-    Eigen::MatrixXd Wo;      // Weight matrix for output gate from input x        (p + h) x h
-    Eigen::MatrixXd Wg;      // Weight matrix for candidate state from input x    (p + h) x h
-    // Eigen::MatrixXd V;       // Weight for Output (h x o)
+    aimatrix Wf;      // Weight matrix for input gate from input x         (p + h) x h
+    aimatrix Wi;      // Weight matrix for input gate from input x         (p + h) x h
+    aimatrix Wo;      // Weight matrix for output gate from input x        (p + h) x h
+    aimatrix Wg;      // Weight matrix for candidate state from input x    (p + h) x h
+    // aimatrix V;       // Weight for Output (h x o)
 
-    Eigen::RowVectorXd bf;   // Bias vector for input gate        (1xh)
-    Eigen::RowVectorXd bi;   // Bias vector for input gate        (1xh)
-    Eigen::RowVectorXd bo;   // Bias vector for output gate       (1xh)
-    Eigen::RowVectorXd bg;   // Bias vector for candidate state   (1xh)
-    // Eigen::RowVectorXd by;   // Bias for the predicted output
+    airowvector bf;   // Bias vector for input gate        (1xh)
+    airowvector bi;   // Bias vector for input gate        (1xh)
+    airowvector bo;   // Bias vector for output gate       (1xh)
+    airowvector bg;   // Bias vector for candidate state   (1xh)
+    // airowvector by;   // Bias for the predicted output
 
-    Eigen::MatrixXd Ft;      // Forget Gate       (nxh)
-    Eigen::MatrixXd It;      // Input Gate        (nxh)
-    Eigen::MatrixXd Ot;      // Output Gate       (nxh)
-    Eigen::MatrixXd Gt;      // Candidate State   (nxh)
+    aimatrix Ft;      // Forget Gate       (nxh)
+    aimatrix It;      // Input Gate        (nxh)
+    aimatrix Ot;      // Output Gate       (nxh)
+    aimatrix Gt;      // Candidate State   (nxh)
 
-    Eigen::MatrixXd H;       // Hidden state (n x h)
-    Eigen::MatrixXd C;       // Cell state   (n x h)
+    aimatrix H;       // Hidden state (n x h)
+    aimatrix C;       // Cell state   (n x h)
 
-    // Eigen::MatrixXd input_data;
+    // aimatrix input_data;
 
-    Eigen::MatrixXd X;       // (n x p)
-    // Eigen::MatrixXd Yhat, Y; // (n x o)
+    aimatrix X;       // (n x p)
+    // aimatrix Yhat, Y; // (n x o)
  
-    Eigen::MatrixXd XH;      // Concatenate X and H
-    Eigen::MatrixXd dX;      // Gradient with respect to Input
-    Eigen::MatrixXd dH;      // Gradient with respect to Hidden state
-    Eigen::MatrixXd dC;      // Gradient with respect to Cell state
+    aimatrix XH;      // Concatenate X and H
+    aimatrix dX;      // Gradient with respect to Input
+    aimatrix dH;      // Gradient with respect to Hidden state
+    aimatrix dC;      // Gradient with respect to Cell state
 
     int input_size;
     int param_size;
@@ -154,43 +154,43 @@ private:
 
 public:
     LSTMCell(int param_size, double learning_rate);
-    const Eigen::MatrixXd& getHiddenState();
-    const Eigen::MatrixXd& getCellState();
+    const aimatrix& getHiddenState();
+    const aimatrix& getCellState();
     void setInitialWeights(int N, int P);
-    const Eigen::MatrixXd& forward(const Eigen::MatrixXd& input_data);
-    const Eigen::MatrixXd& backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h);
+    const aimatrix& forward(const aimatrix& input_data);
+    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
 
 };
 
 class GRUCell : public CellBase {
 private:
     // Weights for the input-to-hidden connections
-    Eigen::MatrixXd Wz;      // Weight matrix for the update gate               (p + h) x h
-    Eigen::MatrixXd Wr;      // Weight matrix for the reset gate                (p + h) x h
-    Eigen::MatrixXd Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
-    // Eigen::MatrixXd V;       // Weight for Output (h x o)
+    aimatrix Wz;      // Weight matrix for the update gate               (p + h) x h
+    aimatrix Wr;      // Weight matrix for the reset gate                (p + h) x h
+    aimatrix Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
+    // aimatrix V;       // Weight for Output (h x o)
 
     // Biases for the hidden units
-    Eigen::RowVectorXd bz;   // Bias vector for the update gate              (1xh)
-    Eigen::RowVectorXd br;   // Bias vector for the reset gate               (1xh)
-    Eigen::RowVectorXd bg;   // Bias vector for the candidate hidden state   (1xh)
-    // Eigen::RowVectorXd bo;   // Bias for the predicted output
+    airowvector bz;   // Bias vector for the update gate              (1xh)
+    airowvector br;   // Bias vector for the reset gate               (1xh)
+    airowvector bg;   // Bias vector for the candidate hidden state   (1xh)
+    // airowvector bo;   // Bias for the predicted output
 
-    Eigen::MatrixXd Zt;      // Forget Gate       (nxh)
-    Eigen::MatrixXd Rt;      // Input Gate        (nxh)
-    Eigen::MatrixXd Gt;      // Candidate State   (nxh)
+    aimatrix Zt;      // Forget Gate       (nxh)
+    aimatrix Rt;      // Input Gate        (nxh)
+    aimatrix Gt;      // Candidate State   (nxh)
 
-    // Eigen::MatrixXd input_data;
+    // aimatrix input_data;
 
-    Eigen::MatrixXd X;       // (n x p)
-    Eigen::MatrixXd H;         // Hidden state (n x h)
+    aimatrix X;       // (n x p)
+    aimatrix H;         // Hidden state (n x h)
 
-    // Eigen::MatrixXd Yhat, Y; // (n x o)
+    // aimatrix Yhat, Y; // (n x o)
 
-    Eigen::MatrixXd XH;      // Concatenate X and H
+    aimatrix XH;      // Concatenate X and H
 
-    Eigen::MatrixXd dX; // Gradient with respect to Input
-    Eigen::MatrixXd dH;      // Gradient with respect to Hidden state
+    aimatrix dX; // Gradient with respect to Input
+    aimatrix dH;      // Gradient with respect to Hidden state
 
     int input_size;
     int param_size;
@@ -201,10 +201,10 @@ private:
 
 public:
     GRUCell(int hidden_size, double learning_rate);
-    const Eigen::MatrixXd& getHiddenState();
+    const aimatrix& getHiddenState();
     void setInitialWeights(int N, int P);
-    const Eigen::MatrixXd& forward(const Eigen::MatrixXd& input_data);
-    const Eigen::MatrixXd& backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h);
+    const aimatrix& forward(const aimatrix& input_data);
+    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
 
 };
 
@@ -213,7 +213,9 @@ private:
     std::vector<RNNCell> fcells;
     std::vector<RNNCell> bcells;
     std::vector<RNNCell> cells;
-    Eigen::Tensor<double, 3> input_data;
+    
+    aitensor input_data;
+
     int num_directions = 2;
     int sequence_length;
     int initialized = false;
@@ -225,13 +227,15 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<Eigen::MatrixXd> foutput, boutput, outputs;
-    std::vector<Eigen::MatrixXd> V;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> bo;  // Bias for the predicted output
-    std::vector<Eigen::MatrixXd> Yhat;
-    std::vector<Eigen::MatrixXd> gradients;
-    std::vector<Eigen::MatrixXd> dV;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> dbo;  // Bias for the predicted output
+    std::vector<aimatrix> foutput, boutput, outputs;
+    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> bo;  // Bias for the predicted output
+
+    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> dbo;  // Bias for the predicted output
+
+    aitensor gradients;
+    aitensor Yhat;
 
 public:
     RNN(int hidden_size, int output_size, double learning_rate, int num_layers, 
@@ -248,8 +252,8 @@ public:
             bcells.push_back(cell);
         }
     }
-    const std::vector<Eigen::MatrixXd>&  forward(const Eigen::Tensor<double, 3>& input_data);
-    const std::vector<Eigen::MatrixXd>&  backward(const std::vector<Eigen::MatrixXd>& gradients);
+    const aitensor&  forward(const aitensor& input_data);
+    const aitensor&  backward(const aitensor& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
@@ -274,13 +278,16 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<Eigen::MatrixXd> foutput, boutput, outputs;
-    std::vector<Eigen::MatrixXd> V;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> bo;  // Bias for the predicted output
-    std::vector<Eigen::MatrixXd> Yhat;
-    std::vector<Eigen::MatrixXd> gradients;
-    std::vector<Eigen::MatrixXd> dV;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> dbo;  // Bias for the predicted output
+    std::vector<aimatrix> foutput, boutput, outputs;
+    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> bo;  // Bias for the predicted output
+
+    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> dbo;  // Bias for the predicted output
+
+    aitensor gradients;
+    aitensor Yhat;
+
 public:
     LSTM(int hidden_size, int output_size, double learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
@@ -296,8 +303,8 @@ public:
             bcells.push_back(cell);
         }
     }
-    const std::vector<Eigen::MatrixXd>&  forward(const Eigen::Tensor<double, 3>& input_data);
-    const std::vector<Eigen::MatrixXd>&  backward(const std::vector<Eigen::MatrixXd>& gradients);
+    const aitensor&  forward(const aitensor& input_data);
+    const aitensor&  backward(const aitensor& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
@@ -321,13 +328,16 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<Eigen::MatrixXd> foutput, boutput, outputs;
-    std::vector<Eigen::MatrixXd> V;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> bo;  // Bias for the predicted output
-    std::vector<Eigen::MatrixXd> Yhat;
-    std::vector<Eigen::MatrixXd> gradients;
-    std::vector<Eigen::MatrixXd> dV;      // Weight for the predicted output  (h x o)
-    std::vector<Eigen::RowVectorXd> dbo;  // Bias for the predicted output
+    std::vector<aimatrix> foutput, boutput, outputs;
+    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> bo;  // Bias for the predicted output
+
+    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector> dbo;  // Bias for the predicted output
+
+    aitensor gradients;
+    aitensor Yhat;
+
 public:
     GRU(int hidden_size, int output_size, double learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
@@ -343,8 +353,8 @@ public:
             bcells.push_back(cell);
         }
     }
-    const std::vector<Eigen::MatrixXd>&  forward(const Eigen::Tensor<double, 3>& input_data);
-    const std::vector<Eigen::MatrixXd>&  backward(const std::vector<Eigen::MatrixXd>& gradients);
+    const aitensor& forward(const aitensor& input_data);
+    const aitensor&  backward(const aitensor& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
@@ -353,19 +363,19 @@ public:
 
 
 template <typename CellType>
-std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd> setInitialWeights(int step, Eigen::MatrixXd out, CellType& rnn);
+std::tuple<aimatrix, airowvector> setInitialWeights(int step, aimatrix out, CellType& rnn);
 
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& processOutputs(CellType& rnn);
+const std::vector<aimatrix>& processOutputs(CellType& rnn);
 
 template <typename CellType>
-void processGradients(const std::vector<Eigen::MatrixXd>& gradients, CellType& rnn);
+void processGradients(const aitensor& gradients, CellType& rnn);
 
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& forwarding(const Eigen::Tensor<double, 3>& input_data, CellType* rnn);
+const aitensor& forwarding(const aitensor& input_data, CellType* rnn);
 
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& backprop(const std::vector<Eigen::MatrixXd>& gradients, CellType* rnn);
+const aitensor&backprop(const aitensor& gradients, CellType* rnn);
 
 
 #endif

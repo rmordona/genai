@@ -296,6 +296,41 @@
 
 #include <algorithm>
 #include <map>
+
+/**************************************************************************************************
+*  Define the Types to be used for data.
+*  A good example:
+*      Eigen::Tensor<double, 3, Eigen::RowMajor> tensor(3, 2, 4);
+*    tensor.setValues({
+*       {
+*        {1.0, 2.0, 3.0, 4.0},
+*        {5.0, 6.0, 7.0, 8.0}
+*       },
+*       {
+*        {21.0, 22.0, 23.0, 24.0},
+*        {25.0, 26.0, 27.0, 28.0}
+*       },
+*       {
+*        {31.0, 32.0, 33.0, 34.0},
+*        {35.0, 36.0, 37.0, 38.0}
+*       }
+*    });
+**************************************************************************************************/
+
+template<class T>
+#define aitensor Eigen::Tensor<T,3,Eigen::RowMajor>
+
+template<class T>
+#define aimatrix Eigen::Tensor<T,2,Eigen::RowMajor>
+
+template<class T>
+#define aivector Eigen::Tensor<T,1> // Defaults to ColumnMajor  (vertical/column)
+
+template<class T>
+#define airowvector Eigen::Tensor<T,1,Eigen::RowMajor> // (horizontal/row)
+
+template<class T>
+#define aiscalar Eigen::Tensor<T, 0> // (scalar)
  
 /**************************************************************************************************
   Helper Functions shared by other classes
@@ -558,8 +593,8 @@ extern LOGGER* ai_log;
 #define OPERATORS_H
 
 struct OperationParams {
-    Eigen::MatrixXd weights; // MxW
-    Eigen::RowVectorXd biases;  // 1xW
+    aimatrix weights; // MxW
+    airowvector biases;  // 1xW
 };
 
 enum class OperType {
@@ -840,9 +875,12 @@ public:
 class Linear : public BaseOperator {
 private:
 
-    Eigen::MatrixXd input_data; // NxW samples, by using & 
-    OperationParams parameters; // inputs to next forward-wise Nodes
-    OperationParams gradients;  // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
+    aitensor input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
+
+    OperationParams parameters; // Learnable Parameters. The core of AI.
+
+    // OperationParams gradients;  // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
+    std::vector<OperationParams> vgradients; // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
 
     int M = 0; // number of features (embedding vector size)
     int W = 0; // number of weights 
@@ -850,6 +888,10 @@ private:
 
     Optimizer* opt_weights = nullptr; // for optimizer
     Optimizer* opt_biases = nullptr; // for optimizer
+
+    int batch_size;
+    int input_size;
+    int embedding_size;
 
 public:
     Linear(int size, bool bias = true)  {
@@ -870,19 +912,19 @@ public:
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
     // We only need the M dimension from an NxM input to generate parameter matrix.
     // where weights is NxW and bias is W.
-    Eigen::MatrixXd linearTransform(const Eigen::MatrixXd& input_data);
+    const aimatrix& linearTransform(const aimatrix& input_data);
 
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    const aitensor& forward(const aitensor& input_data);
 
-    void gradient_Wrt_Weight_Bias(Eigen::MatrixXd& gradient);
+    void gradient_Wrt_Weight_Bias(const aimatrix& gradient);
 
-    Eigen::MatrixXd gradient_Wrt_Input(Eigen::MatrixXd& gradient);
+    const aimatrix& gradient_Wrt_Input(const aimatrix& gradient);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -894,17 +936,21 @@ public:
 
 class BatchNorm : public BaseOperator {
 private:
-    // Across W dimension
-    Eigen::RowVectorXd scale; // (gamma) 
-    Eigen::RowVectorXd shift; // (beta)
-    Eigen::RowVectorXd dScale; // gradient for scale (gamma)
-    Eigen::RowVectorXd dShift; // gradient for the shift (beta)
 
     // Cached data for backpropagation.
-    Eigen::MatrixXd input_data; // NxW samples 
-    Eigen::MatrixXd normalizedInput; // NxW samples 
-    Eigen::MatrixXd minusMean;
-    Eigen::RowVectorXd batchStdDev;
+    aitensor input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
+
+    // Across W dimension
+    airowvector scale; // (gamma) Learnable parameter.
+    airowvector shift; // (beta) Learnable parameter.
+
+    std::vector<airowvector> vgscale; // gradient for scale (gamma)
+    std::vector<airowvector> vgshift; // gradient for the shift (beta)
+
+
+    aitensor normalizedInput; // BxNxW samples 
+    aitensor minusMean;
+    airowvector batchStdDev;
     int M = 0;
 
     double epsilon=1e-8;
@@ -912,11 +958,15 @@ private:
     Optimizer* opt_scale = nullptr; // for optimizer
     Optimizer* opt_shift = nullptr; // for optimizer
 
+    int batch_size;
+    int input_size;
+    int param_size;
+
 public:
     BatchNorm(int size) {
       // initialize gradients for next iteration.
-        dScale.setZero();
-        dShift.setZero();
+        vgscale.empty();
+        vgshift.empty();
         log_info( "**** Batch normalization instance created ****" );
     }
 
@@ -924,19 +974,15 @@ public:
     // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
     void setInitialWeights(int M);
 
-    Eigen::MatrixXd normalize(const Eigen::MatrixXd& input_data);
+    std::tuple<aimatrix, aimatrix>& normalize(const aimatrix& input_data);
 
-    void setScale(const Eigen::VectorXd& newScale);
-
-    void setShift(const Eigen::VectorXd& newShift);
-
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is for the scale and shift. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(const Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -947,16 +993,19 @@ public:
 
 class LayerNorm : public BaseOperator {
 private:
-    Eigen::VectorXd scale; // (gamma)
-    Eigen::VectorXd shift; // (beta)
-    Eigen::VectorXd dScale; // gradient for the scale (gamma)
-    Eigen::VectorXd dShift; // gradient for the shift (beta)
+    aitensor input_data; // BxNxW samples
+
+    // Across W dimension
+    aivector scale; // (gamma) Learnable parameter.
+    aivector shift; // (beta) Learnable parameter.
+
+    std::vector<aivector> vgscale; // gradient for scale (gamma)
+    std::vector<aivector> vgshift; // gradient for the shift (beta)
 
     // Cached data for backpropagation.
-    Eigen::MatrixXd input_data; // NxW samples 
-    Eigen::MatrixXd normalizedInput; // NxW samples 
-    Eigen::MatrixXd minusMean;
-    Eigen::VectorXd layerStdDev;
+    aitensor normalizedInput; // BxNxW samples 
+    aitensor minusMean;
+    aivector layerStdDev;
     int N = 0;
 
     double epsilon=1e-8;
@@ -964,11 +1013,15 @@ private:
     Optimizer* opt_scale = nullptr; // for optimizer
     Optimizer* opt_shift = nullptr; // for optimizer
 
+    int batch_size;
+    int input_size;
+    int param_size;
+
 public:
     LayerNorm(int size) {
-      // initialize gradients for next iteration.
-        dScale.setZero();
-        dShift.setZero();
+        // initialize gradients for next iteration.
+        vgscale.empty();
+        vgshift.empty();
         log_info( "**** Layer normalization instance created ****" );
     }
 
@@ -976,19 +1029,15 @@ public:
     // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
     void setInitialWeights(int N);
 
-    Eigen::MatrixXd normalize(const Eigen::MatrixXd& input_data);
+    std::tuple<aimatrix, aimatrix>& normalize(const aimatrix& input_data);
 
-    void setScale(const Eigen::VectorXd& newScale);
-
-    void setShift(const Eigen::VectorXd& newShift);
-
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is for the scale and shift. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(const Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1001,9 +1050,8 @@ class Activation : public BaseOperator {
 private:
 
     // Cached data for backpropagation.
-    Eigen::MatrixXd input_data; // NxW samples 
-    Eigen::MatrixXd dInput;
-    int N = 0, M = 0; // size of dInput.
+    aitensor input_data; // BxNxW samples 
+    aitensor output_data; // BxNxW samples 
 
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
@@ -1023,10 +1071,10 @@ public:
     }
 
     //  Resize dInput.
-    void setInitSize(const Eigen::MatrixXd& input_data);
+    void setInitSize(const aitensor& input_data);
 
     // Here, instead of using the term logits, let's just use x.
-    Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& x);
+    const aitensor&  sigmoid(const aitensor& x);
 
     /*****************************************************************************************************
      * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
@@ -1035,9 +1083,9 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y)
      *****************************************************************************************************/
-    Eigen::MatrixXd sigmoidGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data);
+    const aitensor&  sigmoidGradient(const aitensor& gradients, const aitensor& output_data);
 
-    Eigen::MatrixXd tanh(const Eigen::MatrixXd& x);
+    const aitensor&  tanh(const aitensor& x);
 
     /*****************************************************************************************************
      * So, the gradient of the tanh function with respect to its input (z) can be expressed as follows:
@@ -1046,40 +1094,40 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y^2)
      *****************************************************************************************************/
-    Eigen::MatrixXd tanhGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data);
+    const aitensor&  tanhGradient(const aitensor& gradients, const aitensor& output_data);
 
-    Eigen::MatrixXd relu(const Eigen::MatrixXd& x);
+    const aitensor& relu(const aitensor& x);
 
     /*****************************************************************************************************
      * So, the gradient of the ReLU function with respect to its input (z) can be expressed as follows:
      * dy/dz = propagated_gradient * 1 for z > 0
      * dy/dz = propagated_gradient * 0 for z <= 0
      *****************************************************************************************************/
-    Eigen::MatrixXd reluGradient(const Eigen::MatrixXd& gradients);  
+    const aitensor&  reluGradient(const aitensor& gradients);  
 
-    Eigen::MatrixXd leakyReLU(const Eigen::MatrixXd& x, float alpha);
+    const aitensor& leakyReLU(const aitensor& x, float alpha);
 
     /*****************************************************************************************************
      * So, the gradient of the LeakyReLU function with respect to its input (z) can be expressed as follows:
      * dy/dz = propagated_gradient * 1 for z > 0
      * dy/dz = propagated_gradient * alpha for z <= 0
     *****************************************************************************************************/
-    Eigen::MatrixXd leakyReluGradient(const Eigen::MatrixXd& gradients);
+    const aitensor& leakyReluGradient(const aitensor& gradients);
 
-    Eigen::MatrixXd gelu(const Eigen::MatrixXd& x);
+    const aitensor& gelu(const aitensor& x);
 
     /*****************************************************************************************************
      * Gelu Gradient ...
     *****************************************************************************************************/
-    Eigen::MatrixXd geluGradient(const Eigen::MatrixXd& gradients);
+    const aitensor& geluGradient(const aitensor& gradients);
 
-    Eigen::MatrixXd computeActivation(const Eigen::MatrixXd& input_data);
+    const aitensor& computeActivation(const aitensor& input_data);
 
-    Eigen::MatrixXd computeGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data);
+    const aitensor& computeGradient(const aitensor& gradients);
 
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    const aitensor& forward(const aitensor& input_data);
 
-    Eigen::MatrixXd backward(const Eigen::MatrixXd& gradient, const Eigen::MatrixXd& output_data);
+    const aitensor&backward(const aitensor& gradients);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1099,28 +1147,28 @@ public:
     }
 
     // Mean Squared Error. Returns 1x1 matrix (scalar)
-    Eigen::MatrixXd mse(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& mse(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd mseGradient(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& mseGradient(const aitensor& predicted, const aitensor& target);
 
     // Binary Cross Entropy.  Returns 1x1 matrix (scalar)
-    Eigen::MatrixXd bce(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& bce(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd bceGradient(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& bceGradient(const aitensor& predicted, const aitensor& target);
+
     // For Loss Categorial Cross Entropy. Usually, we use Softmax.
-    // If predicted and target has NxC dimension where C is number of classes, then result will be Nx1.
-    Eigen::MatrixXd cce(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& cce(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd cceGradient(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& cceGradient(const aitensor& predicted, const aitensor& target);
 
     // For Support Vectors (not necessarily for Neural)
-    Eigen::MatrixXd hingeLoss(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& hingeLoss(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd hingeLossGradient(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& hingeLossGradient(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd computeLoss(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& computeLoss(const aitensor& predicted, const aitensor& target);
 
-    Eigen::MatrixXd computeGradients(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& computeGradients(const aitensor& predicted, const const aitensor& target);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1144,20 +1192,21 @@ public:
 class Attention : public BaseOperator {
 private:
 
-    Eigen::MatrixXd input_data; // NxW samples, by using & 
-    Linear* Q  = nullptr;
-    Linear* K  = nullptr;
-    Linear* V  = nullptr;
-    Linear* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input.
+    aitensor input_data;   // Input Dimention: BxNxM
+    Linear* Q  = nullptr;  // BxNxW
+    Linear* K  = nullptr;  // BxNxW
+    Linear* V  = nullptr;  // BxNxW
+    Linear* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
 
-    Eigen::MatrixXd Qout;
-    Eigen::MatrixXd Kout;
-    Eigen::MatrixXd Vout;
+    aitensor Qout;
+    aitensor Kout;
+    aitensor Vout;
 
-    Eigen::MatrixXd QKsoft;
-    Eigen::MatrixXd QKsoftV;
+    aitensor QKsoft;
+    aitensor QKsoftV;
 
-    int N = 0;  // number of samples
+    int B = 0;  // batch size
+    int N = 0;  // input size
     int M = 0;  // number of features (embedding vector size)
     int W = 0;  // number of weights (or number of features)
     int H = 1;  // number of heads
@@ -1168,21 +1217,21 @@ private:
 public:
     Attention(int heads = 1, int size = 3, bool bias = false)  {
         this->W = size;
-        this->H = heads;
+        // this->H = heads;
         this->bias = bias;
         log_info( "**** Attention instance created ****" );
     }
 
-    // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
-    // We only need the M dimension from an NxM input to generate parameter matrix.
-    // where weights is NxW and bias is W.
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+    // We only need the M dimension from an BxNxM input to generate parameter matrix.
+    // where weights is BxNxW and bias is W.
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1202,6 +1251,7 @@ private:
 
     bool bias = true;
 
+    int B = 0;  // batch size
     int N = 0;  // number of samples
     int M = 0;  // number of features (embedding vector size)
     int W = 0;  // number of weights (or number of features)
@@ -1221,16 +1271,16 @@ public:
         log_info( "**** MultiHeadAttention instance created ****" );
     }
 
-    // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
-    // We only need the M dimension from an NxM input to generate parameter matrix.
-    // where weights is NxW and bias is W.
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+    // We only need the M dimension from an BxNxM input to generate parameter matrix.
+    // where weights is BxNxW and bias is W.
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1244,14 +1294,15 @@ public:
 *****************************************************************************************************/
 class FeedForward : public BaseOperator {
 private:
-    Eigen::MatrixXd input_data; // NxW samples, by using & 
+    aitensor input_data; // NxW samples, by using & 
     Linear* L1 = nullptr;
     Linear* L2 = nullptr; // required to align the dimension similar to the input
     Activation* A1 = nullptr;
 
-    Eigen::MatrixXd L1out; // Cache output for use by activation backprop
+    aitensor L1out; // Cache output for use by activation backprop
 
     bool bias = true;
+    int B = 0;
     int W = 0;
     int N = 0;
     int M = 0;
@@ -1276,16 +1327,16 @@ public:
         log_info( "**** FeedForward instance created ****" );
     }
 
-    // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
-    // We only need the M dimension from an NxM input to generate parameter matrix.
-    // where weights is NxW and bias is W.
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+    // We only need the M dimension from an BxNxM input to generate parameter matrix.
+    // where weights is BxNxW and bias is W.
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1299,15 +1350,15 @@ public:
 *****************************************************************************************************/
 class Encoder : public BaseOperator {
 private:
-    Eigen::MatrixXd input_data; // NxW samples, by using & 
+    aitensor input_data; // NxW samples, by using & 
     MultiHeadAttention* M1 = nullptr;
     LayerNorm* LN1 = nullptr;
     FeedForward* F1 = nullptr;
     LayerNorm* LN2 = nullptr;
 
-    Eigen::MatrixXd M1out; // Cache output for use by attention backprop
-    Eigen::MatrixXd F1out; // Cache output for use by feedforward backprop
-    Eigen::MatrixXd LN1out; // Cache output for use by feedforward backprop
+    aitensor M1out; // Cache output for use by attention backprop
+    aitensor F1out; // Cache output for use by feedforward backprop
+    aitensor LN1out; // Cache output for use by feedforward backprop
 
     bool bias = true;
     int H = 0;
@@ -1336,16 +1387,16 @@ public:
         log_info( "**** Encoder instance created ****" );
     }
 
-    // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
-    // We only need the M dimension from an NxM input to generate parameter matrix.
-    // where weights is NxW and bias is W.
-    Eigen::MatrixXd forward(Eigen::MatrixXd& input_data);
+    // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+    // We only need the M dimension from an BxNxM input to generate parameter matrix.
+    // where weights is BxNxW and bias is W.
+    const aitensor& forward(const aitensor& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    Eigen::MatrixXd backward(Eigen::MatrixXd& gradients);
+    const aitensor& backward(const aitensor&  gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1433,9 +1484,9 @@ public:
     // Let's handle Tensors
     void setDataTensor(py::array_t<double> embedding);
 
-    Eigen::MatrixXd getInput();
+    const aitensor& getInput();
 
-    Eigen::MatrixXd getOutput();
+    const aitensor& getOutput();
 
     void addInput(Node* input);
 
@@ -1453,15 +1504,15 @@ public:
 
     void parallel(ssize_t repeat, std::string& reduce);
 
-    Eigen::MatrixXd aggregateData(Eigen::MatrixXd& input_data);
+    const aitensor& aggregateData(const aitensor& input_data);
 
-    void setGradients(Eigen::MatrixXd gradients);
+    void setGradients(const aitensor&  gradients);
 
-    void propagateGradients(Eigen::MatrixXd& gradients);
+    void propagateGradients(const aitensor&  gradients);
 
     // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
     // nodes whose source nodes are already processed.
-    Eigen::MatrixXd forwardPass();
+    const aitensor& forwardPass();
 
     void backwardPass();
 
@@ -1502,6 +1553,8 @@ private:
     Eigen::MatrixXd target;
     Eigen::MatrixXd loss;
 
+    Loss* lossobj;
+
 public:
 
     // Create a node with three arguments: name, type, and initial values
@@ -1523,13 +1576,13 @@ public:
     std::vector<Node*> getNodes();
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
-    Eigen::MatrixXd forwardPropagation();
+    const aitensor& forwardPropagation();
 
-    Eigen::MatrixXd backwardPropagation(Eigen::MatrixXd& gradients);
+    const aitensor& backwardPropagation(Econst aitensor& gradients);
 
-    Eigen::MatrixXd computeLoss(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aimatrix& computeLoss(std::string losstype, const aitensor& predicted, const aitensor&target);
 
-    Eigen::MatrixXd computeGradients(std::string losstype, Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target);
+    const aitensor& computeGradients(const aitensor& predicted, const aitensor& target);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1549,10 +1602,10 @@ public:
 class BaseModel {
 private:
     Graph* graph;
-    Eigen::MatrixXd target;
-    Eigen::MatrixXd predicted;
-    Eigen::MatrixXd loss;
-    Eigen::MatrixXd gradients;
+    aitensor target;
+    aitensor predicted;
+    aitensor gradients;
+    aiscalar loss;
     std::string losstype = "mse";
     std::string optimizertype = "adam";
     double learningRate = 0.01;

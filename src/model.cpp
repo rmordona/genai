@@ -77,8 +77,8 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
-    double epsilon = 1e-3;
-    double old_loss = inf();
+    aiscalar epsilon = 1e-3;
+    aiscalar old_loss = inf();
 
     int iter = 0;
 
@@ -92,19 +92,19 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
         this->graph->nextBatch();
 
         log_detail( "Entering Forward Propagation ..." );
-        predicted = this->graph->forwardPropagation();
+        this->predicted = this->graph->forwardPropagation();
 
         log_detail( "Predicted Result" );
-        log_matrix( predicted );
+        log_matrix( this->predicted );
 
-        loss = this->graph->computeLoss(losstype, predicted, target); 
+        this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
 
         log_detail( "Compute Gradient ..." );
-        gradients = this->graph->computeGradients(losstype, predicted, target);
-        log_matrix( gradients );
+        this->gradients = this->graph->computeGradients(this->losstype, this->predicted, this->target);
+        log_matrix( this->gradients );
 
         log_detail( "Entering Backward Propagation ..." );
-        gradients = this->graph->backwardPropagation(gradients); 
+        this->gradients = this->graph->backwardPropagation(this->gradients); 
 
         log_detail( "Updating Parameters ..." );
         this->graph->updateParameters(this->optimizertype, this->learningRate, iter);

@@ -53,7 +53,7 @@ RNNCell::RNNCell(int hidden_size, double learning_rate)
     learning_rate = 0.01;
 }
 
-const Eigen::MatrixXd& RNNCell::getHiddenState() {
+const aimatrix& RNNCell::getHiddenState() {
     return H;
 }
 
@@ -70,17 +70,17 @@ void RNNCell::setInitialWeights(int N, int P) {
     BaseOperator::heInitialization(W);
     BaseOperator::heInitialization(U);
 
-    bh = Eigen::RowVectorXd::Zero(hidden_size);
+    bh = airowvector::Zero(hidden_size);
 
-    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    H    = aimatrix::Zero(input_size, hidden_size);
 }
 
-const Eigen::MatrixXd& RNNCell::forward(const Eigen::MatrixXd& input_data) {
+const aimatrix& RNNCell::forward(const aimatrix& input_data) {
 
     // Store input for backward pass.
     // this can be the prev_hidden_state
     // this->X = input_data;
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     setInitialWeights(input_data.rows(), input_data.cols());
 
@@ -96,19 +96,19 @@ const Eigen::MatrixXd& RNNCell::forward(const Eigen::MatrixXd& input_data) {
     return H; 
 }
 
-const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
+const aimatrix& RNNCell::backward(const aimatrix& input_data, const aimatrix& dnext_h) {
     // Backpropagation logic for RNN
 
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     // Compute gradient with respect to tanh
-    Eigen::MatrixXd dtanh = (1.0 - H.array().square()).array() * dnext_h.array();
+    aimatrix dtanh = (1.0 - H.array().square()).array() * dnext_h.array();
 
     // Compute gradient with respect to hidden-to-hidden weights Whh.
-    Eigen::MatrixXd dU = H.transpose() * dtanh;
+    aimatrix dU = H.transpose() * dtanh;
 
     // Compute gradient with respect to input-to-hidden weights Wxh.
-    Eigen::MatrixXd dW = X.transpose() * dtanh;
+    aimatrix dW = X.transpose() * dtanh;
 
     // Compute gradient with respect to hidden-state.
     dH = dtanh * U.transpose();
@@ -117,10 +117,10 @@ const Eigen::MatrixXd& RNNCell::backward(const Eigen::MatrixXd& input_data, cons
     dX = dtanh * W.transpose();
 
     // Compute gradient with respect to hidden bias bh.
-    Eigen::RowVectorXd dbh = dtanh.colwise().sum(); 
+    airowvector dbh = dtanh.colwise().sum(); 
 
     // Compute gradient with respect to output bias bo.
-    //Eigen::RowVectorXd dbo = Y.colwise().sum();
+    //airowvector dbo = Y.colwise().sum();
 
     // Update weights and biases.
     W -= learning_rate * dW;
@@ -142,43 +142,11 @@ LSTMCell::LSTMCell(int hidden_size, double learning_rate)
     learning_rate = 0.01;
 }
 
-/*
-LSTMCell::LSTMCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate)
-    : input_size(input_size), param_size(param_size), hidden_size(hidden_size), output_size(output_size), 
-      learning_rate(learning_rate) {
-    // Initialize parameters (weights and biases)
-    // Note: Initialize these parameters according to your initialization strategy
-    Wf.resize(param_size + hidden_size, hidden_size);
-    Wi.resize(param_size + hidden_size, hidden_size);
-    Wo.resize(param_size + hidden_size, hidden_size);
-    Wg.resize(param_size + hidden_size, hidden_size);
-    V.resize(hidden_size, output_size);
-
-    BaseOperator::heInitialization(Wf);
-    BaseOperator::heInitialization(Wi);
-    BaseOperator::heInitialization(Wo);
-    BaseOperator::heInitialization(Wg);
-
-    bf = Eigen::RowVectorXd::Zero(hidden_size);
-    bi = Eigen::RowVectorXd::Zero(hidden_size);
-    bo = Eigen::RowVectorXd::Zero(hidden_size);
-    bg = Eigen::RowVectorXd::Zero(hidden_size);
-    by = Eigen::RowVectorXd::Zero(output_size);
-
-    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
-    C    = Eigen::MatrixXd::Zero(input_size, hidden_size);
-    Yhat = Eigen::MatrixXd::Zero(input_size, output_size);
-
-    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
-
-}
-*/
-
-const Eigen::MatrixXd& LSTMCell::getHiddenState() {
+const aimatrix& LSTMCell::getHiddenState() {
     return H;
 }
 
-const Eigen::MatrixXd& LSTMCell::getCellState() {
+const aimatrix& LSTMCell::getCellState() {
     return C;
 }
 
@@ -201,23 +169,23 @@ void LSTMCell::setInitialWeights(int N, int P) {
     BaseOperator::heInitialization(Wo);
     BaseOperator::heInitialization(Wg);
 
-    bf = Eigen::RowVectorXd::Zero(hidden_size);
-    bi = Eigen::RowVectorXd::Zero(hidden_size);
-    bo = Eigen::RowVectorXd::Zero(hidden_size);
-    bg = Eigen::RowVectorXd::Zero(hidden_size);
+    bf = airowvector::Zero(hidden_size);
+    bi = airowvector::Zero(hidden_size);
+    bo = airowvector::Zero(hidden_size);
+    bg = airowvector::Zero(hidden_size);
 
-    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
-    C    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    H    = aimatrix::Zero(input_size, hidden_size);
+    C    = aimatrix::Zero(input_size, hidden_size);
 
-    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
+    XH   = aimatrix::Zero(input_size, param_size + hidden_size); // concatenate X and H
 
 }
 
-const Eigen::MatrixXd& LSTMCell::forward(const Eigen::MatrixXd& input_data) {
+const aimatrix& LSTMCell::forward(const aimatrix& input_data) {
 
     // Store input for backward pass.
     // this->X = input_data;
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     setInitialWeights(input_data.rows(), input_data.cols());
 
@@ -251,34 +219,34 @@ const Eigen::MatrixXd& LSTMCell::forward(const Eigen::MatrixXd& input_data) {
 
 }
 
-const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
+const aimatrix& LSTMCell::backward(const aimatrix& input_data, const aimatrix& dnext_h) {
     // Backpropagation logic for LSTM
 
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     // Compute gradients with respect to the gates
     dC = (Ot.array() * (1 - BaseOperator::tanh(C.array()).array().square()) * dnext_h.array()) + dC.array();
-    Eigen::MatrixXd dFt = dC.array() * C.array() * Ft.array() * (1 - Ft.array());
-    Eigen::MatrixXd dIt = dC.array() * Gt.array() * It.array() * (1 - It.array());
-    Eigen::MatrixXd dGt = dC.array() * It.array().array() * (1 - Gt.array().square().array());
-    Eigen::MatrixXd dOt = dnext_h.array() * BaseOperator::tanh(C).array() * Ot.array() * (1 - Ot.array());
+    aimatrix dFt = dC.array() * C.array() * Ft.array() * (1 - Ft.array());
+    aimatrix dIt = dC.array() * Gt.array() * It.array() * (1 - It.array());
+    aimatrix dGt = dC.array() * It.array().array() * (1 - Gt.array().square().array());
+    aimatrix dOt = dnext_h.array() * BaseOperator::tanh(C).array() * Ot.array() * (1 - Ot.array());
 
     // Concatenate input and hidden state.
     XH << X, H;
 
     // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
-    Eigen::MatrixXd dWf = XH.transpose() * dFt;
-    Eigen::MatrixXd dWi = XH.transpose() * dIt;
-    Eigen::MatrixXd dWg = XH.transpose() * dGt;
-    Eigen::MatrixXd dWo = XH.transpose() * dOt;
+    aimatrix dWf = XH.transpose() * dFt;
+    aimatrix dWi = XH.transpose() * dIt;
+    aimatrix dWg = XH.transpose() * dGt;
+    aimatrix dWo = XH.transpose() * dOt;
 
 
     // Compute gradients with respect to hidden biases bf, bi, bo, bc
 
-    Eigen::RowVectorXd dbf = dFt.colwise().sum();
-    Eigen::RowVectorXd dbi = dIt.colwise().sum();
-    Eigen::RowVectorXd dbo = dOt.colwise().sum();
-    Eigen::RowVectorXd dbg = dGt.colwise().sum();
+    airowvector dbf = dFt.colwise().sum();
+    airowvector dbi = dIt.colwise().sum();
+    airowvector dbo = dOt.colwise().sum();
+    airowvector dbg = dGt.colwise().sum();
 
     // Compute gradient with respect to the cell state C (dC)
     dC = dC.array() * Ft.array();
@@ -297,7 +265,7 @@ const Eigen::MatrixXd& LSTMCell::backward(const Eigen::MatrixXd& input_data, con
         + dGt * Split(Wg, ps, hs).transposedH();
 
     // Compute gradient with respect to output bias bo.
-    // Eigen::RowVectorXd dby = Y.colwise().sum();
+    // airowvector dby = Y.colwise().sum();
 
     // Update parameters and stored states
     Wf -= learning_rate * dWf;
@@ -334,36 +302,7 @@ GRUCell::GRUCell(int hidden_size, double learning_rate)
     learning_rate = 0.01;
 }
 
-/*
-GRUCell::GRUCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate) 
-        : input_size(input_size), param_size(param_size), hidden_size(hidden_size), output_size(output_size), 
-          learning_rate(learning_rate) {
-    // Initialize parameters (weights and biases)
-    // Note: Initialize these parameters according to your initialization strategy
-    Wz.resize(param_size + hidden_size, hidden_size);
-    Wr.resize(param_size + hidden_size, hidden_size);
-    Wg.resize(param_size + hidden_size, hidden_size);
-    V.resize(hidden_size, output_size);
-
-    BaseOperator::heInitialization(Wz);
-    BaseOperator::heInitialization(Wr);
-    BaseOperator::heInitialization(Wg);
-    BaseOperator::heInitialization(V);
-
-    bz = Eigen::RowVectorXd::Zero(hidden_size);
-    br = Eigen::RowVectorXd::Zero(hidden_size);
-    bg = Eigen::RowVectorXd::Zero(hidden_size);
-    bo = Eigen::RowVectorXd::Zero(hidden_size);
-
-    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
-    Yhat = Eigen::MatrixXd::Zero(input_size, output_size);
-
-    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
-
-}
-*/
-
-const Eigen::MatrixXd& GRUCell::getHiddenState() {
+const aimatrix& GRUCell::getHiddenState() {
     return H;
 }
 
@@ -384,22 +323,22 @@ void GRUCell::setInitialWeights(int N, int P) {
     BaseOperator::heInitialization(Wr);
     BaseOperator::heInitialization(Wg);
 
-    bz = Eigen::RowVectorXd::Zero(hidden_size);
-    br = Eigen::RowVectorXd::Zero(hidden_size);
-    bg = Eigen::RowVectorXd::Zero(hidden_size);
+    bz = airowvector::Zero(hidden_size);
+    br = airowvector::Zero(hidden_size);
+    bg = airowvector::Zero(hidden_size);
 
-    H    = Eigen::MatrixXd::Zero(input_size, hidden_size);
+    H    = aimatrix::Zero(input_size, hidden_size);
 
-    XH   = Eigen::MatrixXd::Zero(input_size, param_size + hidden_size); // concatenate X and H
+    XH   = aimatrix::Zero(input_size, param_size + hidden_size); // concatenate X and H
 
 }
 
-const Eigen::MatrixXd& GRUCell::forward(const Eigen::MatrixXd& input_data) {
+const aimatrix& GRUCell::forward(const aimatrix& input_data) {
 
     // Store input for backward pass.
     // this can be the prev_hidden_state
     // X = input_data;
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     setInitialWeights(input_data.rows(), input_data.cols());
 
@@ -413,8 +352,8 @@ const Eigen::MatrixXd& GRUCell::forward(const Eigen::MatrixXd& input_data) {
     Rt =  BaseOperator::sigmoid(XH * Wr + br);
 
     // Calculate the candidate hidden state using input, reset gate, hidden state, and biases
-    Eigen::MatrixXd RH = Rt.array() * H.array();
-    Eigen::MatrixXd rXH(input_size, hidden_size + hidden_size);
+    aimatrix RH = Rt.array() * H.array();
+    aimatrix rXH(input_size, hidden_size + hidden_size);
     rXH << X, RH;
     Rt = BaseOperator::tanh(XH * Wg + bg);
 
@@ -432,19 +371,19 @@ const Eigen::MatrixXd& GRUCell::forward(const Eigen::MatrixXd& input_data) {
     return H;
 }
 
-const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& input_data, const Eigen::MatrixXd& dnext_h) {
+const aimatrix& GRUCell::backward(const aimatrix& input_data, const aimatrix& dnext_h) {
     // Backpropagation logic for GRU
 
-    const Eigen::MatrixXd& X = input_data;
+    const aimatrix& X = input_data;
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
 
     int ps = param_size, hs = hidden_size;
 
     // Compute gradients with respect to the gates
-    Eigen::MatrixXd dZt = dnext_h.array() * ( H.array() - Gt.array()) * Zt.array() * ( 1 - Zt.array());
-    Eigen::MatrixXd dGt = dnext_h.array() * ( 1 - Zt.array()) * ( 1 - Gt.array().square());
-    Eigen::MatrixXd dRt = ( dGt.array() * (H * Split(Wr, ps, hs).transposedH()).array() 
+    aimatrix dZt = dnext_h.array() * ( H.array() - Gt.array()) * Zt.array() * ( 1 - Zt.array());
+    aimatrix dGt = dnext_h.array() * ( 1 - Zt.array()) * ( 1 - Gt.array().square());
+    aimatrix dRt = ( dGt.array() * (H * Split(Wr, ps, hs).transposedH()).array() 
                           * ( 1 - Rt.array().square()) )
                           * Rt.array() * ( 1 - Rt.array());
 
@@ -452,14 +391,14 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& input_data, cons
     XH << X, H;
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
-    Eigen::MatrixXd dWz = XH.transpose() * dZt;
-    Eigen::MatrixXd dWr = XH.transpose() * dRt;
-    Eigen::MatrixXd dWg = XH.transpose() * dGt;
+    aimatrix dWz = XH.transpose() * dZt;
+    aimatrix dWr = XH.transpose() * dRt;
+    aimatrix dWg = XH.transpose() * dGt;
 
     // Compute gradients with respect to hidden biases bz, br, bg
-    Eigen::RowVectorXd dbz = dZt.colwise().sum();
-    Eigen::RowVectorXd dbr = dGt.colwise().sum();
-    Eigen::RowVectorXd dbg = dRt.colwise().sum();
+    airowvector dbz = dZt.colwise().sum();
+    airowvector dbr = dGt.colwise().sum();
+    airowvector dbg = dRt.colwise().sum();
 
     // Compute gradient with respect to hidden state H (dH)
 
@@ -473,7 +412,7 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& input_data, cons
         + dGt * Split(Wg, ps, hs).transposedH();
 
     // Compute gradient with respect to output bias bo.
-    // Eigen::RowVectorXd dbo = Y.colwise().sum();
+    // airowvector dbo = Y.colwise().sum();
 
     // Update parameters
     Wz -= learning_rate * dWz;
@@ -516,65 +455,71 @@ const Eigen::MatrixXd& GRUCell::backward(const Eigen::MatrixXd& input_data, cons
 * a final output.
 *****************************************************************************************************************/
 
-const std::vector<Eigen::MatrixXd>&  RNN::forward(const Eigen::Tensor<double, 3>& input_data) {
+const aitensor&  RNN::forward(const aitensor& input_data) {
     this->Yhat = forwarding(input_data, this);
     return this->Yhat;
 }
 
-const std::vector<Eigen::MatrixXd>&  RNN::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+const aitensor&  RNN::backward(const aitensor& gradients) {
     this->gradients = backprop(gradients, this);
     return this->gradients;
 }
 
-const std::vector<Eigen::MatrixXd>&  LSTM::forward(const Eigen::Tensor<double, 3>& input_data) {
+const aitensor&  LSTM::forward(const aitensor& input_data) {
     this->Yhat = forwarding(input_data, this);
     return this->Yhat;
 }
 
-const std::vector<Eigen::MatrixXd>&  LSTM::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+const aitensor&  LSTM::backward(const aitensor& gradients) {
     this->gradients = backprop(gradients, this);
     return this->gradients;
 }
 
-const std::vector<Eigen::MatrixXd>&  GRU::forward(const Eigen::Tensor<double, 3>& input_data) {
+const aitensor&  GRU::forward(const aitensor& input_data) {
     this->Yhat = forwarding(input_data, this);
     return this->Yhat;
 }
 
-const std::vector<Eigen::MatrixXd>&  GRU::backward(const std::vector<Eigen::MatrixXd>& gradients) {
+const aitensor&  GRU::backward(const aitensor& gradients) {
     this->gradients = backprop(gradients, this);
     return this->gradients;
 }
 
 void RNN::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+    // Learnable parameters already learnt inside the RNN cells
 }
 
 void LSTM::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+    // Learnable parameters already learnt inside the LSTM cells
 }
 
 void GRU::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+    // Learnable parameters already learnt inside the GRU cells
 }
 
 
 template <typename CellType>
-std::tuple<Eigen::MatrixXd, Eigen::RowVectorXd> setInitialWeights(int step, Eigen::MatrixXd out, CellType& rnn) {
+std::tuple<aimatrix, airowvector> setInitialWeights(int step, aimatrix out, CellType& rnn) {
 
     if (rnn->iniitalized) {
         return std::make_tuple(rnn->V[step], rnn->bo[step]);
     }
 
-    Eigen::MatrixXd v(out.rows(), rnn->output_size);
-    Eigen::RowVectorXd bo(out.cols());
+    parameters.weights.resize(M, this->W); // allocates memory
+    parameters.biases.resize(this->W); // allocates memory
+
+    aimatrix v(out.rows(), rnn->output_size);
+    airowvector bo(out.cols());
     BaseOperator::heInitialization(v);
     bo.Zero(out.cols());
     return std::make_tuple(v, bo);
 }
 
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& processOutputs(CellType& rnn) {
+const std::vector<aimatrix>& processOutputs(CellType& rnn) {
 
-    const Eigen::MatrixXd& out, v, yhat;
-    const Eigen::RowVectorXd bo;
+    const aimatrix& out, v, yhat;
+    const airowvector bo;
 
     for (int step = 0; step < rnn->sequence_length; ++step) {
 
@@ -605,14 +550,12 @@ const std::vector<Eigen::MatrixXd>& processOutputs(CellType& rnn) {
             yhat = out; // no activation, pure Hidden State output
         }
 
-        if (rnn->initialized) {
-            rnn->outputs[step] = out;
-            rnn->Yhat[step] = yhat;
-        } else { 
-            rnn->outputs.push_back( out );
+        rnn->outputs(step, 0) = out;
+        rnn->Yhat(step, 0) = yhat;
+
+        if (!rnn->initialized) {
             rnn->V.push_back( v );
             rnn->bo.push_back( bo );
-            rnn->Yhat.push_back( yhat );
         }
     }
 
@@ -620,9 +563,9 @@ const std::vector<Eigen::MatrixXd>& processOutputs(CellType& rnn) {
 }
 
 template <typename CellType>
-void processGradients(const std::vector<Eigen::MatrixXd>& gradients, CellType& rnn) {
+void processGradients(const aitensor& gradients, CellType& rnn) {
 
-    const Eigen::MatrixXd& dOut, out, yhat;
+    const aimatrix& dOut, out, yhat;
 
     // Gradient will have dimension of: sequence_size, batch_size, output_size (instead of hidden_size)
 
@@ -631,7 +574,7 @@ void processGradients(const std::vector<Eigen::MatrixXd>& gradients, CellType& r
         // Process gradient for the activation operation
         dOut = gradients[step];
         out  = rnn->outputs[step];
-        yhat = rnn->Yhat[step];
+        yhat = rnn->Yhat(step, 0);
         if (rnn->otype == ActivationType::SOFTMAX) {
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
             rnn->dV[step] = dOut * out.transpose();
@@ -655,22 +598,27 @@ void processGradients(const std::vector<Eigen::MatrixXd>& gradients, CellType& r
 }
 
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& forwarding(const Eigen::Tensor<double, 3>& input_data, CellType& rnn) {
+const aitensor& forwarding(const aitensor& input_data, CellType& rnn) {
 
     rnn->input_data = input_data;
     rnn->otype = ActivationType::SOFTMAX;
     rnn->rtype = ReductionType::AVG;
 
-    int batch_size = input_data.dimension(0);
-    int embedding_size = input_data.dimension(1);
-    rnn->sequence_length = input_data.dimension(2);
+    // int batch_size = input_data.dimension(0);  
+    // int embedding_size = input_data.dimension(1);
+    // rnn->sequence_length = input_data.dimension(2);
+
+    int batch_size     = input_data.dimension(0);  // sequence
+    int input_size     = input_data.dimension(1);
+    int embedding_size = input_data.dimension(2);
+    rnn->sequence_length = batch_size;
 
     for (int direction = 0; direction < rnn->num_directions; ++direction) {
         rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
 
         // Forward pass: Run from first to last time step
         for (int step = 0; step < rnn->sequence_length; ++step) {
-            Eigen::MatrixXd input_batch = input_data.chip(step, 2);
+            aimatrix input_batch = input_data.chip(step, 0);
 
             // Forward pass through each layer of the RNN
             for (int layer = 0; layer < rnn->num_layers; ++layer) {
@@ -685,7 +633,7 @@ const std::vector<Eigen::MatrixXd>& forwarding(const Eigen::Tensor<double, 3>& i
         }
     }
 
-    const std::vector<Eigen::MatrixXd>& Yhat = processOutputs(rnn);
+    const aitensor& Yhat = processOutputs(rnn);
 
     // marker to indicate the weights are all initialized, as they depend on these sizes.
     rnn->initialized = true;
@@ -693,52 +641,54 @@ const std::vector<Eigen::MatrixXd>& forwarding(const Eigen::Tensor<double, 3>& i
     return Yhat;
 }
 
-
 template <typename CellType>
-const std::vector<Eigen::MatrixXd>& backprop(const std::vector<Eigen::MatrixXd>& gradients, CellType& rnn) {
+const aitensor& backprop(const aitensor& gradients, CellType& rnn) {
 
-    const Eigen::Tensor<double, 3>& input_data = rnn->input_data;
+    const aitensor& input_data = rnn->input_data;
 
-    int batch_size = input_data.dimension(0);
-    int embedding_size = input_data.dimension(1);
-    int sequence_length = input_data.dimension(2);
+    // int batch_size = input_data.dimension(0);
+    // int embedding_size = input_data.dimension(1);
+    // int sequence_length = input_data.dimension(2);
+
+    int batch_size      = input_data.dimension(0);  // sequence
+    int input_size      = input_data.dimension(1);
+    int embedding_size  = input_data.dimension(2);
+    int sequence_length = batch_size;
 
     processGradients(gradients, rnn);
 
-    std::vector<Eigen::MatrixXd> dOutf, dOutb;
-    Eigen::MatrixXd dOuts;
+    std::vector<aimatrix> dOutf, dOutb;
+    aimatrix dOuts;
 
     // Now, let us see if we need to split;
     // Process gradient for the reduction operation
     for (int step = sequence_length - 1; step >= 0; --step) {
-        Eigen::MatrixXd seq_f, seq_b;
+        aimatrix seq_f, seq_b;
         if (rnn->rtype == ReductionType::SUM) {
-            seq_f = gradients[step];
-            seq_b = gradients[step];
+            seq_f = gradients(step,0);
+            seq_b = gradients(step,0);
         } else 
         if (rnn->rtype == ReductionType::AVG) {
-            seq_f = gradients[step] / 2;
-            seq_b = gradients[step] / 2;
+            seq_f = gradients(step,0) / 2;
+            seq_b = gradients(step,0) / 2;
         } else 
         if (rnn->rtype == ReductionType::CONCAT) {
-            seq_f = gradients[step].block(0, 0, batch_size, sequence_length * embedding_size);
-            seq_b = gradients[step].block(0, sequence_length * embedding_size, batch_size, sequence_length * embedding_size);
+            seq_f = gradients(step,0).block(0, 0, batch_size, embedding_size);
+            seq_b = gradients(step,0).block(0, embedding_size, batch_size, embedding_size);
         }
         dOutf.push_back(seq_f);
         dOutb.push_back(seq_b);
     }
 
     // We need to send back the same structure of input_gradients as the input to the forward pass
-    std::vector<Eigen::MatrixXd> input_gradients;
+    aitensor input_gradients(batch_size, input_size, embedding_size);
 
     for (int direction = 0; direction < rnn->num_directions; ++direction) {
         rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
 
         // Backward pass: Run from last to first time step
         for (int step = sequence_length - 1; step >= 0; --step) {
-            // Eigen::MatrixXd input_batch = direction == 0 ? input_data.chip(step, 1).reshape(batch_size, embedding_size) : 
-            //            input_data.chip(sequence_length - step - 1, 1).reshape(batch_size, embedding_size);
-            Eigen::MatrixXd input_batch = input_data.chip(step, 2);
+            aimatrix input_batch = input_data.chip(step, 0);
 
             if (direction == 0) {
                 dOuts = dOutf[step];
@@ -753,7 +703,7 @@ const std::vector<Eigen::MatrixXd>& backprop(const std::vector<Eigen::MatrixXd>&
             }
 
             // Store the gradients for input data
-            input_gradients.push_back(dOuts);
+            input_gradients.chip(step, 0) = dOuts;
         }
     }
     return input_gradients;
