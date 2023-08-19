@@ -31,7 +31,7 @@ using namespace py::literals;
 
 
 template <class T>
-void BaseModel<T>::setGraph(Graph* graph) {
+void BaseModel<T>::setGraph(Graph<T>* graph) {
 
     auto mygraph = dynamic_cast<Graph<T>*>(graph);
     this->graph = mygraph;
@@ -68,14 +68,14 @@ void BaseModel<T>::useCrossEntropy() {
 }
 
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, double learnrate , int itermax) {
+void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T learningRate , int itermax) {
 
         // Initialize MPI
     //MPI_Init(NULL, NULL);
 
     this->losstype = losstype;
     this->optimizertype = optimizertype;
-    this->learningRate = learnrate;
+    this->learningRate = learningRate;
 
     log_info( "******************************************************************************************" );
     log_info( "********************************* Start Training *****************************************")

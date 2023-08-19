@@ -49,7 +49,7 @@
 *********** IMPLEMENTING RNNCell
 ****************************************************************************************************************************/
 template <class T>
-RNNCell<T>::RNNCell(int hidden_size, double learning_rate) 
+RNNCell<T>::RNNCell(int hidden_size, T learning_rate) 
     : hidden_size(hidden_size), learning_rate(learning_rate) {
     learning_rate = 0.01;
 }
@@ -143,7 +143,7 @@ const aimatrix<T>& RNNCell<T>::backward(const aimatrix<T>& input_data, const aim
 *********** IMPLEMENTING LSTMCell
 ****************************************************************************************************************************/
 template <class T>
-LSTMCell<T>::LSTMCell(int hidden_size, double learning_rate) 
+LSTMCell<T>::LSTMCell(int hidden_size, T learning_rate) 
     : hidden_size(hidden_size), learning_rate(learning_rate) {
     learning_rate = 0.01;
 }
@@ -309,7 +309,7 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
  *********** IMPLEMENTING GRUCell
 ****************************************************************************************************************************/
 template <class T>
-GRUCell<T>::GRUCell(int hidden_size, double learning_rate) 
+GRUCell<T>::GRUCell(int hidden_size, T learning_rate) 
     : hidden_size(hidden_size), learning_rate(learning_rate) {
     learning_rate = 0.01;
 }
@@ -506,19 +506,19 @@ const aitensor<T>&  GRU<T>::backward(const aitensor<T>& gradients) {
     this->gradients = backprop(gradients, this);
     return this->gradients;
 }
-
+ 
 template <class T>
-void RNN<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void RNN<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the RNN cells
 }
 
 template <class T>
-void LSTM<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void LSTM<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the LSTM cells
 }
 
 template <class T>
-void GRU<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void GRU<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the GRU cells
 }
 

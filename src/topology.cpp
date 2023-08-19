@@ -59,12 +59,12 @@ void Node<T>::setData(py::array_t<T> input_data) {
     py::buffer_info buffer_info = input_data.request();
 
     // extract data an shape of input array
-    double* data = static_cast<double*>(buffer_info.ptr);
+    T* data = static_cast<T*>(buffer_info.ptr);
 
     int dim0 = buffer_info.shape[0]; // N
     int dim1 = buffer_info.shape[1]; // M
     // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
-    this->input_data = Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, dim0, dim1);
+    this->input_data = Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, dim0, dim1);
 
     log_detail( "Input Data For Node Name: {0}", this->name );
     log_matrix( this->input_data );
@@ -93,11 +93,11 @@ void Node<T>::setDataTensor(py::array_t<T> input_data) {
     ssize_t dim2 = shape[2]; // Parameter / Embedding Size
 
     // Create an Eigen::Map to map the raw data to an Eigen::Tensor
-    // Eigen::Map<Eigen::Tensor<double,3>> tensor_map(data, dim0, dim1, dim2);
+    // Eigen::Map<Eigen::Tensor<T,3>> tensor_map(data, dim0, dim1, dim2);
 
     aitensor<T> tensor(dim0, dim1, dim2);
 
-    // auto ptr = static_cast<double*>(info.ptr);
+    // auto ptr = static_cast<T*>(info.ptr);
     for (int i = 0; i < dim0; ++i) {
         for (int j = 0; j < dim1; ++j) {
             for (int k = 0; k < dim2; ++k) {
@@ -434,7 +434,7 @@ void Node<T>::backwardPass() {
 }
 
 template <class T>
-void Node<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info( "*****************************************" );
     log_info( "***     Node Parameter Update  **********" );
@@ -771,7 +771,7 @@ const aitensor<T>& Graph<T>::computeGradients(const aitensor<T>& predicted, cons
 }
 
 template <class T>
-void Graph<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info( "*******************************************************" );
     log_info( "*****    Graph: Processing Parameter Update ***********" );

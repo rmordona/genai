@@ -39,7 +39,7 @@ using namespace py::literals;
 // We only need the M dimension from an BxNxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T>
-const aitensor<T>& Attention::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& Attention<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("=====================================");
     log_info( "Entering Attention Forward Pass ..." );
@@ -56,25 +56,25 @@ const aitensor<T>& Attention::forward(const aitensor<T>& input_data) {
     log_detail( "Size of input:", input_data.size() );
 
     if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
-        Q  = new Linear(this->W, this->bias);
-        K  = new Linear(this->W, this->bias);
-        V  = new Linear(this->W, this->bias);
-        Wo = new Linear(this->M, this->bias);
+        Q  = new Linear<T>(this->W, this->bias);
+        K  = new Linear<T>(this->W, this->bias);
+        V  = new Linear<T>(this->W, this->bias);
+        Wo = new Linear<T>(this->M, this->bias);
     }
 
     // Perform Linear Transformation.
-    Qout = Q->forward(input_data);
-    Kout = K->forward(input_data);
-    Vout = V->forward(input_data);
+    this->Qout = Q->forward(input_data);
+    this->Kout = K->forward(input_data);
+    this->Vout = V->forward(input_data);
 
     log_detail( "Q Linear output" );
-    log_matrix( Qout );
+    log_matrix( this->Qout );
 
     log_detail( "K Linear output" );
-    log_matrix( Kout );
+    log_matrix( this->Kout );
 
     log_detail( "V Linear output" );
-    log_matrix( Vout );
+    log_matrix( this->Vout );
 
 
     const aitensor<T>& voutputs(this->B, this->N, this->W); // Dimension: BxNxW
@@ -84,12 +84,12 @@ const aitensor<T>& Attention::forward(const aitensor<T>& input_data) {
 
     for (int i = 0; i < this->B; ++i) {
 
-        mQout = Quot.chip(i, 0); // NxW
-        mKout = Kout.chip(i, 0); // NxW
-        mVout = Vout.chip(i, 0); // NxW
+        mQout = this->Qout.chip(i, 0); // NxW
+        mKout = this->Kout.chip(i, 0); // NxW
+        mVout = this->Vout.chip(i, 0); // NxW
 
         // MatMul (QK^T)
-        QK = BaseOperator::matmul(mQuot, mKuot.transpose()); // NxN
+        QK = BaseOperator::matmul(mQout, mKout.transpose()); // NxN
 
         log_detail( "QK matmul" );
         log_matrix( QK );
@@ -141,7 +141,7 @@ const aitensor<T>& Attention::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& Attention::backward(const aitensor<T>& gradients) { 
+const aitensor<T>& Attention<T>::backward(const aitensor<T>& gradients) { 
 
     log_info("=====================================");
     log_info( "Entering Attention Backward Pass ..." );
@@ -222,7 +222,8 @@ const aitensor<T>& Attention::backward(const aitensor<T>& gradients) {
     return dInput;  
 }
 
-void Attention::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void Attention<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("=========================================");
     log_info( "Entering Attention Update Parameter ..." );
@@ -233,7 +234,8 @@ void Attention::updateParameters(std::string& optimizertype, double& learningRat
     Wo->updateParameters(optimizertype, learningRate, iter);
 }
 
-std::string Attention::generateDotFormat() {   
+template <class T>
+std::string Attention<T>::generateDotFormat() {   
     std::string dot = "{* Attention *}|";  
     if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
         dot += "{- No training done yet -}";
@@ -253,7 +255,7 @@ std::string Attention::generateDotFormat() {
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T>
-const aitensor<T>& MultiHeadAttention::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& MultiHeadAttention<T>::forward(const aitensor<T>& input_data) { 
 
 
     log_info("===============================================");
@@ -272,7 +274,7 @@ const aitensor<T>& MultiHeadAttention::forward(const aitensor<T>& input_data) {
 
     if (M1.empty()) {
         for (int i = 0; i < this->H; i++) {
-            Attention* A1  = new Attention(this->H, this->W);
+            Attention<T>* A1  = new Attention<T>(this->H, this->W);
             M1.push_back(A1);
         }
     }
@@ -283,10 +285,10 @@ const aitensor<T>& MultiHeadAttention::forward(const aitensor<T>& input_data) {
 
     const aitensor<T>& output(this->B, this->N, this->M);
 
-    for (int i = 0; i < this->H; i++)
+    for (int i = 0; i < this->H; i++) {
         splits = this->Dk * this->N * i; 
         aitensor<T> input_head = input_data.chip(splits,2,this->Dk);
-        aitensor<T> output.chip(splits, 2, this->Dk) = M1[i]->forward(input_head);
+        output.chip(splits, 2, this->Dk) = M1[i]->forward(input_head);
     }
 
     /*
@@ -331,7 +333,7 @@ const aitensor<T>& MultiHeadAttention::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& MultiHeadAttention::backward(const aitensor<T>& gradients) { 
+const aitensor<T>& MultiHeadAttention<T>::backward(const aitensor<T>& gradients) { 
 
     log_info("================================================");
     log_info( "Entering Multi-Head Attention Backward Pass ..." );
@@ -347,10 +349,10 @@ const aitensor<T>& MultiHeadAttention::backward(const aitensor<T>& gradients) {
 
     const aitensor<T>& dInput(this->B, this->N, this->M);
 
-    for (int i = 0; i < this->H; i++)
+    for (int i = 0; i < this->H; i++) {
         splits = this->Dk * this->N * i; 
         aitensor<T> gradient_head = gradients.chip(splits,2,this->Dk);
-        aitensor<T> dInput.chip(splits, 2, this->Dk) = M1[i]->forward(gradient_head);
+        dInput.chip(splits, 2, this->Dk) = M1[i]->forward(gradient_head);
     }
 
     /*
@@ -366,7 +368,8 @@ const aitensor<T>& MultiHeadAttention::backward(const aitensor<T>& gradients) {
     return dInput;
 }
 
-void MultiHeadAttention::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("=====================================================");
     log_info( "Entering Multi-Head Attention Update Parameters ..." );
@@ -376,7 +379,8 @@ void MultiHeadAttention::updateParameters(std::string& optimizertype, double& le
     }
 }
 
-std::string MultiHeadAttention::generateDotFormat() {   
+template <class T>
+std::string MultiHeadAttention<T>::generateDotFormat() {   
     std::string dot = "{* MultiHeadAttention *}|";  
     int cnt = 1;
     for (int i = 1; i < this->H; i++) {
@@ -394,7 +398,7 @@ std::string MultiHeadAttention::generateDotFormat() {
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is NxW and bias is W.
 template <class T>
-const aitensor<T>& FeedForward::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& FeedForward<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("=====================================================");
     log_info( "Entering Feedforward Forward Pass ..." );
@@ -410,9 +414,9 @@ const aitensor<T>& FeedForward::forward(const aitensor<T>& input_data) {
     this->M  = input_data.dimension(2);
 
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
-        L1 = new Linear(this->W, bias);
-        L2 = new Linear(this->M, bias); // requires to have dimension as the feedforward input
-        A1 = new Activation(this->activationtype, this->alpha);
+        L1 = new Linear<T>(this->W, bias);
+        L2 = new Linear<T>(this->M, bias); // requires to have dimension as the feedforward input
+        A1 = new Activation<T>(this->activationtype, this->alpha);
     }
 
     // Perform Linear Transformation.
@@ -431,7 +435,7 @@ const aitensor<T>& FeedForward::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& FeedForward::backward(const aitensor<T>& gradients) { 
+const aitensor<T>& FeedForward<T>::backward(const aitensor<T>& gradients) { 
     // Propagate Gradient to feedforward operations.
 
     log_info("=======================================");
@@ -447,7 +451,8 @@ const aitensor<T>& FeedForward::backward(const aitensor<T>& gradients) {
     return dInput;
 }
 
-void FeedForward::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("==========================================");
     log_info( "Entering Feedforward Update Paramter ..." );
@@ -457,7 +462,8 @@ void FeedForward::updateParameters(std::string& optimizertype, double& learningR
 
 }
 
-std::string FeedForward::generateDotFormat() {
+template <class T>
+std::string FeedForward<T>::generateDotFormat() {
     std::string dot = "{* FeedForward *}|";  
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
         dot += "{- No training done yet -}";
@@ -477,7 +483,7 @@ std::string FeedForward::generateDotFormat() {
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T>
-const aitensor<T>& Encoder::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& Encoder<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("=====================================================");
     log_info( "Entering Encoder Forward Pass ..." );
@@ -492,10 +498,10 @@ const aitensor<T>& Encoder::forward(const aitensor<T>& input_data) {
     log_detail( "Size of input: {:d}", this->input_data.size() );
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr) {
-        LN2 = new LayerNorm(this->W);
-        F1  = new FeedForward(this->W, this->bias, this->activationtype,  this->alpha);
-        LN1 = new LayerNorm(this->W); 
-        M1  = new MultiHeadAttention(this->H, this->W);
+        LN2 = new LayerNorm<T>(this->W);
+        F1  = new FeedForward<T>(this->W, this->bias, this->activationtype,  this->alpha);
+        LN1 = new LayerNorm<T>(this->W); 
+        M1  = new MultiHeadAttention<T>(this->H, this->W);
     }
 
     // Perform Linear Transformation.
@@ -540,7 +546,7 @@ const aitensor<T>& Encoder::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& Encoder::backward(const aitensor<T>& gradients) { 
+const aitensor<T>& Encoder<T>::backward(const aitensor<T>& gradients) { 
 
     log_info("=====================================================");
     log_info( "Entering Encoder Backward Pass ..." );
@@ -591,7 +597,8 @@ const aitensor<T>& Encoder::backward(const aitensor<T>& gradients) {
     return dInput;
 }
 
-void Encoder::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void Encoder<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("=====================================================");
     log_info( "Entering Encoder Update Parameter ..." );
@@ -603,7 +610,8 @@ void Encoder::updateParameters(std::string& optimizertype, double& learningRate,
 
 }
 
-std::string Encoder::generateDotFormat() {
+template <class T>
+std::string Encoder<T>::generateDotFormat() {
     std::string dot = "{* Encoder *}|";
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {

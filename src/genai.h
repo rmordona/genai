@@ -825,19 +825,20 @@ class BaseOperator {
 
 };
 
+template<class T>
 class Optimizer : public BaseOperator {
 private:
     std::string optimizertype = "adam";
-    double learningRate = 0.001;
-    Eigen::MatrixXd moments;
-    Eigen::MatrixXd velocity;
-    Eigen::MatrixXd rho;
-    Eigen::MatrixXd rms;
-    Eigen::MatrixXd accum;
-    Eigen::MatrixXd nu;
+    T learningRate = 0.001;
+    aimatrix<T> moments;
+    aimatrix<T> velocity;
+    aimatrix<T> rho;
+    aimatrix<T> rms;
+    aimatrix<T> accum;
+    aimatrix<T> nu;
 public:
 
-    Optimizer(const std::string& optimizertype, double& learningRate) {
+    Optimizer(const std::string& optimizertype, T& learningRate) {
         this->optimizertype = optimizertype;
         this->learningRate = learningRate; 
         moments.setZero();  
@@ -849,41 +850,41 @@ public:
     }
 
     // SGD optimizer with optional step decay
-    void sgd(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0,
-                    bool useStepDecay = false, double decayRateStep = 0.1, int decayStep = 0);
+    void sgd(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
 
     // Momentum optimizer with optional step decay
-    void momentum(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0,
-                    double momentumRate = 0.9,
-                    bool useStepDecay = false, double decayRateStep = 0.1,  int decayStep = 0);
+    void momentum(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    T momentumRate = 0.9,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
     // Adam optimizer with optional step decay
-    void adam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0,
-                    double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8,
-                    bool useStepDecay = false, double decayRateStep = 0.1,  int decayStep = 0);
+    void adam(const aimatrix<T>&, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
     // RMSprop optimizer with optional step decay
-    void rmsprop(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0,
-                    double rho = 0.9, double epsilon = 1e-8,
-                    bool useStepDecay = false, double decayRateStep = 0.1,  int decayStep = 0);
+    void rmsprop(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    T rho = 0.9, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
     // Adagrad optimizer with optional step decay
-    void adagrad(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0,
-                    double epsilon = 1e-8,
-                    bool useStepDecay = false, double decayRateStep = 0.1,  int decayStep = 0);
+    void adagrad(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
     // Adamax optimizer with optional step decay
-    void adamax(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0, 
-                    double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8,
-                    bool useStepDecay = false, double decayRateStep = 0.1, int decayStep = 0);
+    void adamax(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0, 
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
 
     // Nadam optimizer with optional step decay
-    void nadam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch = 0, 
-                    double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8,
-                    bool useStepDecay = false, double decayRateStep = 0.1, int decayStep = 0);
+    void nadam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0, 
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
 
     // Step decay for learning rate
-    void stepDecay(double& learningRate, double decayRate, int currentEpoch, int decayStep);
+    void stepDecay(T& learningRate, T decayRate, int currentEpoch, int decayStep);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -904,8 +905,8 @@ private:
     int W = 0; // number of weights 
     bool bias = true; // Use bias by default.
 
-    Optimizer* opt_weights = nullptr; // for optimizer
-    Optimizer* opt_biases = nullptr; // for optimizer
+    Optimizer<T>* opt_weights = nullptr; // for optimizer
+    Optimizer<T>* opt_biases = nullptr; // for optimizer
 
     int batch_size;
     int input_size;
@@ -925,7 +926,7 @@ public:
 
     OperationParams<T> getParameters() const;
 
-    OperationParams<T> getGradients() const;
+    std::vector<OperationParams<T>> getGradients() const;
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
     // We only need the M dimension from an NxM input to generate parameter matrix.
@@ -934,9 +935,9 @@ public:
 
     const aitensor<T>& forward(const aitensor<T>& input_data);
 
-    void gradient_Wrt_Weight_Bias(const aimatrix<T>& gradient);
+    OperationParams<T> gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gradients);
 
-    const aimatrix<T>& gradient_Wrt_Input(const aimatrix<T>& gradient);
+    const aimatrix<T>& gradient_Wrt_Input(const aimatrix<T>& new_gradients);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
@@ -944,7 +945,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -974,8 +975,8 @@ private:
 
     double epsilon=1e-8;
 
-    Optimizer* opt_scale = nullptr; // for optimizer
-    Optimizer* opt_shift = nullptr; // for optimizer
+    Optimizer<T>* opt_scale = nullptr; // for optimizer
+    Optimizer<T>* opt_shift = nullptr; // for optimizer
 
     int batch_size;
     int input_size;
@@ -1003,7 +1004,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1030,8 +1031,8 @@ private:
 
     double epsilon=1e-8;
 
-    Optimizer* opt_scale = nullptr; // for optimizer
-    Optimizer* opt_shift = nullptr; // for optimizer
+    Optimizer<T>* opt_scale = nullptr; // for optimizer
+    Optimizer<T>* opt_shift = nullptr; // for optimizer
 
     int batch_size;
     int input_size;
@@ -1059,7 +1060,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1167,26 +1168,26 @@ public:
     }
 
     // Mean Squared Error. Returns 1x1 matrix (scalar)
-    const aimatrix<T>& mse(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T>& mse(const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T>& mseGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // Binary Cross Entropy.  Returns 1x1 matrix (scalar)
-    const aimatrix<T>& bce(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T>& bce(const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T>& bceGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // For Loss Categorial Cross Entropy. Usually, we use Softmax.
-    const aimatrix<T>& cce(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T>& cce(const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T>& cceGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // For Support Vectors (not necessarily for Neural)
-    const aimatrix<T>& hingeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T>& hingeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T>& hingeLossGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aimatrix<T>& computeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T>& computeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T>& computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
@@ -1254,7 +1255,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1304,7 +1305,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1361,7 +1362,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1422,7 +1423,7 @@ public:
     // while the parameter gradients get cached to be used to update the parameters later.
     const aitensor<T>& backward(const aitensor<T>&  gradients);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1485,7 +1486,7 @@ public:
     std::string name;
     NodeType type;
 
-    Node(const std::string& name, NodeType type, const py::array_t<double>& embedding = {})
+    Node(const std::string& name, NodeType type, const py::array_t<T>& embedding = {})
         : name(name), type(type) {
         if (embedding.size() != 0) {
             setData(embedding);
@@ -1540,7 +1541,7 @@ public:
 
     void backwardPass();
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     std::string generateDotFormat();
 
@@ -1576,7 +1577,7 @@ private:
     aitensor<T> input_data;
     aitensor<T> predicted;
     aitensor<T> target;
-    aimatrix<T> loss;
+    aiscalar<T> loss;
 
     Loss<T>* lossobj;
 
@@ -1609,7 +1610,7 @@ public:
 
     const aitensor<T>& computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void nextBatch();
 
@@ -1657,7 +1658,7 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, T learnrate = 0.01, int itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, T learningRate = 0.01, int itermax = 1);
 
 };
 
@@ -1669,11 +1670,12 @@ public:
 #include <sqlite3.h>
 
 
+template <class T>
 class Embeddings {
 private:
     std::unordered_map<std::wstring, int> vocab;
-    Eigen::MatrixXd wordEmbeddings;
-    Eigen::VectorXd wordBiases;
+    aimatrix<T> wordEmbeddings;
+    aivector<T> wordBiases;
     int vocabSize = 0;
     int embeddingSize = 5;
 
@@ -1689,7 +1691,7 @@ private:
 
         // For the Embedding
         std::string hashKey;
-        Eigen::VectorXd vectorValue;
+        aivector<T> vectorValue;
         double bias;
     };
 
@@ -1751,8 +1753,8 @@ public:
     void prefetchEmbeddingsToCache();
 
     // Update Embeddings in the Database
-    void updateEmbeddingsInDatabase(const Eigen::MatrixXd& wordEmbeddings,
-                                    const Eigen::VectorXd& wordBiases);
+    void updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings,
+                                    const aivector<T>& wordBiases);
 
     // Get Vocab Size and Embedding Size
     int getVocabSize() { return this->wordEmbeddings.rows(); }
@@ -1776,23 +1778,24 @@ struct TrieNode {
     bool isEndOfToken;
 };
 
+template <class T>
 class TokenModel {
 private:
 
     std::string losstype = "mse";
     std::string optimizertype = "adagrad";
-    float learningRate = 0.01;
+    T learningRate = 0.01;
     int maxIterations = 1;
-    float regularization = 1.0;
-    double clipThreshold = 5.0;
+    T regularization = 1.0;
+    T clipThreshold = 5.0;
 
 public:
 
-    Embeddings* embeddings;
+    Embeddings<T>* embeddings;
 
     std::unordered_map<std::wstring, int> vocab;
-    Eigen::MatrixXd wordEmbeddings;
-    Eigen::VectorXd wordBiases;
+    aimatrix<T> wordEmbeddings;
+    aivector<T> wordBiases;
     int vocabSize = 0;
     int embeddingSize = 5;
 
@@ -1814,13 +1817,13 @@ public:
 
         // For the Embedding
         std::string hashKey;
-        Eigen::VectorXd vectorValue;
+        aivector<T> vectorValue;
 
     };
 
     TokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
-          const double learningRate = 0.01, float regularization = 1.0,
-          const int maxIterations = 1,  double clipThreshold = 5.0) {
+          const T learningRate = 0.01, T regularization = 1.0,
+          const int maxIterations = 1,  T clipThreshold = 5.0) {
 
         this->losstype = losstype;
         this->optimizertype = optimizertype;
@@ -1846,13 +1849,14 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // Now train a GloVe model
-     void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, 
-                    float learningRate = 0.01, int maxIteration = 1);
+     void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, T learningRate = 0.01, int maxIteration = 1);
 
 };
 
-class BPETokenizer : public TokenModel {
+template <class T>
+class BPETokenizer : public TokenModel<T> {
 private:
+    Embeddings<T>* embeddings;
     TrieNode* root;
 public:
     BPETokenizer() {

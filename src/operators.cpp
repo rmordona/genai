@@ -52,8 +52,9 @@ std::string Reduction::getType() {
 *****************************************************************************************************/
 
 // SGD optimizer with optional step decay
-void Optimizer::sgd(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch ,
-                bool useStepDecay, double decayRateStep, int decayStep) {
+template <class T>
+void Optimizer<T>::sgd(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
+                bool useStepDecay, T decayRateStep, int decayStep) {
     // Update weights
     weights.array() -= learningRate * gradients.array();
 
@@ -63,9 +64,10 @@ void Optimizer::sgd(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int cu
 }
 
 // Momentum optimizer with optional step decay
-void Optimizer::momentum(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch ,
-                double momentumRate,
-                bool useStepDecay, double decayRateStep,  int decayStep) {
+template <class T>
+void Optimizer<T>::momentum(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
+                T momentumRate,
+                bool useStepDecay, T decayRateStep,  int decayStep) {
     // Initialize Momentum optimizer variables
     //static Eigen::MatrixXd velocity = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     if (velocity.cols() == 0 && velocity.rows() == 0) {
@@ -84,9 +86,10 @@ void Optimizer::momentum(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, i
 }
 
 // Adam optimizer with optional step decay
-void Optimizer::adam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch ,
-                double beta1, double beta2, double epsilon,
-                bool useStepDecay, double decayRateStep,  int decayStep) {
+template <class T>
+void Optimizer<T>::adam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
+                T beta1, T beta2, T epsilon,
+                bool useStepDecay, T decayRateStep,  int decayStep) {
 
     log_info("============================");
     log_info("Entering Adam Optimation ...");
@@ -98,10 +101,10 @@ void Optimizer::adam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int c
         velocity = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     }
 
-    double beta1_t = std::pow(beta1, currentEpoch + 1);
-    double beta2_t = std::pow(beta2, currentEpoch + 1);
+    T beta1_t = std::pow(beta1, currentEpoch + 1);
+    T beta2_t = std::pow(beta2, currentEpoch + 1);
 
-    int doublePrecision = std::numeric_limits<double>::digits10;
+    int doublePrecision = std::numeric_limits<T>::digits10;
     std::cout.precision(doublePrecision);
 
     log_detail( "Beta 1 Calculation: {:2.10f} based on beta1: {}", beta1_t, beta1 );
@@ -148,11 +151,11 @@ void Optimizer::adam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int c
 }
 
 // RMSprop optimizer with optional step decay
-void Optimizer::rmsprop(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch ,
-                double rho, double epsilon,
-                bool useStepDecay, double decayRateStep,  int decayStep) {
+template <class T>
+void Optimizer<T>::rmsprop(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
+                T rho, T epsilon,
+                bool useStepDecay, T decayRateStep,  int decayStep) {
     // Initialize RMSprop optimizer variables
-    // static Eigen::MatrixXd rms = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     if (rms.cols() == 0 && rms.rows() == 0) {
         rms = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     }
@@ -169,9 +172,10 @@ void Optimizer::rmsprop(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, in
 }
 
 // Adagrad optimizer with optional step decay
-void Optimizer::adagrad(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch ,
-                double epsilon,
-                bool useStepDecay, double decayRateStep,  int decayStep) {
+template <class T>
+void Optimizer<T>::adagrad(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
+                T epsilon,
+                bool useStepDecay, T decayRateStep,  int decayStep) {
     // Initialize Adagrad optimizer variables
     // static Eigen::MatrixXd accum = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     if (accum.cols() == 0 && accum.rows() == 0) {
@@ -190,12 +194,11 @@ void Optimizer::adagrad(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, in
 }
 
 // Adamax optimizer with optional step decay
-void Optimizer::adamax(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch , 
-                double beta1, double beta2, double epsilon,
-                bool useStepDecay, double decayRateStep, int decayStep) {
+template <class T>
+void Optimizer<T>::adamax(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
+                T beta1, T beta2, T epsilon,
+                bool useStepDecay, T decayRateStep, int decayStep) {
     // Initialize Adamax optimizer variables
-    //static Eigen::MatrixXd m = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
-    //static Eigen::MatrixXd u = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     if (moments.cols() == 0 && moments.rows() == 0) {
         moments = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     }
@@ -220,12 +223,11 @@ void Optimizer::adamax(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int
 }
 
 // Nadam optimizer with optional step decay
-void Optimizer::nadam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int currentEpoch , 
-                double beta1, double beta2, double epsilon,
-                bool useStepDecay, double decayRateStep, int decayStep) {
-    // Initialize Nadam optimizer variables
-    //static Eigen::MatrixXd m = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
-    //static Eigen::MatrixXd v = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
+template <class T>
+void Optimizer<T>::nadam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
+                T beta1, T beta2, T epsilon,
+                bool useStepDecay, T decayRateStep, int decayStep) {
+
     if (moments.cols() == 0 && moments.rows() == 0) {
         moments = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     }
@@ -234,8 +236,8 @@ void Optimizer::nadam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int 
     }
 
 
-    double beta1_t = std::pow(beta1, currentEpoch + 1);
-    double beta2_t = std::pow(beta2, currentEpoch + 1);
+    T beta1_t = std::pow(beta1, currentEpoch + 1);
+    T beta2_t = std::pow(beta2, currentEpoch + 1);
 
     // Update momentum and velocity
     moments = beta1 * moments + (1 - beta1) * gradients;
@@ -255,7 +257,8 @@ void Optimizer::nadam(Eigen::MatrixXd& weights, Eigen::MatrixXd& gradients, int 
 }
 
 // Step decay for learning rate
-void Optimizer::stepDecay(double& learningRate, double decayRate, int currentEpoch, int decayStep) {
+template <class T>
+void Optimizer<T>::stepDecay(T& learningRate, T decayRate, int currentEpoch, int decayStep) {
     if (currentEpoch != 0 && currentEpoch % decayStep == 0) {
         learningRate *= decayRate;
     }
@@ -269,7 +272,8 @@ void Optimizer::stepDecay(double& learningRate, double decayRate, int currentEpo
 // This assumes that the input is defined with NxM dimensionality.
 // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use;
 // The output will have NxW dimension.
-void Linear::setInitialWeights(int M) {
+template <class T>
+void Linear<T>::setInitialWeights(int M) {
 
     // if size is already set, 
     // it means weights have previously already been set by an initial forward pass
@@ -283,7 +287,7 @@ void Linear::setInitialWeights(int M) {
     // Initialize Weights & Biases
     heInitialization(parameters.weights);
     // heInitialization(parameters.biases);
-    parameters.biases.setConstant(0.01);
+    parameters.biases.setConstant(T(0.01));
 
     //gradients.weights.resize(M, W); // allocates memory
     //gradients.biases.resize(W); // allocates memory
@@ -293,20 +297,22 @@ void Linear::setInitialWeights(int M) {
     //gradients.biases.setZero();
 
 }
- 
-OperationParams Linear::getParameters() const {
+
+template <class T>
+OperationParams<T> Linear<T>::getParameters() const {
     return parameters;
 }
- 
-OperationParams Linear::getGradients() const {
-    return gradients;
+
+template <class T> 
+std::vector<OperationParams<T>>  Linear<T>::getGradients() const {
+    return vgradients;
 }
 
 // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is NxW and bias is W.
 template <class T>
-const aimatrix<T>& Linear::linearTransform(const aimatrix<T>& input_data) {
+const aimatrix<T>& Linear<T>::linearTransform(const aimatrix<T>& input_data) {
 
     log_info("==================================");
     log_info("Entering Linear Transformation ...");
@@ -343,7 +349,7 @@ const aimatrix<T>& Linear::linearTransform(const aimatrix<T>& input_data) {
 }
 
 template <class T>
-const aitensor<T>& Linear::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& Linear<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("===============================================");
     log_info("Linear Transformation Forward Pass ...");
@@ -374,11 +380,11 @@ const aitensor<T>& Linear::forward(const aitensor<T>& input_data) {
 }
 
 template <class T>
-OperationParams Linear::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gradients) {
+OperationParams<T> Linear<T>::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gradients) {
     int N = new_gradients.rows();
 
     // initialize gradients for next iteration.
-    OperationParams gradients;
+    OperationParams<T> gradients;
     gradients.weights.setZero();
     gradients.biases.setZero();
 
@@ -427,14 +433,14 @@ OperationParams Linear::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gradient
 }
 
 template <class T>
-const aimatrix<T>& Linear::gradient_Wrt_Input(const aimatrix<T>& new_gradients) { 
+const aimatrix<T>& Linear<T>::gradient_Wrt_Input(const aimatrix<T>& new_gradients) { 
     int N = new_gradients.rows();
 
     log_detail( "Computing Gradient with respect to weight:" );
     log_detail( "The weight:" );
     log_matrix( parameters.weights );
     log_detail( "The gradient:" ) ;
-    log_matrix( gradient );
+    log_matrix( new_gradients );
     // Compute the gradient with respect to the input (dInput)
     const aimatrix<T>& dInput = BaseOperator::matmul(parameters.weights, new_gradients.transpose()).transpose();   // dL/x = (W * dL/DC.T)
 
@@ -454,7 +460,7 @@ const aimatrix<T>& Linear::gradient_Wrt_Input(const aimatrix<T>& new_gradients) 
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& Linear::backward(const aitensor<T>& gradients) { 
+const aitensor<T>& Linear<T>::backward(const aitensor<T>& gradients) { 
 
 
     log_info("===========================================");
@@ -477,7 +483,7 @@ const aitensor<T>& Linear::backward(const aitensor<T>& gradients) {
 
         gradient = gradients.chip(i, 0);
 
-        OperationParams wbgradients = gradient_Wrt_Weight_Bias(gradient);
+        OperationParams<T> wbgradients = gradient_Wrt_Weight_Bias(gradient);
 
         log_detail( "Computing Delta Error now ..."  );
 
@@ -493,7 +499,7 @@ const aitensor<T>& Linear::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-void Linear::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("=======================================");
     log_info( "Entering Linear Parameter Updates ..." );
@@ -501,7 +507,7 @@ void Linear::updateParameters(std::string& optimizertype, double& learningRate, 
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        OperationParams  gradients = vgradients[i];
+        OperationParams<T>  gradients = vgradients[i];
 
         aimatrix<T> pbiases = parameters.biases.matrix(); // convert vector to a 1xW matrix
         aimatrix<T> gbiases = gradients.biases.matrix();  // convert vector to a 1xW matrix
@@ -522,11 +528,11 @@ void Linear::updateParameters(std::string& optimizertype, double& learningRate, 
         log_rowvector( parameters.biases );
 
         if (opt_weights == nullptr) {
-            opt_weights = new Optimizer(optimizertype, learningRate);
+            opt_weights = new Optimizer<T>(optimizertype, learningRate);
         }
 
         if (opt_biases == nullptr && bias == true) {
-            opt_biases = new Optimizer(optimizertype, learningRate);
+            opt_biases = new Optimizer<T>(optimizertype, learningRate);
         }
 
         log_detail( "Updating Linear weights" );
@@ -550,7 +556,7 @@ void Linear::updateParameters(std::string& optimizertype, double& learningRate, 
 }
 
 template <class T>
-std::string Linear::generateDotFormat(const std::string& name) {
+std::string Linear<T>::generateDotFormat(const std::string& name) {
     std::string dot = "{* Linear Transformation (" + name + ") *}|";  
     aiscalar<T> min_weights = 0.0, max_weights = 0.0;
     aiscalar<T> min_biases = 0.0, max_biases = 0.0;
@@ -575,7 +581,8 @@ std::string Linear::generateDotFormat(const std::string& name) {
 
 // This assumes that the input is defined with NxM dimensionality.
 // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
-void BatchNorm::setInitialWeights(int M) {
+template <class T>
+void BatchNorm<T>::setInitialWeights(int M) {
 
     // if size is already set, 
     // it means weights have previously already been set by an initial forward pass
@@ -598,7 +605,7 @@ void BatchNorm::setInitialWeights(int M) {
 }
 
 template <class T>
-std::tuple<aimatrix<T>, aimatrix<T>>& BatchNorm::normalize(const aimatrix<T>& input_data) {
+std::tuple<aimatrix<T>, aimatrix<T>>& BatchNorm<T>::normalize(const aimatrix<T>& input_data) {
 
     log_info("=================================");
     log_info( "Entering Batch Normalization ..." );
@@ -660,7 +667,7 @@ std::tuple<aimatrix<T>, aimatrix<T>>& BatchNorm::normalize(const aimatrix<T>& in
 }
 
 template <class T>
-const aitensor<T>& BatchNorm::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& BatchNorm<T>::forward(const aitensor<T>& input_data) { 
 
     // Cache for later back propagation.
     this->input_data = input_data;
@@ -695,7 +702,7 @@ const aitensor<T>& BatchNorm::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& BatchNorm::backward(const aitensor<T>& gradients) {
+const aitensor<T>& BatchNorm<T>::backward(const aitensor<T>& gradients) {
 
     int N = this->input_data.rows();
 
@@ -715,7 +722,7 @@ const aitensor<T>& BatchNorm::backward(const aitensor<T>& gradients) {
 
         // Compute the gradient with respect to the scale parameter (Gamma)
         airowvector<T> dScale = (gradient.array() * normInput.array()).colwise().sum();
-        vgscale.push_back(dSCale);
+        vgscale.push_back(dScale);
 
         // Compute the gradient with respect to the shift parameter (Beta)
         airowvector<T> dShift = gradient.colwise().sum();
@@ -792,7 +799,7 @@ const aitensor<T>& BatchNorm::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-void BatchNorm::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("==================================================");
     log_info("Entering Batch Normalization Upgrade Parameters...");
@@ -812,11 +819,11 @@ void BatchNorm::updateParameters(std::string& optimizertype, double& learningRat
         gshift.row(0) = vgshift[i];
 
         if (opt_scale == nullptr) {
-            opt_scale = new Optimizer(optimizertype, learningRate);
+            opt_scale = new Optimizer<T>(optimizertype, learningRate);
         }
 
         if (opt_shift == nullptr) {
-            opt_shift = new Optimizer(optimizertype, learningRate);
+            opt_shift = new Optimizer<T>(optimizertype, learningRate);
         }
 
         log_detail( "Updating Scale" );
@@ -843,7 +850,7 @@ void BatchNorm::updateParameters(std::string& optimizertype, double& learningRat
 }
 
 template <class T>
-std::string BatchNorm::generateDotFormat(const std::string& name) {
+std::string BatchNorm<T>::generateDotFormat(const std::string& name) {
     std::string dot = "{* Batch Normalization (" + name + ") *}|";  
     aiscalar<T> min_scale = 0.0, max_scale = 0.0;
     aiscalar<T> min_shift = 0.0, max_shift = 0.0;
@@ -869,7 +876,8 @@ std::string BatchNorm::generateDotFormat(const std::string& name) {
 
 // This assumes that the input is defined with NxM dimensionality.
 // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
-void LayerNorm::setInitialWeights(int N) {
+template <class T>
+void LayerNorm<T>::setInitialWeights(int N) {
 
     // if size is already set, 
     // it means weights have previously already been set by an initial forward pass
@@ -892,7 +900,7 @@ void LayerNorm::setInitialWeights(int N) {
 }
 
 template <class T>
-std::tuple<aimatrix<T>, aimatrix<T>>& LayerNorm::normalize(const aimatrix<T>& input_data) {
+std::tuple<aimatrix<T>, aimatrix<T>>& LayerNorm<T>::normalize(const aimatrix<T>& input_data) {
     log_info("=================================");
     log_info( "Entering Layer Normalization ..." );
 
@@ -953,7 +961,7 @@ std::tuple<aimatrix<T>, aimatrix<T>>& LayerNorm::normalize(const aimatrix<T>& in
 }
 
 template <class T>
-const aitensor<T>& LayerNorm::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& LayerNorm<T>::forward(const aitensor<T>& input_data) { 
 
     // Cache for later back propagation.
     this->input_data = input_data;
@@ -988,7 +996,7 @@ const aitensor<T>& LayerNorm::forward(const aitensor<T>& input_data) {
 // the dInput is the gradient we propagate to source Nodes in the graph;
 // while the parameter gradients get cached to be used to update the parameters later.
 template <class T>
-const aitensor<T>& LayerNorm::backward(const aitensor<T>& gradients) {
+const aitensor<T>& LayerNorm<T>::backward(const aitensor<T>& gradients) {
 
     int W = this->input_data.cols();
 
@@ -1008,7 +1016,7 @@ const aitensor<T>& LayerNorm::backward(const aitensor<T>& gradients) {
 
         // Compute the gradient with respect to the scale parameter (Gamma)
         aivector<T> dScale = (gradient.array() * normInput.array()).rowwise().sum();
-        vgscale.push_back(dSCale);
+        vgscale.push_back(dScale);
 
         // Compute the gradient with respect to the shift parameter (Beta)
         aivector<T> dShift = gradient.rowwise().sum();
@@ -1097,7 +1105,7 @@ const aitensor<T>& LayerNorm::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-void LayerNorm::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("==================================================");
     log_info("Entering Batch Normalization Upgrade Parameters...");
@@ -1117,11 +1125,11 @@ void LayerNorm::updateParameters(std::string& optimizertype, double& learningRat
         gshift.col(0) = vgshift[i];
 
         if (opt_scale == nullptr) {
-            opt_scale = new Optimizer(optimizertype, learningRate);
+            opt_scale = new Optimizer<T>(optimizertype, learningRate);
         }
 
         if (opt_shift == nullptr) {
-            opt_shift = new Optimizer(optimizertype, learningRate);
+            opt_shift = new Optimizer<T>(optimizertype, learningRate);
         }
 
         log_detail( "Updating Scale" );
@@ -1148,7 +1156,7 @@ void LayerNorm::updateParameters(std::string& optimizertype, double& learningRat
 }
 
 template <class T>
-std::string LayerNorm::generateDotFormat(const std::string& name) {
+std::string LayerNorm<T>::generateDotFormat(const std::string& name) {
     std::string dot = "{* Layer Normalization (" + name + ") *}|"; 
     aiscalar<T> min_scale = 0.0, max_scale = 0.0;
     aiscalar<T> min_shift = 0.0, max_shift = 0.0;
@@ -1168,7 +1176,7 @@ std::string LayerNorm::generateDotFormat(const std::string& name) {
 * Base Activation Functions
 *****************************************************************************************************/
 template <class T>
-const aitensor<T>& Activation::relu(const aitensor<T>& x) {
+const aitensor<T>& Activation<T>::relu(const aitensor<T>& x) {
     return x.array().max(0.0);
 }
 
@@ -1178,13 +1186,13 @@ const aitensor<T>& Activation::relu(const aitensor<T>& x) {
  * dy/dz = propagated_gradient * 0 for z <= 0
  *****************************************************************************************************/
 template <class T>
-const aitensor<T>& Activation::reluGradient(const aitensor<T>& gradients) {
-   const aitensor<T>& dInput = this->input_data.array().max(0.0).cast<bool>().cast<double>() * gradients.array();
+const aitensor<T>& Activation<T>::reluGradient(const aitensor<T>& gradients) {
+   const aitensor<T>& dInput = this->input_data.array().max(T(0.0)).template cast<bool>().template cast<T>() * gradients.array();
     return dInput;
 }
 
 template <class T>
-const aitensor<T>& Activation::leakyReLU(const aitensor<T>& x, float alpha) {
+const aitensor<T>& Activation<T>::leakyReLU(const aitensor<T>& x, float alpha) {
     return x.array().max(alpha * x.array());
 }
 
@@ -1194,13 +1202,13 @@ const aitensor<T>& Activation::leakyReLU(const aitensor<T>& x, float alpha) {
  * dy/dz = propagated_gradient * alpha for z <= 0
 *****************************************************************************************************/
 template <class T>
-const aitensor<T>& Activation::leakyReluGradient(const aitensor<T>& gradients) {
-    const aitensor<T>& dInput = this->input_data.array().max(0.0).cast<bool>().cast<double>().max(alpha) * gradients.array();
+const aitensor<T>& Activation<T>::leakyReluGradient(const aitensor<T>& gradients) {
+    const aitensor<T>& dInput = this->input_data.array().max(T(0.0)).template cast<bool>().template cast<T>().max(alpha) * gradients.array();
     return dInput;
 }
 
 template <class T>
-const aitensor<T>& Activation::gelu(const aitensor<T>& x) {
+const aitensor<T>& Activation<T>::gelu(const aitensor<T>& x) {
     return 0.5 * x.array() * (1.0 + ((x.array() * std::sqrt(2.0 / M_PI)).tanh()));
 }
 
@@ -1208,9 +1216,9 @@ const aitensor<T>& Activation::gelu(const aitensor<T>& x) {
  * Gelu Gradient ...
 *****************************************************************************************************/
 template <class T>
-const aitensor<T>& Activation::geluGradient(const aitensor<T>& gradients) {
+const aitensor<T>& Activation<T>::geluGradient(const aitensor<T>& gradients) {
     // Calculate the coefficient used in the GELU formula
-    double coefficient = sqrt(2.0 / M_PI);
+    T coefficient = sqrt(2.0 / M_PI);
     // Compute the cumulative distribution function (CDF) part of the GELU gradient
     const aitensor<T>& cdf = 0.5 * (1.0 + (gradients.array() / coefficient).tanh());
     // Compute the probability density function (PDF) part of the GELU gradient
@@ -1220,12 +1228,13 @@ const aitensor<T>& Activation::geluGradient(const aitensor<T>& gradients) {
     return 0.5 * (1.0 + (cdf.array() + gradients.array() * pdf.array() + 0.044715 * gradients.array().cube())).matrix();
 }
 
-
-// This assumes that the input is defined with BxNxM dimensionality.
-// Therefore the size of the parameters and thus gradients will be based on BxMxW 
-// where B is batch size, N is input size, and W is the number of weights to use.
+/*****************************************************************************************************
+ * This assumes that the input is defined with BxNxM dimensionality.
+ * Therefore the size of the parameters and thus gradients will be based on BxMxW 
+ * where B is batch size, N is input size, and W is the number of weights to use.
+*****************************************************************************************************/
 template <class T>
-void Activation::setInitSize(const aitensor<T>& input_data) {
+void Activation<T>::setInitSize(const aitensor<T>& input_data) {
 
     // if size is already set, 
     // it means weights have previously already been set by an initial forward pass
@@ -1239,8 +1248,8 @@ void Activation::setInitSize(const aitensor<T>& input_data) {
 }
 
 template <class T>
-const aitensor<T>& Activation::computeActivation(const aitensor<T>& input_data) { 
-    const tensor& output;
+const aitensor<T>& Activation<T>::computeActivation(const aitensor<T>& input_data) { 
+    const aitensor<T>& output;
 
     setInitSize(input_data);
 
@@ -1268,7 +1277,7 @@ const aitensor<T>& Activation::computeActivation(const aitensor<T>& input_data) 
 }
 
 template <class T>
-const aitensor<T>& Activation::computeGradient(const aitensor<T>& gradients) {
+const aitensor<T>& Activation<T>::computeGradient(const aitensor<T>& gradients) {
     aitensor<T> dInput;
     const aitensor<T>& output_data = this->output_data;
 
@@ -1294,7 +1303,7 @@ const aitensor<T>& Activation::computeGradient(const aitensor<T>& gradients) {
 }
 
 template <class T>
-const aitensor<T>& Activation::forward(const aitensor<T>& input_data) { 
+const aitensor<T>& Activation<T>::forward(const aitensor<T>& input_data) { 
 
     log_info( "=====================================" );
     log_info( "Entering Activation Forward Pass ..." );
@@ -1312,7 +1321,7 @@ const aitensor<T>& Activation::forward(const aitensor<T>& input_data) {
 }
 
 template <class T>
-const aitensor<T>& Activation::backward(const aitensor<T>& gradients) {
+const aitensor<T>& Activation<T>::backward(const aitensor<T>& gradients) {
     log_info("=====================================");
     log_info( "Entering Activation Backward Pass ..." );
 
@@ -1326,7 +1335,7 @@ const aitensor<T>& Activation::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-std::string Activation::generateDotFormat() {
+std::string Activation<T>::generateDotFormat() {
     std::string dot = "{* Activation (" + activationtype + ")*}|";
     aiscalar<T> min_input = 0.0, max_input = 0.0;
     if (this->N != 0 || this->M != 0) 
@@ -1347,7 +1356,7 @@ std::string Activation::generateDotFormat() {
 // Expected intermediate output: BxN, if taking mse along the W dimension
 // Expected overall loss: Average along dimensions B and N.
 template <class T>
-const aiscalar<T>& Loss::mse(const aitensor<T>& predicted, const aitensor<T>& target) { 
+const aiscalar<T>& Loss<T>::mse(const aitensor<T>& predicted, const aitensor<T>& target) { 
 
     aitensor<T> mse_loss = ( predicted.array() - target.array() ).square();
 
@@ -1361,7 +1370,7 @@ const aiscalar<T>& Loss::mse(const aitensor<T>& predicted, const aitensor<T>& ta
 }
 
 template <class T>
-const aitensor<T>& Loss::mseGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aitensor<T>& Loss<T>::mseGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
     return 2 * (predicted.array() - target.array());
 }
 
@@ -1370,7 +1379,7 @@ const aitensor<T>& Loss::mseGradient(const aitensor<T>& predicted, const aitenso
 // Expected intermediate output: BxN, if taking mse along the W dimension
 // Expected overall loss: Average along dimensions B and N.
 template <class T>
-const aimatrix<T>& Loss::bce(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aiscalar<T>& Loss<T>::bce(const aitensor<T>& predicted, const aitensor<T>& target) {
     aitensor<T> bce_loss = -target.array() * predicted.array().log() - (1.0 - target.array()) * (1.0 - predicted.array()).log();
 
     // Sum along the W dimension for each combination of B and N
@@ -1383,7 +1392,7 @@ const aimatrix<T>& Loss::bce(const aitensor<T>& predicted, const aitensor<T>& ta
 }
 
 template <class T>
-const aitensor<T>& Loss::bceGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aitensor<T>& Loss<T>::bceGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
     aitensor<T> gradient = (predicted - target).array() / (predicted.array() * (1 - predicted.array()));
     return gradient;
 }
@@ -1391,7 +1400,7 @@ const aitensor<T>& Loss::bceGradient(const aitensor<T>& predicted, const aitenso
 // For Loss Categorical Cross Entropy. Usually, we use Softmax.
 // If predicted and target has BxNxC dimension where C is number of classes, then result will be BxN.
 template <class T>
-const aimatrix<T>& Loss::cce(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aiscalar<T>& Loss<T>::cce(const aitensor<T>& predicted, const aitensor<T>& target) {
 
     // Calculate the CCE loss for each batch and instance (log likelihood)
     aitensor<T> cce_loss = -predicted.array() * predicted.array().log();
@@ -1407,14 +1416,14 @@ const aimatrix<T>& Loss::cce(const aitensor<T>& predicted, const aitensor<T>& ta
 }
 
 template <class T>
-const aitensor<T>& Loss::cceGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aitensor<T>& Loss<T>::cceGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
     aitensor<T> gradient = ( predicted.array() - target.array() );
     return gradient;
 }
 
 // For Support Vectors (not necessarily for Neural)
 template <class T>
-const aimatrix<T>& Loss::hingeLoss(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+const aiscalar<T>& Loss<T>::hingeLoss(const aitensor<T>& predicted, const aitensor<T>& target) {
 
     // Calculate the CCE loss for each batch and instance (log likelihood)
     aitensor<T> hinge_loss = (1.0 - predicted.array() * target.array()).cwiseMax(0.0);
@@ -1431,14 +1440,14 @@ const aimatrix<T>& Loss::hingeLoss(const Eigen::MatrixXd& predicted, const Eigen
 
 // For Support Vectors (not necessarily for Neural)
 template <class T>
-const aitensor<T>& Loss::hingeLossGradient(const Eigen::MatrixXd& predicted, const Eigen::MatrixXd& target) {
+const aitensor<T>& Loss<T>::hingeLossGradient(const aitensor<T>& predicted, const aitensor<T>& target) {
     aitensor<T> gradient = (predicted.array() * target.array() < 1).select(-target, 0);
     return gradient;
 }
 
 template <class T>
-const aimatrix<T>& Loss::computeLoss(const aitensor<T>& predicted, const aitensor<T>& target) { 
-    aimatrix<T> output;
+const aiscalar<T>& Loss<T>::computeLoss(const aitensor<T>& predicted, const aitensor<T>& target) { 
+    aiscalar<T> output;
     if (losstype == "mse") {
         output = mse(predicted, target);
     } else
@@ -1455,7 +1464,7 @@ const aimatrix<T>& Loss::computeLoss(const aitensor<T>& predicted, const aitenso
 }
 
 template <class T>
-const aitensor<T>& Loss::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) { 
+const aitensor<T>& Loss<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) { 
     aitensor<T> gradients;
     if (losstype == "mse") {
         gradients = mseGradient(predicted, target);

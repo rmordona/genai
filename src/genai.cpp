@@ -721,25 +721,86 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<int, int, double,  int, bool, RNNType>(), 
                 py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
                 py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
+
+        // Definitions for BaseOperator APIs
+    py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
+    py::class_<Linear<float>, BaseOperator, std::shared_ptr<Linear<float>>>(m, "Linear")
+        .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
+    py::class_<BatchNorm<float>, BaseOperator, std::shared_ptr<BatchNorm<float>>>(m, "BatchNorm")
+        .def(py::init<int>(), py::arg("size") = 0);
+    py::class_<LayerNorm<float>, BaseOperator, std::shared_ptr<LayerNorm<float>>>(m, "LayerNorm")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Reduction, BaseOperator, std::shared_ptr<Reduction>>(m, "Reduction")
+        .def(py::init<const std::string&>(), py::arg("type") = "sum");  
+    py::class_<Activation<float>, BaseOperator, std::shared_ptr<Activation<float>>>(m, "Activation")
+        .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<Loss<float>, BaseOperator, std::shared_ptr<Loss<float>>>(m, "Loss")
+        .def(py::init<const std::string&>(), py::arg("type") = "mse");
+    py::class_<Dropout, BaseOperator, std::shared_ptr<Dropout>>(m, "Dropout")
+        .def(py::init<int>(), py::arg("size") = 0); 
+    py::class_<Attention<float>, BaseOperator, std::shared_ptr<Attention<float>>>(m, "Attention")
+        .def(py::init<int,int, bool>(), py::arg("heads") = 1, py::arg("size") = 3, py::arg("bias") = false); 
+    py::class_<FeedForward<float>, BaseOperator, std::shared_ptr<FeedForward<float>>>(m, "FeedForward")
+        .def(py::init<int, bool, const std::string&, const float>(), 
+                py::arg("size") = 3, py::arg("bias") = true,
+                py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<Encoder<float>, BaseOperator, std::shared_ptr<Encoder<float>>>(m, "Encoder")
+        .def(py::init<int, int, bool, const std::string&, const float>(), 
+                py::arg("heads") = 1,
+                py::arg("size") = 3, py::arg("bias") = true,
+                py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<RNN<float>, BaseOperator, std::shared_ptr<RNN<float>>>(m, "RNN")
+        .def(py::init<int, int, float, int, bool, RNNType>(), 
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
+    py::class_<LSTM<float>, BaseOperator, std::shared_ptr<LSTM<float>>>(m, "LSTM")
+        .def(py::init<int, int, float, int, bool, RNNType>(), 
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
+    py::class_<GRU<float>, BaseOperator, std::shared_ptr<GRU<float>>>(m, "GRU")
+        .def(py::init<int, int, float,  int, bool, RNNType>(), 
+                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
+                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
  
     // Definitions for TokenModel APIs
-    py::class_<TokenModel, std::shared_ptr<TokenModel>>(m, "TokenModel")
+    // Definitions for TokenModel APIs
+    py::class_<TokenModel<double>, std::shared_ptr<TokenModel<double>>>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&>(), py::arg("losstype") = "mse", py::arg("optimizer") = "adagrad")
-        .def("tokenize",  (std::vector<std::wstring> (TokenModel::*)(const std::wstring&)) &TokenModel::tokenize, 
+        .def("tokenize",  (std::vector<std::wstring> (TokenModel<double>::*)(const std::wstring&)) &TokenModel<double>::tokenize, 
                 "Tokenize a Sentence")
-        .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::tokenize, 
+        .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel<double>::*)(const std::vector<std::wstring>&)) &TokenModel<double>::tokenize, 
                 "Tokenize a set of Sentences")
-        .def("printVocabulary",  &TokenModel::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
-        .def("printWordEmbeddings",  &TokenModel::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
-        .def("trainGloVe", (void (TokenModel::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel::trainGloVe,
+        .def("printVocabulary",  &TokenModel<double>::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
+        .def("printWordEmbeddings",  &TokenModel<double>::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
+        .def("trainGloVe", (void (TokenModel<double>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<double>::trainGloVe,
                   py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
                   py::arg("maxiteration"), "Train Word Embedding using GloVe");
 
-    py::class_<BPETokenizer, TokenModel, std::shared_ptr<BPETokenizer>>(m, "BPETokenizer")
+    // Definitions for TokenModel APIs
+    py::class_<TokenModel<float>, std::shared_ptr<TokenModel<float>>>(m, "TokenModel")
+        .def(py::init<const std::string&, const std::string&>(), py::arg("losstype") = "mse", py::arg("optimizer") = "adagrad")
+        .def("tokenize",  (std::vector<std::wstring> (TokenModel<float>::*)(const std::wstring&)) &TokenModel<float>::tokenize, 
+                "Tokenize a Sentence")
+        .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel<float>::*)(const std::vector<std::wstring>&)) &TokenModel<float>::tokenize, 
+                "Tokenize a set of Sentences")
+        .def("printVocabulary",  &TokenModel<float>::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
+        .def("printWordEmbeddings",  &TokenModel<float>::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
+        .def("trainGloVe", (void (TokenModel<float>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<float>::trainGloVe,
+                  py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
+                  py::arg("maxiteration"), "Train Word Embedding using GloVe");
+
+    py::class_<BPETokenizer<double>, TokenModel<double>, std::shared_ptr<BPETokenizer<double>>>(m, "BPETokenizer")
         .def(py::init<>())
-        .def("pretrain", (void (BPETokenizer::*)(const std::vector<std::wstring>&, int, int)) &BPETokenizer::pretrain, 
+        .def("pretrain", (void (BPETokenizer<double>::*)(const std::vector<std::wstring>&, int, int)) &BPETokenizer<double>::pretrain, 
             py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
-        .def("train", (void (BPETokenizer::*)(const std::vector<std::wstring>&, int)) &BPETokenizer::train, 
+        .def("train", (void (BPETokenizer<double>::*)(const std::vector<std::wstring>&, int)) &BPETokenizer<double>::train, 
+            py::arg("corpus"), py::arg("merges"), "Train a BPE tokenizer");
+
+    py::class_<BPETokenizer<float>, TokenModel<float>, std::shared_ptr<BPETokenizer<float>>>(m, "BPETokenizer")
+        .def(py::init<>())
+        .def("pretrain", (void (BPETokenizer<float>::*)(const std::vector<std::wstring>&, int, int)) &BPETokenizer<float>::pretrain, 
+            py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
+        .def("train", (void (BPETokenizer<float>::*)(const std::vector<std::wstring>&, int)) &BPETokenizer<float>::train, 
             py::arg("corpus"), py::arg("merges"), "Train a BPE tokenizer");
 
     // Definitions for Scraper APIs

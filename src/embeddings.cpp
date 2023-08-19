@@ -31,7 +31,8 @@ using namespace py::literals;
 
 
 // Initialize Vector dB
-void Embeddings::initializeVectorDB() {
+template <class T>
+void Embeddings<T>::initializeVectorDB() {
    
     // Create Vector DB
     createVectorDB();
@@ -44,7 +45,8 @@ void Embeddings::initializeVectorDB() {
 }
 
 // Seed Vector dB
-void Embeddings::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary) {
+template <class T>
+void Embeddings<T>::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary) {
 
     int currentIndex = 0;
     for (const auto& entry : vocabulary) {
@@ -65,7 +67,8 @@ void Embeddings::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary)
 }
 
 // Function to create a simple SQLite vector DB
-void Embeddings::createVectorDB() {
+template <class T>
+void Embeddings<T>::createVectorDB() {
     int rc = sqlite3_open(dbFileName.c_str(), &this->db);
     if (rc) {
         log_warning( "Error opening database: {}", sqlite3_errmsg(this->db) );
@@ -75,7 +78,8 @@ void Embeddings::createVectorDB() {
 }
 
 // Function to create a vector table and a vocabulary lookup table
-void Embeddings::createVectorTable() {
+template <class T>
+void Embeddings<T>::createVectorTable() {
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS corpus_embeddings ("
                                  "hash_key TEXT PRIMARY KEY, "
                                  "vector_value BLOB, "
@@ -92,7 +96,8 @@ void Embeddings::createVectorTable() {
 }
 
 // Function to create a vocabulary lookup table
-void Embeddings::createVocabularyTable() {
+template <class T>
+void Embeddings<T>::createVocabularyTable() {
 
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS vocabulary ("
                                  "token TEXT PRIMARY KEY, "
@@ -120,7 +125,8 @@ void Embeddings::createVocabularyTable() {
 }
 
 // Function to update a record into the vocabulary table
-void Embeddings::saveVocabulary(const Record& record) {
+template <class T>
+void Embeddings<T>::saveVocabulary(const Record& record) {
     std::stringstream insertSQL;
     // The tokenIndex column is defined with AUTOINCREEMNT
     insertSQL << "INSERT OR REPLACE INTO vocabulary (token, frequency) VALUES (?, ?);";
@@ -150,7 +156,8 @@ void Embeddings::saveVocabulary(const Record& record) {
 }
 
 // Function to insert a record into the vector table
-void Embeddings::saveEmbeddings(const Record& record) {
+template <class T>
+void Embeddings<T>::saveEmbeddings(const Record& record) {
     std::stringstream insertSQL;
     insertSQL << "INSERT OR REPLACE INTO corpus_embeddings (hash_key, vector_value, bias) VALUES (?, ?, ?);";
 
@@ -166,7 +173,7 @@ void Embeddings::saveEmbeddings(const Record& record) {
     sqlite3_bind_text(stmt, 1, record.hashKey.c_str(), -1, SQLITE_STATIC);
 
     // Bind the vector embedding
-    sqlite3_bind_blob(stmt, 2, record.vectorValue.data(), record.vectorValue.size() * sizeof(double), SQLITE_STATIC);
+    sqlite3_bind_blob(stmt, 2, record.vectorValue.data(), record.vectorValue.size() * sizeof(T), SQLITE_STATIC);
 
     // Prepare statement and bind bias...
     sqlite3_bind_double(stmt, 3, record.bias);
@@ -181,7 +188,8 @@ void Embeddings::saveEmbeddings(const Record& record) {
 }
 
 // Function to retrieve an embedding from the database based on the hash key
-bool Embeddings::retrieveEmbeddings(const std::string& hashKey, Record& record) {
+template <class T>
+bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& record) {
     std::stringstream selectSQL;
     selectSQL << "SELECT vector_value, bias FROM corpus_embeddings WHERE hash_key = ?;";
 
@@ -203,7 +211,7 @@ bool Embeddings::retrieveEmbeddings(const std::string& hashKey, Record& record) 
         // Get the vector value from the result and store it in the record
         const void* data = sqlite3_column_blob(stmt, 0);
         int size = sqlite3_column_bytes(stmt, 0);
-        record.vectorValue.resize(size / sizeof(double));
+        record.vectorValue.resize(size / sizeof(double)); // let column hold double regardless of T (typeclass)
         std::memcpy(record.vectorValue.data(), data, size);
 
         record.bias = sqlite3_column_double(stmt, 1);
@@ -218,7 +226,8 @@ bool Embeddings::retrieveEmbeddings(const std::string& hashKey, Record& record) 
 
 // Function to retrieve a record from the database based on the hash key
 // TODO: To use some kind of memcache
-bool Embeddings::retrieveVocabulary(const std::wstring& token, Record& record) {
+template <class T>
+bool Embeddings<T>::retrieveVocabulary(const std::wstring& token, Record& record) {
     std::stringstream selectSQL;
     selectSQL << "SELECT frequency FROM vocabulary WHERE token = ?;";
 
@@ -250,7 +259,8 @@ bool Embeddings::retrieveVocabulary(const std::wstring& token, Record& record) {
 
 // Function to retrieve a record from the database based on the hash key
 // TODO: To use some kind of memcache
-bool Embeddings::isInVocabulary(const std::wstring& token) {
+template <class T>
+bool Embeddings<T>::isInVocabulary(const std::wstring& token) {
     std::stringstream selectSQL;
     selectSQL << "SELECT frequency FROM vocabulary WHERE token = ?;";
 
@@ -276,18 +286,20 @@ bool Embeddings::isInVocabulary(const std::wstring& token) {
     return false;
 }
 
-bool Embeddings::isInVocabulary(const std::wstring& token, Record& record)  {
+template <class T>
+bool Embeddings<T>::isInVocabulary(const std::wstring& token, Record& record)  {
     return retrieveVocabulary(token,record);
 }
 
 
 // Function to generate the initial word embedding. We require the size of the constructed vocabulary
-void Embeddings::initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary, int embeddingSize) {
+template <class T>
+void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary, int embeddingSize) {
     this->vocab = vocabulary;
     this->vocabSize = vocabulary.size();
     this->embeddingSize = embeddingSize;
-    this->wordEmbeddings = Eigen::MatrixXd::Random(this->vocabSize, embeddingSize);
-    this->wordBiases = Eigen::VectorXd::Zero(this->vocabSize);
+    this->wordEmbeddings = aimatrix<T>::Random(this->vocabSize, embeddingSize);
+    this->wordBiases = aivector<T>::Zero(this->vocabSize);
 
     // Initialize word Embeddings
     BaseOperator::heInitialization(this->wordEmbeddings);
@@ -298,7 +310,8 @@ void Embeddings::initializeVectorandVocabMetadata(std::unordered_map<std::wstrin
 
 // Cross Reference Vocabulary between memory and DB
 // Sync in-memory vocab into DB.
-void Embeddings::crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary) {
+template <class T>
+void Embeddings<T>::crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary) {
 
     log_info( "===============================================================" );
     log_info( "Entering Cross Reference of Vocabulary between DB and Cache ..." );
@@ -318,7 +331,8 @@ void Embeddings::crossReferenceVocabularyinDBandCache(std::unordered_map<std::ws
 }
 
 // Function to fetch the embeddings for tokens in the current corpus from the vector database
-void Embeddings::prefetchVocabularyToCache(const std::vector<std::vector<std::wstring>>& corpus) {
+template <class T>
+void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std::wstring>>& corpus) {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
     // with columns "token_hash" (INTEGER) and "embedding" (BLOB)
 
@@ -376,7 +390,8 @@ void Embeddings::prefetchVocabularyToCache(const std::vector<std::vector<std::ws
 
 // Function to fetch the embeddings for tokens in the cached vocabulary (instead of corpus) 
 // from the vector database to cache
-void Embeddings::prefetchEmbeddingsToCache() {
+template <class T>
+void Embeddings<T>::prefetchEmbeddingsToCache() {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
     // with columns "token_hash" (INTEGER) and "embedding" (BLOB)
 
@@ -449,8 +464,9 @@ void Embeddings::prefetchEmbeddingsToCache() {
 }
 
 // Update Embeddings in the Database
-void Embeddings::updateEmbeddingsInDatabase(const Eigen::MatrixXd& wordEmbeddings,
-                                           const Eigen::VectorXd& wordBiases) {
+template <class T>
+void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings,
+                                           const aivector<T>& wordBiases) {
 
 
     log_tag("Embeddings");

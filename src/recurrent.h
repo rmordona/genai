@@ -102,11 +102,10 @@ private:
     int hidden_size;
     // int output_size;
 
-    double learning_rate; // Learning rate
+    T learning_rate; // Learning rate
 
 public:
-    // RNNCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate);
-    RNNCell(int hidden_size, double learning_rate);
+    RNNCell(int hidden_size, T learning_rate);
     const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
     const aimatrix<T>& forward(const aimatrix<T>& input_data);
@@ -153,10 +152,10 @@ private:
     int hidden_size;
     // int output_size;
 
-    double learning_rate;    // Learning rate for parameter updates
+    T learning_rate;    // Learning rate for parameter updates
 
 public:
-    LSTMCell(int param_size, double learning_rate);
+    LSTMCell(int param_size, T learning_rate);
     const aimatrix<T>& getHiddenState();
     const aimatrix<T>& getCellState();
     void setInitialWeights(int N, int P);
@@ -201,10 +200,10 @@ private:
     int hidden_size;
     // int output_size;
 
-    double learning_rate;    // Learning rate for parameter updates
+    T learning_rate;    // Learning rate for parameter updates
 
 public:
-    GRUCell(int hidden_size, double learning_rate);
+    GRUCell(int hidden_size, T learning_rate);
     const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
     const aimatrix<T>& forward(const aimatrix<T>& input_data);
@@ -243,7 +242,7 @@ private:
     aitensor<T> Yhat;
 
 public:
-    RNN(int hidden_size, int output_size, double learning_rate, int num_layers, 
+    RNN(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
@@ -259,7 +258,7 @@ public:
     }
     const aitensor<T>&  forward(const aitensor<T>& input_data);
     const aitensor<T>&  backward(const aitensor<T>& gradients);
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -295,7 +294,7 @@ private:
     aitensor<T> Yhat;
 
 public:
-    LSTM(int hidden_size, int output_size, double learning_rate, int num_layers, 
+    LSTM(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
@@ -311,7 +310,7 @@ public:
     }
     const aitensor<T>&  forward(const aitensor<T>& input_data);
     const aitensor<T>&  backward(const aitensor<T>& gradients);
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -346,7 +345,7 @@ private:
     aitensor<T> Yhat;
 
 public:
-    GRU(int hidden_size, int output_size, double learning_rate, int num_layers, 
+    GRU(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
@@ -362,7 +361,7 @@ public:
     }
     const aitensor<T>& forward(const aitensor<T>& input_data);
     const aitensor<T>&  backward(const aitensor<T>& gradients);
-    void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
