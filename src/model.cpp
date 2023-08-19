@@ -30,40 +30,45 @@ namespace py = pybind11;
 using namespace py::literals;
 
 
-void BaseModel::setGraph(Graph* graph) {
+template <class T>
+void BaseModel<T>::setGraph(Graph* graph) {
 
-    auto mygraph = dynamic_cast<Graph*>(graph);
+    auto mygraph = dynamic_cast<Graph<T>*>(graph);
     this->graph = mygraph;
     log_detail( "SetGraph ... Node count: {:d}", this->graph->getNodes().size() );
 }
 
-void BaseModel::setLoss(std::string& losstype) {
+template <class T>
+void BaseModel<T>::setLoss(std::string& losstype) {
     this->losstype = losstype;
 }
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-void BaseModel::setTarget(py::array_t<double> target) {
+template <class T>
+void BaseModel<T>::setTarget(py::array_t<T> target) {
 
     // Convert values to C++ array
     py::buffer_info values_info = target.request();
-    double* data = static_cast<double*>(values_info.ptr);
+    T* data = static_cast<T*>(values_info.ptr);
     int v_rows = values_info.shape[0]; // N
     int v_cols = values_info.shape[1]; // M
     // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
-    this->target = Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, v_rows, v_cols);
+    this->target = Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, v_rows, v_cols);
 }
 
-Eigen::MatrixXd BaseModel::getTarget() {
+template <class T>
+aitensor<T> BaseModel<T>::getTarget() {
     return target;
 }
 
-void BaseModel::useCrossEntropy() {
+template <class T>
+void BaseModel<T>::useCrossEntropy() {
 
 }
 
-
-void BaseModel::train(std::string& losstype, std::string& optimizertype, double learnrate , int itermax) {
+template <class T>
+void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, double learnrate , int itermax) {
 
         // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -77,8 +82,8 @@ void BaseModel::train(std::string& losstype, std::string& optimizertype, double 
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
-    aiscalar epsilon = 1e-3;
-    aiscalar old_loss = inf();
+    aiscalar<T> epsilon = 1e-3;
+    aiscalar<T> old_loss = inf();
 
     int iter = 0;
 

@@ -317,20 +317,20 @@
 *    });
 **************************************************************************************************/
 
-template<class T>
-#define aitensor Eigen::Tensor<T,3,Eigen::RowMajor>
+template <class T>
+using aitensor = Eigen::Tensor<T,3,Eigen::RowMajor>;
 
-template<class T>
-#define aimatrix Eigen::Tensor<T,2,Eigen::RowMajor>
+template <class T>
+using aimatrix = Eigen::Tensor<T,2,Eigen::RowMajor>;
 
-template<class T>
-#define aivector Eigen::Tensor<T,1> // Defaults to ColumnMajor  (vertical/column)
+template <class T>
+using aivector = Eigen::Tensor<T,1>; // Defaults to ColumnMajor  (vertical/column)
 
-template<class T>
-#define airowvector Eigen::Tensor<T,1,Eigen::RowMajor> // (horizontal/row)
+template <class T>
+using airowvector = Eigen::Tensor<T,1, Eigen::RowMajor> ;// (horizontal/row)
 
-template<class T>
-#define aiscalar Eigen::Tensor<T, 0> // (scalar)
+template <class T>
+using aiscalar = Eigen::Tensor<T, 0>; // (scalar)
  
 /**************************************************************************************************
   Helper Functions shared by other classes
@@ -592,9 +592,10 @@ extern LOGGER* ai_log;
 #ifndef OPERATORS_H
 #define OPERATORS_H
 
+template <class T>
 struct OperationParams {
-    aimatrix weights; // MxW
-    airowvector biases;  // 1xW
+    aimatrix<T> weights; // MxW
+    airowvector<T> biases;  // 1xW
 };
 
 enum class OperType {
@@ -652,9 +653,10 @@ class BaseOperator {
 */
 
     // Perform Matrix Multiplication. 
-    static Eigen::MatrixXd matmul(Eigen::MatrixXd A, Eigen::MatrixXd B) {
-        double alpha = 1.0;
-        double beta = 0.0;
+    template <class T>
+    static Eigen::MatrixXd matmul(const aimatrix<T>& A, const aimatrix<T>& B) {
+        T alpha = 1.0;
+        T beta = 0.0;
         int M = A.rows();
         int N = B.cols();
         int K = A.cols();
@@ -662,7 +664,7 @@ class BaseOperator {
         int ldb = K;  // leading dimension of B.
         int ldc = M;  // leading dimension of C.
 
-        Eigen::MatrixXd C(M, N);
+        aimatrix<T> C(M, N);
 
         // Default:
         // Here we assume the following:
@@ -674,7 +676,8 @@ class BaseOperator {
     }
 
     // Apply the sigmoid function element-wise to a matrix
-    static Eigen::MatrixXd sigmoid(const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> sigmoid(const aimatrix<T>& output_data) {
         return 1.0 / (1.0 + (-output_data.array()).exp());
     }
 
@@ -685,13 +688,15 @@ class BaseOperator {
     * then we use the output such that:
     * dy/dz = propagated_gradient * y * (1 - y)
     *****************************************************************************************************/
-    static Eigen::MatrixXd sigmoidGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> sigmoidGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
         Eigen::MatrixXd dInput = gradients.array() * output_data.array() * ( 1 - output_data.array());
         return dInput;
     }
 
     // Apply the tanh function element-wise to a matrix
-    static Eigen::MatrixXd tanh(const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> tanh(const aimatrix<T>& output_data) {
         return output_data.array().tanh();
     }
 
@@ -702,25 +707,27 @@ class BaseOperator {
     * then we use the output such that:
     * dy/dz = propagated_gradient * y * (1 - y^2)
     *****************************************************************************************************/
-    static Eigen::MatrixXd tanhGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> tanhGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
         Eigen::MatrixXd dInput =  gradients.array() *  ( 1 - output_data.array().pow(2));
         return dInput;
     }
 
-    static Eigen::MatrixXd softmax(const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> softmax(const aimatrix<T>& output_data) {
 
         // Find the maximum value in each column of x
         // Required to handle large numbers.
-        double maxVal = output_data.maxCoeff();
+        T maxVal = output_data.maxCoeff();
 
         // Subtract the maximum value from each element in each column of x and compute the exponential
-        Eigen::MatrixXd expX = (output_data.array().colwise() - Eigen::ArrayXd::Constant(output_data.cols(), maxVal)).exp();
+        aimatrix<T> expX = (output_data.array().colwise() - Eigen::ArrayXd::Constant(output_data.cols(), maxVal)).exp();
 
         // Compute the sum of exponential values for each row
-        Eigen::VectorXd sumExp = expX.rowwise().sum();
+        aivector<T> sumExp = expX.rowwise().sum();
 
         // Compute the softmax probabilities by dividing each element in each row by the sum of exponential values
-        Eigen::MatrixXd softmax = expX.array() / sumExp.replicate(1,2).array();
+        aimatrix<T> softmax = expX.array() / sumExp.replicate(1,2).array();
 
         // Return the computed softmax probabilities 
         return softmax;
@@ -735,11 +742,12 @@ class BaseOperator {
      * dy_i/dz_j = propagated_gradient * (y_i * (1 - y_j)) for i = j
      * dy_i/dz_j = propagated_gradient * (-y_i * y_j) for i != j
      ****************************************************************************************************/
-    static Eigen::MatrixXd softmaxGradient(const Eigen::MatrixXd& gradients, const Eigen::MatrixXd& output_data) {
+    template <class T>
+    static aimatrix<T> softmaxGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
         int N = gradients.rows();  // Number of samples
         int M = gradients.cols();  // Number of classes
 
-        Eigen::MatrixXd dInput(N, M);
+        aimatrix<T> dInput(N, M);
         dInput.setZero();
 
         for (int i = 0; i < N; ++i) {
@@ -756,53 +764,62 @@ class BaseOperator {
         return dInput;
     }
 
-    static void xavierInitialization(Eigen::MatrixXd& weights) {
-        double scale = std::sqrt(6.0 / (weights.rows() + weights.cols()));
+    template <class T>
+    static void xavierInitialization(const aimatrix<T>& weights) {
+        T scale = std::sqrt(6.0 / (weights.rows() + weights.cols()));
         weights.setRandom();
         weights *= scale;
     }
 
-    static void xavierInitialization(Eigen::VectorXd& biases) {
-        double scale = std::sqrt(6.0 / (biases.cols() + biases.rows()));
+    template <class T>
+    static void xavierInitialization(const aivector<T>& biases) {
+        T scale = std::sqrt(6.0 / (biases.cols() + biases.rows()));
         biases.setRandom();
         biases *= scale;
     }
 
-    static void xavierInitialization(Eigen::RowVectorXd& biases) {
-        double scale = std::sqrt(6.0 / (biases.cols() + biases.rows()));
+    template <class T>
+    static void xavierInitialization(const airowvector<T>& biases) {
+        T scale = std::sqrt(6.0 / (biases.cols() + biases.rows()));
         biases.setRandom();
         biases *= scale;
     }
 
-    static void heInitialization(Eigen::MatrixXd& weights) {
-        double scale = std::sqrt(2.0 / weights.rows());
+    template <class T>
+    static void heInitialization(const aimatrix<T>& weights) {
+        T scale = std::sqrt(2.0 / weights.rows());
         weights.setRandom();
         weights *= scale;
     }
 
-    static void heInitialization(Eigen::VectorXd& biases) {
-        double scale = std::sqrt(2.0 / biases.rows());
+    template <class T>
+    static void heInitialization(const aivector<T>& biases) {
+        T scale = std::sqrt(2.0 / biases.rows());
         biases.setRandom();
         biases *= scale;
     }
 
-    static void heInitialization(Eigen::RowVectorXd& biases) {
-        double scale = std::sqrt(2.0 / biases.cols());
+    template <class T>
+    static void heInitialization(const airowvector<T>& biases) {
+        T scale = std::sqrt(2.0 / biases.cols());
         biases.setRandom();
         biases *= scale;
     }
 
-    static void uniformInitialization(Eigen::MatrixXd& weights, double minVal, double maxVal) {
+    template <class T>
+    static void uniformInitialization(const aimatrix<T>& weights, T minVal, T maxVal) {
         weights = Eigen::MatrixXd::Random(weights.rows(), weights.cols());
         weights = (weights.array() * (maxVal - minVal)) + minVal;
     }
 
-    static void normalInitialization(Eigen::MatrixXd& weights, double mean, double stdDev) {
+    template <class T>
+    static void normalInitialization(const aimatrix<T>& weights, T mean, T stdDev) {
         weights = Eigen::MatrixXd::Random(weights.rows(), weights.cols());
         weights = (weights.array() * stdDev) + mean;
     }
 
-    static void zeroInitialization(Eigen::MatrixXd& weights) {
+    template <class T>
+    static void zeroInitialization(const aimatrix<T>& weights) {
         weights.setZero();
     }
 
@@ -872,15 +889,16 @@ public:
     void backwardPass() {}
 };
 
+template <class T>
 class Linear : public BaseOperator {
 private:
 
-    aitensor input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
+    aitensor<T> input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
 
-    OperationParams parameters; // Learnable Parameters. The core of AI.
+    OperationParams<T> parameters; // Learnable Parameters. The core of AI.
 
     // OperationParams gradients;  // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
-    std::vector<OperationParams> vgradients; // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
+    std::vector<OperationParams<T>> vgradients; // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
 
     int M = 0; // number of features (embedding vector size)
     int W = 0; // number of weights 
@@ -905,26 +923,26 @@ public:
     // The output will have NxW dimension.
     void setInitialWeights(int M);
 
-    OperationParams getParameters() const;
+    OperationParams<T> getParameters() const;
 
-    OperationParams getGradients() const;
+    OperationParams<T> getGradients() const;
 
     // While the parameter weight has dimension MxW,  the resulting transformation has dimension of NxW.
     // We only need the M dimension from an NxM input to generate parameter matrix.
     // where weights is NxW and bias is W.
-    const aimatrix& linearTransform(const aimatrix& input_data);
+    const aimatrix<T>& linearTransform(const aimatrix<T>& input_data);
 
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
-    void gradient_Wrt_Weight_Bias(const aimatrix& gradient);
+    void gradient_Wrt_Weight_Bias(const aimatrix<T>& gradient);
 
-    const aimatrix& gradient_Wrt_Input(const aimatrix& gradient);
+    const aimatrix<T>& gradient_Wrt_Input(const aimatrix<T>& gradient);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -934,23 +952,24 @@ public:
 
 };
 
+template <class T>
 class BatchNorm : public BaseOperator {
 private:
 
     // Cached data for backpropagation.
-    aitensor input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
+    aitensor<T> input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
 
     // Across W dimension
-    airowvector scale; // (gamma) Learnable parameter.
-    airowvector shift; // (beta) Learnable parameter.
+    airowvector<T> scale; // (gamma) Learnable parameter.
+    airowvector<T> shift; // (beta) Learnable parameter.
 
-    std::vector<airowvector> vgscale; // gradient for scale (gamma)
-    std::vector<airowvector> vgshift; // gradient for the shift (beta)
+    std::vector<airowvector<T>> vgscale; // gradient for scale (gamma)
+    std::vector<airowvector<T>> vgshift; // gradient for the shift (beta)
 
 
-    aitensor normalizedInput; // BxNxW samples 
-    aitensor minusMean;
-    airowvector batchStdDev;
+    aitensor<T> normalizedInput; // BxNxW samples 
+    aitensor<T> minusMean;
+    airowvector<T> batchStdDev;
     int M = 0;
 
     double epsilon=1e-8;
@@ -974,15 +993,15 @@ public:
     // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
     void setInitialWeights(int M);
 
-    std::tuple<aimatrix, aimatrix>& normalize(const aimatrix& input_data);
+    std::tuple<aimatrix<T>, aimatrix<T>>& normalize(const aimatrix<T>& input_data);
 
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is for the scale and shift. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -991,21 +1010,22 @@ public:
     std::string generateDotFormat(const std::string& name = "generic");
 };
 
+template <class T>
 class LayerNorm : public BaseOperator {
 private:
-    aitensor input_data; // BxNxW samples
+    aitensor<T> input_data; // BxNxW samples
 
     // Across W dimension
-    aivector scale; // (gamma) Learnable parameter.
-    aivector shift; // (beta) Learnable parameter.
+    aivector<T> scale; // (gamma) Learnable parameter.
+    aivector<T> shift; // (beta) Learnable parameter.
 
-    std::vector<aivector> vgscale; // gradient for scale (gamma)
-    std::vector<aivector> vgshift; // gradient for the shift (beta)
+    std::vector<aivector<T>> vgscale; // gradient for scale (gamma)
+    std::vector<aivector<T>> vgshift; // gradient for the shift (beta)
 
     // Cached data for backpropagation.
-    aitensor normalizedInput; // BxNxW samples 
-    aitensor minusMean;
-    aivector layerStdDev;
+    aitensor<T> normalizedInput; // BxNxW samples 
+    aitensor<T> minusMean;
+    aivector<T> layerStdDev;
     int N = 0;
 
     double epsilon=1e-8;
@@ -1029,15 +1049,15 @@ public:
     // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
     void setInitialWeights(int N);
 
-    std::tuple<aimatrix, aimatrix>& normalize(const aimatrix& input_data);
+    std::tuple<aimatrix<T>, aimatrix<T>>& normalize(const aimatrix<T>& input_data);
 
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is for the scale and shift. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1046,12 +1066,13 @@ public:
     std::string generateDotFormat(const std::string& name = "generic");
 };
 
+template <class T>
 class Activation : public BaseOperator {
 private:
 
     // Cached data for backpropagation.
-    aitensor input_data; // BxNxW samples 
-    aitensor output_data; // BxNxW samples 
+    aitensor<T> input_data; // BxNxW samples 
+    aitensor<T> output_data; // BxNxW samples 
 
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
@@ -1059,22 +1080,20 @@ public:
 
     Activation(const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
-        this->dInput = Eigen::MatrixXd::Zero(0, 0);
         log_info( "**** Activation instance created ****" );
     }
 
     Activation(const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
-        this->dInput = Eigen::MatrixXd::Zero(0, 0);
         log_info( "**** Activation instance created ****" );
     }
 
     //  Resize dInput.
-    void setInitSize(const aitensor& input_data);
+    void setInitSize(const aitensor<T>& input_data);
 
     // Here, instead of using the term logits, let's just use x.
-    const aitensor&  sigmoid(const aitensor& x);
+    const aitensor<T>&  sigmoid(const aitensor<T>& x);
 
     /*****************************************************************************************************
      * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
@@ -1083,9 +1102,9 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y)
      *****************************************************************************************************/
-    const aitensor&  sigmoidGradient(const aitensor& gradients, const aitensor& output_data);
+    const aitensor<T>&  sigmoidGradient(const aitensor<T>& gradients, const aitensor<T>& output_data);
 
-    const aitensor&  tanh(const aitensor& x);
+    const aitensor<T>&  tanh(const aitensor<T>& x);
 
     /*****************************************************************************************************
      * So, the gradient of the tanh function with respect to its input (z) can be expressed as follows:
@@ -1094,40 +1113,40 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y^2)
      *****************************************************************************************************/
-    const aitensor&  tanhGradient(const aitensor& gradients, const aitensor& output_data);
+    const aitensor<T>&  tanhGradient(const aitensor<T>& gradients, const aitensor<T>& output_data);
 
-    const aitensor& relu(const aitensor& x);
+    const aitensor<T>& relu(const aitensor<T>& x);
 
     /*****************************************************************************************************
      * So, the gradient of the ReLU function with respect to its input (z) can be expressed as follows:
      * dy/dz = propagated_gradient * 1 for z > 0
      * dy/dz = propagated_gradient * 0 for z <= 0
      *****************************************************************************************************/
-    const aitensor&  reluGradient(const aitensor& gradients);  
+    const aitensor<T>&  reluGradient(const aitensor<T>& gradients);  
 
-    const aitensor& leakyReLU(const aitensor& x, float alpha);
+    const aitensor<T>& leakyReLU(const aitensor<T>& x, float alpha);
 
     /*****************************************************************************************************
      * So, the gradient of the LeakyReLU function with respect to its input (z) can be expressed as follows:
      * dy/dz = propagated_gradient * 1 for z > 0
      * dy/dz = propagated_gradient * alpha for z <= 0
     *****************************************************************************************************/
-    const aitensor& leakyReluGradient(const aitensor& gradients);
+    const aitensor<T>& leakyReluGradient(const aitensor<T>& gradients);
 
-    const aitensor& gelu(const aitensor& x);
+    const aitensor<T>& gelu(const aitensor<T>& x);
 
     /*****************************************************************************************************
      * Gelu Gradient ...
     *****************************************************************************************************/
-    const aitensor& geluGradient(const aitensor& gradients);
+    const aitensor<T>& geluGradient(const aitensor<T>& gradients);
 
-    const aitensor& computeActivation(const aitensor& input_data);
+    const aitensor<T>& computeActivation(const aitensor<T>& input_data);
 
-    const aitensor& computeGradient(const aitensor& gradients);
+    const aitensor<T>& computeGradient(const aitensor<T>& gradients);
 
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
-    const aitensor&backward(const aitensor& gradients);
+    const aitensor<T>&backward(const aitensor<T>& gradients);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1137,6 +1156,7 @@ public:
 /*****************************************************************************************************
 * Base Loss Functions
 *****************************************************************************************************/
+template <class T>
 class Loss : public BaseOperator {
 private:
     std::string losstype = "mse";
@@ -1147,28 +1167,28 @@ public:
     }
 
     // Mean Squared Error. Returns 1x1 matrix (scalar)
-    const aimatrix& mse(const aitensor& predicted, const aitensor& target);
+    const aimatrix<T>& mse(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& mseGradient(const aitensor& predicted, const aitensor& target);
+    const aitensor<T>& mseGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // Binary Cross Entropy.  Returns 1x1 matrix (scalar)
-    const aimatrix& bce(const aitensor& predicted, const aitensor& target);
+    const aimatrix<T>& bce(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& bceGradient(const aitensor& predicted, const aitensor& target);
+    const aitensor<T>& bceGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // For Loss Categorial Cross Entropy. Usually, we use Softmax.
-    const aimatrix& cce(const aitensor& predicted, const aitensor& target);
+    const aimatrix<T>& cce(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& cceGradient(const aitensor& predicted, const aitensor& target);
+    const aitensor<T>& cceGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
     // For Support Vectors (not necessarily for Neural)
-    const aimatrix& hingeLoss(const aitensor& predicted, const aitensor& target);
+    const aimatrix<T>& hingeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& hingeLossGradient(const aitensor& predicted, const aitensor& target);
+    const aitensor<T>& hingeLossGradient(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aimatrix& computeLoss(const aitensor& predicted, const aitensor& target);
+    const aimatrix<T>& computeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& computeGradients(const aitensor& predicted, const const aitensor& target);
+    const aitensor<T>& computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -1189,21 +1209,22 @@ public:
 #ifndef TRANSFORMER_H
 #define TRANSFORMER_H
 
+template <class T>
 class Attention : public BaseOperator {
 private:
 
-    aitensor input_data;   // Input Dimention: BxNxM
-    Linear* Q  = nullptr;  // BxNxW
-    Linear* K  = nullptr;  // BxNxW
-    Linear* V  = nullptr;  // BxNxW
-    Linear* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
+    aitensor<T> input_data;   // Input Dimention: BxNxM
+    Linear<T>* Q  = nullptr;  // BxNxW
+    Linear<T>* K  = nullptr;  // BxNxW
+    Linear<T>* V  = nullptr;  // BxNxW
+    Linear<T>* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
 
-    aitensor Qout;
-    aitensor Kout;
-    aitensor Vout;
+    aitensor<T> Qout;
+    aitensor<T> Kout;
+    aitensor<T> Vout;
 
-    aitensor QKsoft;
-    aitensor QKsoftV;
+    aitensor<T> QKsoft;
+    aitensor<T> QKsoftV;
 
     int B = 0;  // batch size
     int N = 0;  // input size
@@ -1225,13 +1246,13 @@ public:
     // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
     // We only need the M dimension from an BxNxM input to generate parameter matrix.
     // where weights is BxNxW and bias is W.
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1244,10 +1265,11 @@ public:
 /*****************************************************************************************************
 * Base Multi-Head Attention Layer
 *****************************************************************************************************/
+template <class T>
 class MultiHeadAttention : public BaseOperator {
 private:
-    Eigen::MatrixXd input_data; // NxW samples, by using & 
-    std::vector<Attention*> M1;
+    aitensor<T> input_data; // NxW samples, by using & 
+    std::vector<Attention<T>*> M1;
 
     bool bias = true;
 
@@ -1274,13 +1296,13 @@ public:
     // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
     // We only need the M dimension from an BxNxM input to generate parameter matrix.
     // where weights is BxNxW and bias is W.
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1292,14 +1314,15 @@ public:
 /*****************************************************************************************************
 * Base FeedForward  Layer
 *****************************************************************************************************/
+template <class T>
 class FeedForward : public BaseOperator {
 private:
-    aitensor input_data; // NxW samples, by using & 
-    Linear* L1 = nullptr;
-    Linear* L2 = nullptr; // required to align the dimension similar to the input
-    Activation* A1 = nullptr;
+    aitensor<T> input_data; // NxW samples, by using & 
+    Linear<T>* L1 = nullptr;
+    Linear<T>* L2 = nullptr; // required to align the dimension similar to the input
+    Activation<T>* A1 = nullptr;
 
-    aitensor L1out; // Cache output for use by activation backprop
+    aitensor<T> L1out; // Cache output for use by activation backprop
 
     bool bias = true;
     int B = 0;
@@ -1330,13 +1353,13 @@ public:
     // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
     // We only need the M dimension from an BxNxM input to generate parameter matrix.
     // where weights is BxNxW and bias is W.
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor& gradients);
+    const aitensor<T>& backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1348,17 +1371,18 @@ public:
 /*****************************************************************************************************
 * Base Encoder  Layer
 *****************************************************************************************************/
+template <class T>
 class Encoder : public BaseOperator {
 private:
-    aitensor input_data; // NxW samples, by using & 
-    MultiHeadAttention* M1 = nullptr;
-    LayerNorm* LN1 = nullptr;
-    FeedForward* F1 = nullptr;
-    LayerNorm* LN2 = nullptr;
+    aitensor<T> input_data; // NxW samples, by using & 
+    MultiHeadAttention<T>* M1 = nullptr;
+    LayerNorm<T>* LN1 = nullptr;
+    FeedForward<T>* F1 = nullptr;
+    LayerNorm<T>* LN2 = nullptr;
 
-    aitensor M1out; // Cache output for use by attention backprop
-    aitensor F1out; // Cache output for use by feedforward backprop
-    aitensor LN1out; // Cache output for use by feedforward backprop
+    aitensor<T> M1out; // Cache output for use by attention backprop
+    aitensor<T> F1out; // Cache output for use by feedforward backprop
+    aitensor<T> LN1out; // Cache output for use by feedforward backprop
 
     bool bias = true;
     int H = 0;
@@ -1390,13 +1414,13 @@ public:
     // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
     // We only need the M dimension from an BxNxM input to generate parameter matrix.
     // where weights is BxNxW and bias is W.
-    const aitensor& forward(const aitensor& input_data);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
 
     // Leave the gradients as is. They are cached in the Node. 
     // They will be used to update the parameters in next parallel operations.
     // the dInput is the gradient we propagate to source Nodes in the graph;
     // while the parameter gradients get cached to be used to update the parameters later.
-    const aitensor& backward(const aitensor&  gradients);
+    const aitensor<T>& backward(const aitensor<T>&  gradients);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
@@ -1436,7 +1460,7 @@ enum class NodeType {
 /*****************************************************************************************************
 * Node
 *****************************************************************************************************/
-
+template <class T>
 class Node {
 private:
     int id;
@@ -1479,14 +1503,14 @@ public:
 
     // The input is assumed to have NxM where N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setData(py::array_t<double> embedding);
+    void setData(py::array_t<T> embedding);
 
     // Let's handle Tensors
-    void setDataTensor(py::array_t<double> embedding);
+    void setDataTensor(py::array_t<T> embedding);
 
-    const aitensor& getInput();
+    const aitensor<T>& getInput();
 
-    const aitensor& getOutput();
+    const aitensor<T>& getOutput();
 
     void addInput(Node* input);
 
@@ -1504,15 +1528,15 @@ public:
 
     void parallel(ssize_t repeat, std::string& reduce);
 
-    const aitensor& aggregateData(const aitensor& input_data);
+    const aitensor<T>& aggregateData(const aitensor<T>& input_data);
 
-    void setGradients(const aitensor&  gradients);
+    void setGradients(const aitensor<T>&  gradients);
 
-    void propagateGradients(const aitensor&  gradients);
+    void propagateGradients(const aitensor<T>&  gradients);
 
     // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
     // nodes whose source nodes are already processed.
-    const aitensor& forwardPass();
+    const aitensor<T>& forwardPass();
 
     void backwardPass();
 
@@ -1523,72 +1547,73 @@ public:
 
 };
 
+template <class T>
 class Connection {
 private:
-    Node* source;
-    Node* destination;
+    Node<T>* source;
+    Node<T>* destination;
 
 public:
-    Connection(Node* sourceNode, Node* destinationNode) : source(sourceNode), destination(destinationNode) {}
+    Connection(Node<T>* sourceNode, Node<T>* destinationNode) : source(sourceNode), destination(destinationNode) {}
 
-    Node* getSource();
+    Node<T>* getSource();
 
-    Node* getDestination();
+    Node<T>* getDestination();
 
     void forwardPass();
 
-    Eigen::MatrixXd backwardPass(Eigen::MatrixXd& gradients);
+    const aitensor<T> backwardPass(const aitensor<T>& gradients);
 
 };
 
-
+template <class T>
 class Graph {
 private:
-    std::vector<Node*> nodes;
-    std::vector<Connection*> connections;
-    std::unordered_map<Node*, int> indegree;
-    std::unordered_map<Node*, int> outdegree;
-    Eigen::MatrixXd input_data;
-    Eigen::MatrixXd predicted;
-    Eigen::MatrixXd target;
-    Eigen::MatrixXd loss;
+    std::vector<Node<T>*> nodes;
+    std::vector<Connection<T>*> connections;
+    std::unordered_map<Node<T>*, int> indegree;
+    std::unordered_map<Node<T>*, int> outdegree;
+    aitensor<T> input_data;
+    aitensor<T> predicted;
+    aitensor<T> target;
+    aimatrix<T> loss;
 
-    Loss* lossobj;
+    Loss<T>* lossobj;
 
 public:
 
     // Create a node with three arguments: name, type, and initial values
-    Node* createNode(const std::string& name, NodeType type, const py::array_t<double>& embedding);
+    Node<T>* createNode(const std::string& name, NodeType type, const py::array_t<T>& embedding);
 
     // Create a node with two arguments: name and type (no initial values)
-    Node* createNode(const std::string& name, NodeType type);
+    Node<T>* createNode(const std::string& name, NodeType type);
 
-    void connect(Node* from, Node* to);
+    void connect(Node<T>* from, Node<T>* to);
 
-    void connect(Node* from, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(Node<T>* from, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
 
-    void connect(std::vector<Node*> from_nodes, Node* to);
+    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to);
 
-    void connect(std::vector<Node*> from_nodes, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
 
-    void addConnection(Connection* connection);
+    void addConnection(Connection<T>* connection);
 
-    std::vector<Node*> getNodes();
+    std::vector<Node<T>*> getNodes();
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
-    const aitensor& forwardPropagation();
+    const aitensor<T>& forwardPropagation();
 
-    const aitensor& backwardPropagation(Econst aitensor& gradients);
+    const aitensor<T>& backwardPropagation(const aitensor<T>& gradients);
 
-    const aimatrix& computeLoss(std::string losstype, const aitensor& predicted, const aitensor&target);
+    const aimatrix<T>& computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor& computeGradients(const aitensor& predicted, const aitensor& target);
+    const aitensor<T>& computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void nextBatch();
 
-    const std::unordered_map<Node*, int>& getIndegree() const;
+    const std::unordered_map<Node<T>*, int>& getIndegree() const;
 
     std::string generateDotFormat();
 
@@ -1599,13 +1624,14 @@ public:
 #ifndef TRANSFORMER_MODEL_H
 #define TRANSFORMER_MODEL_H
 
+template <class T>
 class BaseModel {
 private:
-    Graph* graph;
-    aitensor target;
-    aitensor predicted;
-    aitensor gradients;
-    aiscalar loss;
+    Graph<T>* graph;
+    aitensor<T> target;
+    aitensor<T> predicted;
+    aitensor<T> gradients;
+    aiscalar<T> loss;
     std::string losstype = "mse";
     std::string optimizertype = "adam";
     double learningRate = 0.01;
@@ -1619,19 +1645,19 @@ public:
         this->itermax = itermax;
     }
 
-    void setGraph(Graph* graph);
+    void setGraph(Graph<T>* graph);
 
     void setLoss(std::string& losstype);
 
     // The input is assumed to have NxM where N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setTarget(py::array_t<double> target);
+    void setTarget(py::array_t<T> target);
 
-    Eigen::MatrixXd getTarget();
+    aitensor<T> getTarget();
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, double learnrate = 0.01, int itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, T learnrate = 0.01, int itermax = 1);
 
 };
 

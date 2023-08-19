@@ -36,22 +36,23 @@ enum RNNType {
     MANY_TO_MANY
 };
 
+template <class T>
 class CellBase {
 public:
 
     class Split {
     private:
-        aimatrix A;
-        aimatrix B;
+        aimatrix<T> A;
+        aimatrix<T> B;
     public:
-        Split(const aimatrix& XH, int param_size, int hidden_size) {
+        Split(const aimatrix<T>& XH, int param_size, int hidden_size) {
             A = XH.block(0, 0, param_size, hidden_size);
             B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
         }
-        aimatrix transposedX() {
+        aimatrix<T> transposedX() {
             return A.transpose();
         }
-        aimatrix transposedH() {
+        aimatrix<T> transposedH() {
             return B.transpose();
         }
 
@@ -74,26 +75,27 @@ public:
 * This will allow us to process sequences in batches instead of just looping over one step at a time
 * for a single sequence. Now, if that's the case, we pad each sequence to achieve uniform sequence lengths.
 *************************************************************************************************************/
-class RNNCell : public CellBase {
+template <class T>
+class RNNCell : public CellBase<T> {
 private:
    // Parameters (weights and biases)
-    aimatrix W;  // Weight for the Input   (p x h)
-    aimatrix U;  // Weight for the Hidden State  (h x h)  (rows x columns)
-    // aimatrix V;  // Weight for the predicted output  (h x o)
-    airowvector bh; // Hidden bias
-    // airowvector bo; // Bias for the predicted output
-    aimatrix H;  // Hidden state  (n x h) where n = number of words, h = hidden size
+    aimatrix<T> W;  // Weight for the Input   (p x h)
+    aimatrix<T> U;  // Weight for the Hidden State  (h x h)  (rows x columns)
+    // aimatrix<T> V;  // Weight for the predicted output  (h x o)
+    airowvector<T> bh; // Hidden bias
+    // airowvector<T> bo; // Bias for the predicted output
+    aimatrix<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
 
-    aimatrix dX; // Gradient with respect to Input
-    aimatrix dH; // Gradient with respect to Hidden state
+    aimatrix<T> dX; // Gradient with respect to Input
+    aimatrix<T> dH; // Gradient with respect to Hidden state
 
-    // aimatrix input_data;
+    // aimatrix<T> input_data;
 
     // Stored data for backward pass.
-    aimatrix X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
+    aimatrix<T> X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
 
     // Y.hat, target
-    // aimatrix Yhat, Y; // (n x o)
+    // aimatrix<T> Yhat, Y; // (n x o)
 
     int input_size = 0;
     int param_size = 0;
@@ -105,45 +107,46 @@ private:
 public:
     // RNNCell(int input_size, int param_size, int hidden_size, int output_size, double learning_rate);
     RNNCell(int hidden_size, double learning_rate);
-    const aimatrix& getHiddenState();
+    const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
-    const aimatrix& forward(const aimatrix& input_data);
-    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
+    const aimatrix<T>& forward(const aimatrix<T>& input_data);
+    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
 
 };
- 
-class LSTMCell : public CellBase {
+
+template <class T>
+class LSTMCell : public CellBase<T> {
 private:
     // Parameters (weights and biases)
-    aimatrix Wf;      // Weight matrix for input gate from input x         (p + h) x h
-    aimatrix Wi;      // Weight matrix for input gate from input x         (p + h) x h
-    aimatrix Wo;      // Weight matrix for output gate from input x        (p + h) x h
-    aimatrix Wg;      // Weight matrix for candidate state from input x    (p + h) x h
-    // aimatrix V;       // Weight for Output (h x o)
+    aimatrix<T> Wf;      // Weight matrix for input gate from input x         (p + h) x h
+    aimatrix<T> Wi;      // Weight matrix for input gate from input x         (p + h) x h
+    aimatrix<T> Wo;      // Weight matrix for output gate from input x        (p + h) x h
+    aimatrix<T> Wg;      // Weight matrix for candidate state from input x    (p + h) x h
+    // aimatrix<T> V;       // Weight for Output (h x o)
 
-    airowvector bf;   // Bias vector for input gate        (1xh)
-    airowvector bi;   // Bias vector for input gate        (1xh)
-    airowvector bo;   // Bias vector for output gate       (1xh)
-    airowvector bg;   // Bias vector for candidate state   (1xh)
-    // airowvector by;   // Bias for the predicted output
+    airowvector<T> bf;   // Bias vector for input gate        (1xh)
+    airowvector<T> bi;   // Bias vector for input gate        (1xh)
+    airowvector<T> bo;   // Bias vector for output gate       (1xh)
+    airowvector<T> bg;   // Bias vector for candidate state   (1xh)
+    // airowvector<T> by;   // Bias for the predicted output
 
-    aimatrix Ft;      // Forget Gate       (nxh)
-    aimatrix It;      // Input Gate        (nxh)
-    aimatrix Ot;      // Output Gate       (nxh)
-    aimatrix Gt;      // Candidate State   (nxh)
+    aimatrix<T> Ft;      // Forget Gate       (nxh)
+    aimatrix<T> It;      // Input Gate        (nxh)
+    aimatrix<T> Ot;      // Output Gate       (nxh)
+    aimatrix<T> Gt;      // Candidate State   (nxh)
 
-    aimatrix H;       // Hidden state (n x h)
-    aimatrix C;       // Cell state   (n x h)
+    aimatrix<T> H;       // Hidden state (n x h)
+    aimatrix<T> C;       // Cell state   (n x h)
 
-    // aimatrix input_data;
+    // aimatrix<T> input_data;
 
-    aimatrix X;       // (n x p)
-    // aimatrix Yhat, Y; // (n x o)
+    aimatrix<T> X;       // (n x p)
+    // aimatrix<T> Yhat, Y; // (n x o)
  
-    aimatrix XH;      // Concatenate X and H
-    aimatrix dX;      // Gradient with respect to Input
-    aimatrix dH;      // Gradient with respect to Hidden state
-    aimatrix dC;      // Gradient with respect to Cell state
+    aimatrix<T> XH;      // Concatenate X and H
+    aimatrix<T> dX;      // Gradient with respect to Input
+    aimatrix<T> dH;      // Gradient with respect to Hidden state
+    aimatrix<T> dC;      // Gradient with respect to Cell state
 
     int input_size;
     int param_size;
@@ -154,43 +157,44 @@ private:
 
 public:
     LSTMCell(int param_size, double learning_rate);
-    const aimatrix& getHiddenState();
-    const aimatrix& getCellState();
+    const aimatrix<T>& getHiddenState();
+    const aimatrix<T>& getCellState();
     void setInitialWeights(int N, int P);
-    const aimatrix& forward(const aimatrix& input_data);
-    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
+    const aimatrix<T>& forward(const aimatrix<T>& input_data);
+    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
 
 };
 
-class GRUCell : public CellBase {
+template <class T>
+class GRUCell : public CellBase<T> {
 private:
     // Weights for the input-to-hidden connections
-    aimatrix Wz;      // Weight matrix for the update gate               (p + h) x h
-    aimatrix Wr;      // Weight matrix for the reset gate                (p + h) x h
-    aimatrix Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
-    // aimatrix V;       // Weight for Output (h x o)
+    aimatrix<T> Wz;      // Weight matrix for the update gate               (p + h) x h
+    aimatrix<T> Wr;      // Weight matrix for the reset gate                (p + h) x h
+    aimatrix<T> Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
+    // aimatrix<T> V;       // Weight for Output (h x o)
 
     // Biases for the hidden units
-    airowvector bz;   // Bias vector for the update gate              (1xh)
-    airowvector br;   // Bias vector for the reset gate               (1xh)
-    airowvector bg;   // Bias vector for the candidate hidden state   (1xh)
-    // airowvector bo;   // Bias for the predicted output
+    airowvector<T> bz;   // Bias vector for the update gate              (1xh)
+    airowvector<T> br;   // Bias vector for the reset gate               (1xh)
+    airowvector<T> bg;   // Bias vector for the candidate hidden state   (1xh)
+    // airowvector<T> bo;   // Bias for the predicted output
 
-    aimatrix Zt;      // Forget Gate       (nxh)
-    aimatrix Rt;      // Input Gate        (nxh)
-    aimatrix Gt;      // Candidate State   (nxh)
+    aimatrix<T> Zt;      // Forget Gate       (nxh)
+    aimatrix<T> Rt;      // Input Gate        (nxh)
+    aimatrix<T> Gt;      // Candidate State   (nxh)
 
-    // aimatrix input_data;
+    // aimatrix<T> input_data;
 
-    aimatrix X;       // (n x p)
-    aimatrix H;         // Hidden state (n x h)
+    aimatrix<T> X;       // (n x p)
+    aimatrix<T> H;         // Hidden state (n x h)
 
-    // aimatrix Yhat, Y; // (n x o)
+    // aimatrix<T> Yhat, Y; // (n x o)
 
-    aimatrix XH;      // Concatenate X and H
+    aimatrix<T> XH;      // Concatenate X and H
 
-    aimatrix dX; // Gradient with respect to Input
-    aimatrix dH;      // Gradient with respect to Hidden state
+    aimatrix<T> dX; // Gradient with respect to Input
+    aimatrix<T> dH;      // Gradient with respect to Hidden state
 
     int input_size;
     int param_size;
@@ -201,20 +205,21 @@ private:
 
 public:
     GRUCell(int hidden_size, double learning_rate);
-    const aimatrix& getHiddenState();
+    const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
-    const aimatrix& forward(const aimatrix& input_data);
-    const aimatrix& backward(const aimatrix& input_data, const aimatrix& dnext_h);
+    const aimatrix<T>& forward(const aimatrix<T>& input_data);
+    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
 
 };
 
+template <class T>
 class RNN : public BaseOperator {
 private:
-    std::vector<RNNCell> fcells;
-    std::vector<RNNCell> bcells;
-    std::vector<RNNCell> cells;
+    std::vector<RNNCell<T>> fcells;
+    std::vector<RNNCell<T>> bcells;
+    std::vector<RNNCell<T>> cells;
     
-    aitensor input_data;
+    aitensor<T> input_data;
 
     int num_directions = 2;
     int sequence_length;
@@ -227,15 +232,15 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<aimatrix> foutput, boutput, outputs;
-    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> bo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> foutput, boutput, outputs;
+    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> bo;  // Bias for the predicted output
 
-    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> dbo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
 
-    aitensor gradients;
-    aitensor Yhat;
+    aitensor<T> gradients;
+    aitensor<T> Yhat;
 
 public:
     RNN(int hidden_size, int output_size, double learning_rate, int num_layers, 
@@ -244,16 +249,16 @@ public:
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
-            RNNCell cell(hidden_size, learning_rate);
+            RNNCell<T> cell(hidden_size, learning_rate);
             fcells.push_back(cell);
         }
         for (int i = 0; i < num_layers; ++i) {
-            RNNCell cell(hidden_size, learning_rate);
+            RNNCell<T> cell(hidden_size, learning_rate);
             bcells.push_back(cell);
         }
     }
-    const aitensor&  forward(const aitensor& input_data);
-    const aitensor&  backward(const aitensor& gradients);
+    const aitensor<T>&  forward(const aitensor<T>& input_data);
+    const aitensor<T>&  backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
@@ -261,12 +266,13 @@ public:
 
 };
 
+template <class T>
 class LSTM : public BaseOperator {
 private:
-    std::vector<LSTMCell> fcells;
-    std::vector<LSTMCell> bcells;
-    std::vector<LSTMCell> cells;
-    Eigen::Tensor<double, 3> input_data;
+    std::vector<LSTMCell<T>> fcells;
+    std::vector<LSTMCell<T>> bcells;
+    std::vector<LSTMCell<T>> cells;
+    aitensor<T> input_data;
     int num_directions = 2;
     int sequence_length;
     int initialized = false;
@@ -278,15 +284,15 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<aimatrix> foutput, boutput, outputs;
-    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> bo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> foutput, boutput, outputs;
+    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> bo;  // Bias for the predicted output
 
-    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> dbo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
 
-    aitensor gradients;
-    aitensor Yhat;
+    aitensor<T> gradients;
+    aitensor<T> Yhat;
 
 public:
     LSTM(int hidden_size, int output_size, double learning_rate, int num_layers, 
@@ -295,28 +301,29 @@ public:
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
-            LSTMCell cell(hidden_size, learning_rate);
+            LSTMCell<T> cell(hidden_size, learning_rate);
             fcells.push_back(cell);
         }
         for (int i = 0; i < num_layers; ++i) {
-            LSTMCell cell(hidden_size, learning_rate);
+            LSTMCell<T> cell(hidden_size, learning_rate);
             bcells.push_back(cell);
         }
     }
-    const aitensor&  forward(const aitensor& input_data);
-    const aitensor&  backward(const aitensor& gradients);
+    const aitensor<T>&  forward(const aitensor<T>& input_data);
+    const aitensor<T>&  backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
 };
 
+template <class T>
 class GRU : public BaseOperator {
 private:
-    std::vector<GRUCell> fcells;
-    std::vector<GRUCell> bcells;
-    std::vector<GRUCell> cells;
-    Eigen::Tensor<double, 3> input_data;
+    std::vector<GRUCell<T>> fcells;
+    std::vector<GRUCell<T>> bcells;
+    std::vector<GRUCell<T>> cells;
+    aitensor<T> input_data;
     int num_directions = 2;
     int sequence_length;
     int initialized = false;
@@ -328,15 +335,15 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<aimatrix> foutput, boutput, outputs;
-    std::vector<aimatrix> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> bo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> foutput, boutput, outputs;
+    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> bo;  // Bias for the predicted output
 
-    std::vector<aimatrix> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector> dbo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
+    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
 
-    aitensor gradients;
-    aitensor Yhat;
+    aitensor<T> gradients;
+    aitensor<T> Yhat;
 
 public:
     GRU(int hidden_size, int output_size, double learning_rate, int num_layers, 
@@ -345,16 +352,16 @@ public:
       //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
-            GRUCell cell(hidden_size, learning_rate);
+            GRUCell<T> cell(hidden_size, learning_rate);
             fcells.push_back(cell);
         }
         for (int i = 0; i < num_layers; ++i) {
-            GRUCell cell(hidden_size, learning_rate);
+            GRUCell<T> cell(hidden_size, learning_rate);
             bcells.push_back(cell);
         }
     }
-    const aitensor& forward(const aitensor& input_data);
-    const aitensor&  backward(const aitensor& gradients);
+    const aitensor<T>& forward(const aitensor<T>& input_data);
+    const aitensor<T>&  backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, double& learningRate, int& iter);
 
     void forwardPass() {}
@@ -362,20 +369,20 @@ public:
 };
 
 
-template <typename CellType>
-std::tuple<aimatrix, airowvector> setInitialWeights(int step, aimatrix out, CellType& rnn);
+template <typename CellType, class T>
+std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> out, CellType& rnn);
 
-template <typename CellType>
-const std::vector<aimatrix>& processOutputs(CellType& rnn);
+template <typename CellType, class T>
+const std::vector<aimatrix<T>>& processOutputs(CellType& rnn);
 
-template <typename CellType>
-void processGradients(const aitensor& gradients, CellType& rnn);
+template <typename CellType, class T>
+void processGradients(const aitensor<T>& gradients, CellType& rnn);
 
-template <typename CellType>
-const aitensor& forwarding(const aitensor& input_data, CellType* rnn);
+template <typename CellType, class T>
+const aitensor<T>& forwarding(const aitensor<T>& input_data, CellType* rnn);
 
-template <typename CellType>
-const aitensor&backprop(const aitensor& gradients, CellType* rnn);
+template <typename CellType, class T>
+const aitensor<T>&backprop(const aitensor<T>& gradients, CellType* rnn);
 
 
 #endif

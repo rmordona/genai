@@ -37,17 +37,20 @@ using namespace py::literals;
 * NodeFactory
 ********************************************************************************************/
 
-std::string Node::getName() {
+template <class T>
+std::string Node<T>::getName() {
     return this->name;
 }
 
-NodeType Node::nodeType() {
+template <class T>
+NodeType Node<T>::nodeType() {
     return this->type;
 }
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-void Node::setData(py::array_t<double> input_data) {
+template <class T>
+void Node<T>::setData(py::array_t<T> input_data) {
 
     log_info("=================");
     log_info( "Setting Data ..." );
@@ -69,7 +72,8 @@ void Node::setData(py::array_t<double> input_data) {
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-void Node::setDataTensor(py::array_t<double> input_data) {
+template <class T>
+void Node<T>::setDataTensor(py::array_t<T> input_data) {
 
     log_info("=================");
     log_info( "Setting Data (Tensor) ..." );
@@ -80,7 +84,7 @@ void Node::setDataTensor(py::array_t<double> input_data) {
     py::buffer_info buffer_info = input_data.request();
 
     // extract data an shape of input array
-    double* data = static_cast<double *>(buffer_info.ptr);
+    T* data = static_cast<T *>(buffer_info.ptr);
     std::vector<ssize_t> shape = buffer_info.shape;
 
     // Get the dimensions of the py::array_t
@@ -91,7 +95,7 @@ void Node::setDataTensor(py::array_t<double> input_data) {
     // Create an Eigen::Map to map the raw data to an Eigen::Tensor
     // Eigen::Map<Eigen::Tensor<double,3>> tensor_map(data, dim0, dim1, dim2);
 
-    Eigen::Tensor<double, 3> tensor(dim0, dim1, dim2);
+    aitensor<T> tensor(dim0, dim1, dim2);
 
     // auto ptr = static_cast<double*>(info.ptr);
     for (int i = 0; i < dim0; ++i) {
@@ -108,59 +112,68 @@ void Node::setDataTensor(py::array_t<double> input_data) {
 
 }
 
-
-const aitensor& Node::getInput() {
+template <class T>
+const aitensor<T>& Node<T>::getInput() {
     return input_data;
 }
 
-const aitensor& Node::getOutput() {
+template <class T>
+const aitensor<T>& Node<T>::getOutput() {
     return output_data;
 }
 
-void Node::addInput(Node* input) {
+template <class T>
+void Node<T>::addInput(Node<T>* input) {
     inputs.insert(input);
     input->outputs.insert(this);
 }
 
-void Node::addOutput(Node* output) {
+template <class T>
+void Node<T>::addOutput(Node<T>* output) {
     outputs.insert(output);
     output->inputs.insert(this);
 }
 
-std::unordered_set<Node*> Node::getOutputs() {
+template <class T>
+std::unordered_set<Node<T>*> Node<T>::getOutputs() {
     return outputs;
 }
 
-std::unordered_set<Node*> Node::getInputs() {
+template <class T>
+std::unordered_set<Node<T>*> Node<T>::getInputs() {
     return inputs;
 }
 
-Node& Node::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
+template <class T>
+Node<T>& Node<T>::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
     this->operations = operations;
     return *this;
 }
 
-void Node::setReduction(std::string& reducttype) {
+template <class T>
+void Node<T>::setReduction(std::string& reducttype) {
     this->reduce = reducttype;
 }
 
-void Node::sequential(ssize_t repeat) {
+template <class T>
+void Node<T>::sequential(ssize_t repeat) {
     if (repeat > 1) {
         this->repeat = repeat;
     }
 }
 
-void Node::parallel(ssize_t repeat, std::string& reduce) {
+template <class T>
+void Node<T>::parallel(ssize_t repeat, std::string& reduce) {
     if (repeat > 1) {
         this->repeat = repeat;
     }
     this->reduce = reduce;
 }
 
-
-const aitensor& Node::aggregateData(const aitensor& input_data) {
+template <class T>
+const aitensor<T>& Node<T>::aggregateData(const aitensor<T>& input_data) {
     // start with any input_data we keep.
-    aitensor output = input_data;
+    aitensor<T> output = input_data;
     // Now add any output data from any source Node that connects to this node.
 
     log_info( "====================" );
@@ -173,7 +186,7 @@ const aitensor& Node::aggregateData(const aitensor& input_data) {
     log_detail( "Getting size of node input: {0}", output.size() );
 
     for (Node* node : inputs) {
-        aitensor outputx = node->getOutput();
+        aitensor<T> outputx = node->getOutput();
         log_detail( "Getting size of node [{0}] output: {1}", node->getName(), outputx.size() );
         // std::cout << outputx << "\n";
         if (output.size() == 0) {
@@ -196,7 +209,7 @@ const aitensor& Node::aggregateData(const aitensor& input_data) {
             output = BaseOperator::matmul(output, outputx);
         } else
         if (reduce == "concat") { // Assume adding two samples rowwise.
-                aitensor concatOuput(output.rows() + outputx.rows(), output.cols());
+                aitensor<T> concatOuput(output.rows() + outputx.rows(), output.cols());
 
                 concatOuput << output,
                                outputx;
@@ -216,11 +229,13 @@ const aitensor& Node::aggregateData(const aitensor& input_data) {
     return output;
 }
 
-void Node::setGradients(const aitensor& gradients) {
+template <class T>
+void Node<T>::setGradients(const aitensor<T>& gradients) {
     dInput = gradients;
 }
 
-void Node::propagateGradients(const aitensor& gradients) {
+template <class T>
+void Node<T>::propagateGradients(const aitensor<T>& gradients) {
     // Now handle all other gradients for other inputs.
     if (inputs.size() != 0)
     for (Node* node : inputs) {
@@ -232,7 +247,7 @@ void Node::propagateGradients(const aitensor& gradients) {
         } else
         if (reduce == "mul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
-            aitensor dInput = gradients;
+            aitensor<T> dInput = gradients;
             for (Node* nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
                     dInput = dInput.array() * nodex->getOutput().array();
@@ -242,7 +257,7 @@ void Node::propagateGradients(const aitensor& gradients) {
         } else
         if (reduce == "matmul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
-            aitensor dInput = gradients;
+            aitensor<T> dInput = gradients;
             for (Node* nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
                     dInput = BaseOperator::matmul(dInput, nodex->getOutput());
@@ -256,7 +271,8 @@ void Node::propagateGradients(const aitensor& gradients) {
  
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
-const aitensor& Node::forwardPass() {
+template <class T>
+const aitensor<T>& Node<T>::forwardPass() {
     // Propagate forward data to connected nodes
     int size = operations.size();
 
@@ -267,59 +283,59 @@ const aitensor& Node::forwardPass() {
     log_detail("Node: {0} Size: {1}", name, size);
 
     // See if we can perform reduction.
-    aitensor output = aggregateData(this->input_data); // see Node.setData
+    aitensor<T> output = aggregateData(this->input_data); // see Node.setData
 
     // If we are dealing with 3D
-    aitensor output_tensor = this->input_data_tensor; // see Node.setDataTensor
+    aitensor<T> output_tensor = this->input_data_tensor; // see Node.setDataTensor
 
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
-        if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
+        if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
             log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, size);
             output = linear->forward(output);
             log_matrix( output );
         } else
-        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
+        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
             log_detail("Node [{0}] Batch Normal Operation (Forward Pass)", name );
             output = batchnorm->forward(output);
             log_matrix( output );
         } else
-        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
+        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Forward Pass)", name );
             output = layernorm->forward(output);
             log_matrix( output );
         } else
-        if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
+        if (auto activate = std::dynamic_pointer_cast<Activation<T>>(op)) {
             log_detail("Node [{0}] Activation Operation (Forward Pass)", name );
             output = activate->forward(output);
             log_matrix( output );
         } else
-        if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
+        if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
             output = attention->forward(output);
             log_matrix( output );
         } else
-        if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
+        if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
             log_detail("Node [{0}] FeedForward Operation (Forward Pass)", name );
             output = feedforward->forward(output);
             log_matrix( output );
         } else
-        if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
+        if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
             output = encoder->forward(output);
             log_matrix( output );
         } else
-        if (auto rnn = std::dynamic_pointer_cast<RNN>(op)) {
+        if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
             output = rnn->forward(output);
             log_matrix( output );
         } else
-        if (auto lstm = std::dynamic_pointer_cast<LSTM>(op)) {
+        if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
             log_detail("Node [{0}] LSTM Operation (Forward Pass)", name );
             output = lstm->forward(output);
             log_matrix( output );
         } else
-        if (auto gru = std::dynamic_pointer_cast<GRU>(op)) {
+        if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
             log_detail("Node [{0}] gru Operation (Forward Pass)", name );
             output = gru->forward(output);
             log_matrix( output );
@@ -330,7 +346,8 @@ const aitensor& Node::forwardPass() {
     return this->output_data;
 }
 
-void Node::backwardPass() {
+template <class T>
+void Node<T>::backwardPass() {
     // Propagate backward gradients to connected nodes
     int size = operations.size();
 
@@ -344,7 +361,7 @@ void Node::backwardPass() {
     std::vector<std::shared_ptr<BaseOperator>> reversedOperations = operations;
 
     // If we are dealing with 3D
-    aitensor dInput = this->gradients; // initially generated through Graph.backwardPropagation()
+    aitensor<T> dInput = this->gradients; // initially generated through Graph.backwardPropagation()
 
     // Reverse the elements in the copied vector
     std::reverse(reversedOperations.begin(), reversedOperations.end());
@@ -352,52 +369,52 @@ void Node::backwardPass() {
     // Here, dInput is assumed to have already been propagated
     // through setGradients or propagatGradients.
     for (const auto& op : reversedOperations ) {
-        if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
+        if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
             log_detail("Node [{0}] Linear Operation (Backward Pass)", name );
             dInput = linear->backward(dInput);
             log_matrix( dInput );
         } else
-        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
+        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
             log_detail("Node [{0}] Batch Normal Operation (Backward Pass)", name );
             dInput = batchnorm->backward(dInput);
             log_matrix( dInput );
         } else            
-        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
+        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Backward Pass)", name );
             dInput = layernorm->backward(dInput);
             log_matrix( dInput );
         } else           
-        if (auto activate = std::dynamic_pointer_cast<Activation>(op)) {
+        if (auto activate = std::dynamic_pointer_cast<Activation<T>>(op)) {
             log_detail("Node [{0}] Activation Operation (Backward Pass)", name );
             dInput = activate->backward(dInput);
             log_matrix( dInput );
         } else           
-        if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
+        if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
             log_detail("Node [{0}] Attention Operation (Backward Pass)", name );
             dInput = attention->backward(dInput);
             log_matrix( dInput );
         } else           
-        if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
+        if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
             log_detail("Node [{0}] Feedforward Operation (Backward Pass)", name );
             dInput = feedforward->backward(dInput);
             log_matrix( dInput );
         } else           
-        if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
+        if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = encoder->backward(dInput);
             log_matrix( dInput );
         } else           
-        if (auto rnn = std::dynamic_pointer_cast<RNN>(op)) {
+        if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = rnn->backward(dInput);
             // log_matrix( dInput );
         } else           
-        if (auto lstm = std::dynamic_pointer_cast<LSTM>(op)) {
+        if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = lstm->backward(dInput);
             // log_matrix( dInput );
         } else           
-        if (auto gru = std::dynamic_pointer_cast<GRU>(op)) {
+        if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = gru->backward(dInput);
             // log_matrix( dInput );
@@ -416,8 +433,8 @@ void Node::backwardPass() {
 
 }
 
-
-void Node::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void Node<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
 
     log_info( "*****************************************" );
     log_info( "***     Node Parameter Update  **********" );
@@ -427,83 +444,86 @@ void Node::updateParameters(std::string& optimizertype, double& learningRate, in
 
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
-        if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
+        if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
             log_detail("Node [{0}] Linear Operation (Update Params)", name );
             linear->updateParameters(optimizertype, learningRate, iter);
         } else
-        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
+        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
             log_detail("Node [{0}] Barch Normal Operation (Update Params)", name );
             batchnorm->updateParameters(optimizertype, learningRate, iter);
         } else            
-        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
+        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Update Params)", name );
             layernorm->updateParameters(optimizertype, learningRate, iter);
         } else            
-        if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
+        if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
             log_detail("Node [{0}] Attention Operation (Update Params)", name );
             attention->updateParameters(optimizertype, learningRate, iter);
         } else            
-        if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
+        if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
             log_detail("Node [{0}] Feedforward Operation (Update Params)", name );
             feedforward->updateParameters(optimizertype, learningRate, iter);
         } else            
-        if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
+        if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             encoder->updateParameters(optimizertype, learningRate, iter);
         }  else            
-        if (auto rnn = std::dynamic_pointer_cast<RNN>(op)) {
+        if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             rnn->updateParameters(optimizertype, learningRate, iter);
         }  else            
-        if (auto lstm = std::dynamic_pointer_cast<LSTM>(op)) {
+        if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             lstm->updateParameters(optimizertype, learningRate, iter);
         }  else            
-        if (auto gru = std::dynamic_pointer_cast<GRU>(op)) {
+        if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             gru->updateParameters(optimizertype, learningRate, iter);
         } 
     }
 }
 
-std::string removeSpace(Node* node) {
+template <class T>
+std::string removeSpace(Node<T>* node) {
     std::string s = node->getName();
     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
     return s;
 }
 
-std::string replaceSpace(Node* node) {
+template <class T>
+std::string replaceSpace(Node<T>* node) {
     std::string nodename = node->getName();
     std::replace(nodename.begin(), nodename.end(), ' ', '_');
     return nodename;
 }
 
-std::string Node::generateDotFormat() {
+template <class T>
+std::string Node<T>::generateDotFormat() {
     std::string nodename = replaceSpace(this);
     std::string nodelabel = nodename + "_label";
     std::string dot_ = "";
     int cnt = 0; 
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
-        if (auto linear = std::dynamic_pointer_cast<Linear>(op)) {
+        if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
             dot_ +=  linear->generateDotFormat();
         } else
-        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm>(op)) {
+        if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
             dot_ +=  batchnorm->generateDotFormat();
         } else            
-        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm>(op)) {
+        if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
             dot_ += layernorm->generateDotFormat();
         } else               
-        if (auto activation = std::dynamic_pointer_cast<Activation>(op)) {
+        if (auto activation = std::dynamic_pointer_cast<Activation<T>>(op)) {
             dot_ += activation->generateDotFormat();
         } else
-        if (auto attention = std::dynamic_pointer_cast<Attention>(op)) {
+        if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
             dot_ += attention->generateDotFormat();
         } else            
-        if (auto feedforward = std::dynamic_pointer_cast<FeedForward>(op)) {
+        if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
             dot_ += feedforward->generateDotFormat();
         } else            
-        if (auto encoder = std::dynamic_pointer_cast<Encoder>(op)) {
+        if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
             dot_ += encoder->generateDotFormat();
         } 
         if (++cnt < (int) operations.size()) { dot_ += "|"; }
@@ -517,71 +537,81 @@ std::string Node::generateDotFormat() {
 * Base Connection Functions
 *****************************************************************************************************/
 
-Node* Connection::getSource() {
+template <class T>
+Node<T>* Connection<T>::getSource() {
     return source;
 }
 
-Node* Connection::getDestination() {
+template <class T>
+Node<T>* Connection<T>::getDestination() {
     return destination;
 }
 
-void Connection::forwardPass() {
+template <class T>
+void Connection<T>::forwardPass() {
 }
 
-Eigen::MatrixXd Connection::backwardPass(Eigen::MatrixXd& gradients) {
+template <class T>
+const aitensor<T> Connection<T>::backwardPass(const aitensor<T>& gradients) {
     return gradients;
 }
-
 
 /*****************************************************************************************************
 * Base Graph Functions
 *****************************************************************************************************/
 
 // Create a node with three arguments: name, type, and initial values
-Node* Graph::createNode(const std::string& name, NodeType type, const py::array_t<double>& embedding) {
-    Node* node = new Node(name, type, embedding);
+template <class T>
+Node<T>* Graph<T>::createNode(const std::string& name, NodeType type, const py::array_t<T>& embedding) {
+    Node<T>* node = new Node<T>(name, type, embedding);
     nodes.push_back(node);
     return node;
 }
 
 // Create a node with two arguments: name and type (no initial values)
-Node* Graph::createNode(const std::string& name, NodeType type) {
-    Node* node = new Node(name, type);
+template <class T>
+Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
+    Node<T>* node = new Node<T>(name, type);
     nodes.push_back(node);
     return node;
 }
 
-void Graph::connect(Node* from, Node* to) {
-    addConnection(new Connection(from, to));
+template <class T>
+void Graph<T>::connect(Node<T>* from, Node<T>* to) {
+    addConnection(new Connection<T>(from, to));
 }
 
-void Graph::connect(Node* from, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+template <class T>
+void Graph<T>::connect(Node<T>* from, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
     to->setOperations(operations);
-    addConnection(new Connection(from, to));
+    addConnection(new Connection<T>(from, to));
 }
 
-void Graph::connect(std::vector<Node*> from_nodes, Node* to) {
-    for (Node* from : from_nodes) {
-        addConnection(new Connection(from, to));
+template <class T>
+void Graph<T>::connect(std::vector<Node<T>*> from_nodes, Node<T>* to) {
+    for (Node<T>* from : from_nodes) {
+        addConnection(new Connection<T>(from, to));
     }
 }
 
-void Graph::connect(std::vector<Node*> from_nodes, Node* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+template <class T>
+void Graph<T>::connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
     to->setOperations(operations);
-    for (Node* from : from_nodes) {
-        addConnection(new Connection(from, to));
+    for (Node<T>* from : from_nodes) {
+        addConnection(new Connection<T>(from, to));
     }
 }
 
-void Graph::addConnection(Connection* connection) {
+template <class T>
+void Graph<T>::addConnection(Connection<T>* connection) {
 
     log_info( "***************************************" );
     log_info( "***    Graph Add Connection  **********" );
     log_info( "***************************************" );
 
     connections.push_back(connection);
-    Node* from = connection->getSource();
-    Node* to = connection->getDestination();
+    Node<T>* from = connection->getSource();
+    Node<T>* to = connection->getDestination();
     outdegree[from]++;
     indegree[to]++;
 
@@ -593,16 +623,17 @@ void Graph::addConnection(Connection* connection) {
     log_detail( "Number of Nodes: {:d}", nodes.size() );
 }
 
-std::vector<Node*> Graph::getNodes() {
+template <class T>
+std::vector<Node<T>*> Graph<T>::getNodes() {
     return nodes;
 }
 
 // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
 template <class T>
-const aitensor& Graph::forwardPropagation() {
+const aitensor<T>& Graph<T>::forwardPropagation() {
 
-    std::queue<Node*> q;
-    std::unordered_map<Node*, int> indegree_(indegree); 
+    std::queue<Node<T>*> q;
+    std::unordered_map<Node<T>*, int> indegree_(indegree); 
 
     log_info( "***************************************" );
     log_info( "*****    Graph Forward Pass  **********" );
@@ -610,7 +641,7 @@ const aitensor& Graph::forwardPropagation() {
 
     log_detail( "Number of Nodes: {0}", getNodes().size() );
 
-    for (Node* node : nodes) {
+    for (Node<T>* node : nodes) {
         if (indegree[node] == 0) {
             q.push(node);
         }
@@ -619,26 +650,26 @@ const aitensor& Graph::forwardPropagation() {
     log_detail( "Graph: Collecting nodes for the queue." );
     log_detail( "Size of queue: {0}",  q.size() );
 
-    const aitensor& output(0, 0, 0);
+    const aitensor<T>& output(0, 0, 0);
 
     log_detail(  "Graph: Entering Queue Loop." );
 
     while (!q.empty()) {
-        Node* node = q.front();
+        Node<T>* node = q.front();
         q.pop();
 
         log_detail( "*** Graph: Entering forward pass for {0} ****", node->name );
 
         output = node->forwardPass();     
 
-        for (Connection* connection : this->connections) {
+        for (Connection<T>* connection : this->connections) {
             if (connection->getSource() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
                 //connection->forwardPass();
         
                 // Propagate gradient to source node
-                Node* dstNode = connection->getDestination();
+                Node<T>* dstNode = connection->getDestination();
 
                 indegree_[dstNode]--;
                 if (indegree_[dstNode] == 0) {
@@ -653,9 +684,10 @@ const aitensor& Graph::forwardPropagation() {
     return output;
 }
 
-const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
-    std::queue<Node*> q;
-    std::unordered_map<Node*, int> outdegree_(outdegree); 
+template <class T>
+const aitensor<T>& Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
+    std::queue<Node<T>*> q;
+    std::unordered_map<Node<T>*, int> outdegree_(outdegree); 
 
     log_info( "***************************************" );
     log_info( "*****    Graph Backward Pass  *********" );
@@ -663,7 +695,7 @@ const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
 
     log_detail( "Number of Nodes:", getNodes().size() );
 
-    for (Node* node : nodes) {
+    for (Node<T>* node : nodes) {
         if (outdegree[node] == 0) {
             node->setGradients(gradients); // gradients with respect to loss function.
             q.push(node);
@@ -676,7 +708,7 @@ const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
     log_detail( "Entering Queue Loop." );
 
     while (!q.empty()) {
-        Node* node = q.front();
+        Node<T>* node = q.front();
         q.pop();
 
         log_detail( "*** Graph: Entering backward pass for {0} ****", node->name );
@@ -684,14 +716,14 @@ const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
         // Compute gradients for the node
         node->backwardPass();
 
-        for (Connection* connection : this->connections) {
+        for (Connection<T>* connection : this->connections) {
             if (connection->getDestination() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
                 //Eigen::MatrixXd srcGradients = connection->backwardPass(gradients);
 
                 // Propagate gradient to source node
-                Node* srcNode = connection->getSource();
+                Node<T>* srcNode = connection->getSource();
 
                 outdegree_[srcNode]--;
                 if (outdegree_[srcNode] == 0) {
@@ -706,15 +738,16 @@ const aitensor& Graph::backwardPropagation(const aitensor& gradients) {
     return gradients;
 }
 
-const aimatrix& Graph::computeLoss(std::string losstype, const aitensor& predicted, const aitensor& target) {
+template <class T>
+const aimatrix<T>& Graph<T>::computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "***************************************************" );
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    this->lossobj = new Loss(losstype);
+    this->lossobj = new Loss<T>(losstype);
 
-    aimatrix loss = this->lossobj->computeLoss(predicted, target);
+    aimatrix<T> loss = this->lossobj->computeLoss(predicted, target);
 
     log_detail( "Loss calculated: " );
     log_matrix( loss );
@@ -722,13 +755,14 @@ const aimatrix& Graph::computeLoss(std::string losstype, const aitensor& predict
     return loss;
 }
 
-const aitensor& Graph::computeGradients(const aitensor& predicted, const const aitensor& target) {
+template <class T>
+const aitensor<T>& Graph<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "*********************************************" );
     log_info( "*****    Graph: Processing Gradient *********" );
     log_info( "*********************************************" );
 
-    aitensor gradients = this->lossobj->computeGradients(predicted, target);
+    aitensor<T> gradients = this->lossobj->computeGradients(predicted, target);
 
     log_detail( "Loss Gradient calculated ..." );
     log_matrix( gradients );
@@ -736,13 +770,14 @@ const aitensor& Graph::computeGradients(const aitensor& predicted, const const a
     return gradients;
 }
 
-void Graph::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
+template <class T>
+void Graph<T>::updateParameters(std::string& optimizertype, double& learningRate, int& iter) {
 
     log_info( "*******************************************************" );
     log_info( "*****    Graph: Processing Parameter Update ***********" );
     log_info( "*******************************************************" );
 
-    for (Node* node: nodes) {
+    for (Node<T>* node: nodes) {
         node->updateParameters(optimizertype, learningRate, iter);
     }
 
@@ -750,22 +785,23 @@ void Graph::updateParameters(std::string& optimizertype, double& learningRate, i
 
 }
 
-std::string Graph::generateDotFormat() {
+template <class T>
+std::string Graph<T>::generateDotFormat() {
     std::string dot = 
         "digraph G {  node [shape=circle]; rankdir=LR; ";
 
-    for (Node* node: nodes) {
+    for (Node<T>* node: nodes) {
         dot += removeSpace(node) + "; ";
     }
 
-    for (Connection* connection : this->connections) {
-        Node *source = connection->getSource();
-        Node *destination = connection->getDestination();
+    for (Connection<T>* connection : this->connections) {
+        Node<T> *source = connection->getSource();
+        Node<T> *destination = connection->getDestination();
         std::string edge = removeSpace(source) + "->" + removeSpace(destination) + ";";
         dot += edge;
     }
 
-    for (Node* node: nodes) {
+    for (Node<T>* node: nodes) {
         dot += node->generateDotFormat();
     }
 
@@ -773,15 +809,17 @@ std::string Graph::generateDotFormat() {
     return dot;
 }
 
-void Graph::nextBatch() {
-    for (Node* node: nodes) {
+template <class T>
+void Graph<T>::nextBatch() {
+    for (Node<T>* node: nodes) {
         if (node->nodeType() == NodeType::Input)  {
 
         }
     }
 }
 
-const std::unordered_map<Node*, int>& Graph::getIndegree() const {
+template <class T>
+const std::unordered_map<Node<T>*, int>& Graph<T>::getIndegree() const {
     return indegree;
 }
 
