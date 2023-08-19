@@ -41,7 +41,6 @@ using namespace py::literals;
 *   Matmul: Returns matrix multiplication result.
 *   Mul: Returns element-wise multiplication result.
 *****************************************************************************************************/
-
 std::string Reduction::getType() {
     return this->reducttype;
 }
@@ -50,7 +49,6 @@ std::string Reduction::getType() {
 /*****************************************************************************************************
 * Base Optimizer Functions
 *****************************************************************************************************/
-
 // SGD optimizer with optional step decay
 template <class T>
 void Optimizer<T>::sgd(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
@@ -267,8 +265,6 @@ void Optimizer<T>::stepDecay(T& learningRate, T decayRate, int currentEpoch, int
 /**************************************************************************************************************************
  * Linear Class:
 ***************************************************************************************************************************/
-
-
 // This assumes that the input is defined with NxM dimensionality.
 // Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use;
 // The output will have NxW dimension.
