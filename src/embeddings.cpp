@@ -302,7 +302,7 @@ void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wst
     this->wordBiases = aivector<T>::Zero(this->vocabSize);
 
     // Initialize word Embeddings
-    BaseOperator::heInitialization(this->wordEmbeddings);
+    BaseOperator::heInitMatrix(this->wordEmbeddings);
 
     // Seed VectorDB
     seedVectorDB(this->vocab);

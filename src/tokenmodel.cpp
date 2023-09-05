@@ -434,8 +434,7 @@ void TokenModel<T>::printWordEmbeddings(int rows) {
 // Function to train GloVe-like model. We tokenize a sentence such that the tokenize function
 // requires already the existence of the constructed vocabulary.
 template <class T>
-void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSize,
-                            T learningRate, int maxIterations) {
+void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSize, T learningRate, int maxIterations) {
 
     this->learningRate = learningRate;
     this->maxIterations = maxIterations;

@@ -70,8 +70,8 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
     W.resize(param_size, hidden_size);
     U.resize(hidden_size, hidden_size);
 
-    BaseOperator::heInitialization(W);
-    BaseOperator::heInitialization(U);
+    BaseOperator::heInitMatrix(W);
+    BaseOperator::heInitMatrix(U);
 
     bh = airowvector<T>::Zero(hidden_size);
 
@@ -90,7 +90,7 @@ const aimatrix<T>& RNNCell<T>::forward(const aimatrix<T>& input_data) {
 
     // Compute hidden state.
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
-    H = BaseOperator::tanh(X * W + H * U + bh);
+    H = BaseOperator::tanh((aimatrix<T>) (X * W + H * U + bh) );
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
@@ -173,10 +173,10 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     Wo.resize(param_size + hidden_size, hidden_size);
     Wg.resize(param_size + hidden_size, hidden_size);
 
-    BaseOperator::heInitialization(Wf);
-    BaseOperator::heInitialization(Wi);
-    BaseOperator::heInitialization(Wo);
-    BaseOperator::heInitialization(Wg);
+    BaseOperator::heInitMatrix(Wf);
+    BaseOperator::heInitMatrix(Wi);
+    BaseOperator::heInitMatrix(Wo);
+    BaseOperator::heInitMatrix(Wg);
 
     bf = airowvector<T>::Zero(hidden_size);
     bi = airowvector<T>::Zero(hidden_size);
@@ -199,20 +199,20 @@ const aimatrix<T>& LSTMCell<T>::forward(const aimatrix<T>& input_data) {
 
     setInitialWeights(input_data.rows(), input_data.cols());
 
-    // Concatenate input and hidden state.
-    XH << X, H;
+    // Concatenate input and hidden state. 
+    XH << X, H;  // In terms of dimension, we have: (NxP) + (NxH) = Nx(P+H)
 
     // Calculate the forget gate values
-    Ft = BaseOperator::sigmoid(XH * Wf + bf);
+    Ft = BaseOperator::sigmoid((aimatrix<T>) (XH * Wf + bf));
 
     // Calculate the input gate values
-    It = BaseOperator::sigmoid(XH * Wi + bi);
+    It = BaseOperator::sigmoid((aimatrix<T>) (XH * Wi + bi));
 
     // Calculate the output gate values
-    Ot = BaseOperator::sigmoid(XH * Wo + bo);
+    Ot = BaseOperator::sigmoid((aimatrix<T>) (XH * Wo + bo));
 
     // Calculate the candidate state values
-    Gt = BaseOperator::tanh(XH * Wg + bg);
+    Gt = BaseOperator::tanh((aimatrix<T>) (XH * Wg + bg));
 
     // Calculate the new cell state by updating based on the gates
     C = Ft.array() * C.array() + It.array() * Gt.array();
@@ -236,7 +236,7 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
     const aimatrix<T>& X = input_data;
 
     // Compute gradients with respect to the gates
-    dC = (Ot.array() * (1 - BaseOperator::tanh(C.array()).array().square()) * dnext_h.array()) + dC.array();
+    dC = (Ot.array() * (1 - BaseOperator::tanh((aimatrix<T>) (C.array())).array().square()) * dnext_h.array()) + dC.array();
     aimatrix<T> dFt = dC.array() * C.array() * Ft.array() * (1 - Ft.array());
     aimatrix<T> dIt = dC.array() * Gt.array() * It.array() * (1 - It.array());
     aimatrix<T> dGt = dC.array() * It.array().array() * (1 - Gt.array().square().array());
@@ -264,29 +264,32 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
 
     // Compute gradient with respect to hidden state H (dH)
     int ps = param_size, hs = hidden_size;
-    dH  = dFt * Split(Wf, ps, hs).transposedX() 
-        + dIt * Split(Wi, ps, hs).transposedX()  
-        + dOt * Split(Wo, ps, hs).transposedX() 
-        + dGt * Split(Wg, ps, hs).transposedX();
 
-    // Compute gradient with respect to input (dInput)
-    dX  = dFt * Split(Wf, ps, hs).transposedH() 
-        + dIt * Split(Wi, ps, hs).transposedH()  
-        + dOt * Split(Wo, ps, hs).transposedH()
-        + dGt * Split(Wg, ps, hs).transposedH();
+    aimatrix<T> Wfx, Wfh, Wix, Wih, Wox, Woh, Wgx, Wgh;
+
+    std::tie(Wfx, Wfh) = CellBase<T>::split(this->Wf, ps, hs);
+    std::tie(Wix, Wih) = CellBase<T>::split(this->Wi, ps, hs);
+    std::tie(Wox, Woh) = CellBase<T>::split(this->Wo, ps, hs);
+    std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
+
+    // Compute gradient with respect to hidden state.
+    dH  = dFt * Wfx + dIt * Wix + dOt * Wox + dGt * Wgx;
+
+    // Compute gradient with respect to input (dInput).
+    dX  = dFt * Wfh + dIt * Wih + dOt * Woh + dGt * Wgh;
 
     // Compute gradient with respect to output bias bo.
     // airowvector<T> dby = Y.colwise().sum();
 
     // Update parameters and stored states
-    Wf -= learning_rate * dWf;
-    Wi -= learning_rate * dWi;
-    Wo -= learning_rate * dWo;
-    Wg -= learning_rate * dWg;
-    bf -= learning_rate * dbf;
-    bi -= learning_rate * dbi;
-    bo -= learning_rate * dbo;
-    bg -= learning_rate * dbg;
+    this->Wf -= learning_rate * dWf;
+    this->Wi -= learning_rate * dWi;
+    this->Wo -= learning_rate * dWo;
+    this->Wg -= learning_rate * dWg;
+    this->bf -= learning_rate * dbf;
+    this->bi -= learning_rate * dbi;
+    this->bo -= learning_rate * dbo;
+    this->bg -= learning_rate * dbg;
     // by -= learning_rate * dby;
 
     // Update hidden state  and cell state
@@ -333,17 +336,17 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     Wr.resize(param_size + hidden_size, hidden_size);
     Wg.resize(param_size + hidden_size, hidden_size);
 
-    BaseOperator::heInitialization(Wz);
-    BaseOperator::heInitialization(Wr);
-    BaseOperator::heInitialization(Wg);
+    BaseOperator::heInitMatrix(Wz);
+    BaseOperator::heInitMatrix(Wr);
+    BaseOperator::heInitMatrix(Wg);
 
     bz = airowvector<T>::Zero(hidden_size);
     br = airowvector<T>::Zero(hidden_size);
     bg = airowvector<T>::Zero(hidden_size);
 
-    H    = aimatrix<T>::Zero(input_size, hidden_size);
+    H  = aimatrix<T>::Zero(input_size, hidden_size);
 
-    XH   = aimatrix<T>::Zero(input_size, param_size + hidden_size); // concatenate X and H
+    XH = aimatrix<T>::Zero(input_size, param_size + hidden_size); // concatenate X and H
 
 }
 
@@ -361,19 +364,18 @@ const aimatrix<T>& GRUCell<T>::forward(const aimatrix<T>& input_data) {
     XH << X, H;
 
     // Calculate the update gate using input, hidden state, and biases
-    Zt =  BaseOperator::sigmoid(XH * Wz + bz);
+    Zt =  BaseOperator::sigmoid((aimatrix<T>)(XH * Wz + bz));
 
     // Calculate the reset gate using input, hidden state, and biases
-    Rt =  BaseOperator::sigmoid(XH * Wr + br);
+    Rt =  BaseOperator::sigmoid((aimatrix<T>)(XH * Wr + br));
 
     // Calculate the candidate hidden state using input, reset gate, hidden state, and biases
     aimatrix<T> RH = Rt.array() * H.array();
     aimatrix<T> rXH(input_size, hidden_size + hidden_size);
+
     rXH << X, RH;
-    Rt = BaseOperator::tanh(XH * Wg + bg);
 
-    // Calculate Ghat
-
+    Rt = BaseOperator::tanh((aimatrix<T>)(XH * Wg + bg));
 
     // Calculate the new hidden state using update gate, previous hidden state, and candidate hidden state
     H = (1 - Zt.array()).array() * Gt.array() + Zt.array() * H.array(); 
@@ -396,12 +398,16 @@ const aimatrix<T>& GRUCell<T>::backward(const aimatrix<T>& input_data, const aim
 
     int ps = param_size, hs = hidden_size;
 
+    aimatrix<T> Wzx, Wzh, Wrx, Wrh, Wgx, Wgh;
+
+    std::tie(Wzx, Wzh) = CellBase<T>::split(this->Wz, ps, hs);
+    std::tie(Wrx, Wrh) = CellBase<T>::split(this->Wr, ps, hs);
+    std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
+
     // Compute gradients with respect to the gates
     aimatrix<T> dZt = dnext_h.array() * ( H.array() - Gt.array()) * Zt.array() * ( 1 - Zt.array());
     aimatrix<T> dGt = dnext_h.array() * ( 1 - Zt.array()) * ( 1 - Gt.array().square());
-    aimatrix<T> dRt = ( dGt.array() * (H * Split(Wr, ps, hs).transposedH()).array() 
-                          * ( 1 - Rt.array().square()) )
-                          * Rt.array() * ( 1 - Rt.array());
+    aimatrix<T> dRt = ( dGt.array() * (H * Wrh).array()  * ( 1 - Rt.array().square())) * Rt.array() * ( 1 - Rt.array());
 
     // Concatenate input and hidden state.
     XH << X, H;
@@ -417,15 +423,10 @@ const aimatrix<T>& GRUCell<T>::backward(const aimatrix<T>& input_data, const aim
     airowvector<T> dbg = dRt.colwise().sum();
 
     // Compute gradient with respect to hidden state H (dH)
-
-    dH  = dZt * Split(Wz, ps, hs).transposedX() 
-        + dRt * Split(Wr, ps, hs).transposedX()  
-        + dGt * Split(Wg, ps, hs).transposedX();
+    dH = dZt * Wzx + dRt * Wrx + dGt * Wgx;
 
     // Compute gradient with respect to input (dInput)
-    dX  = dZt * Split(Wz, ps, hs).transposedH() 
-        + dRt * Split(Wr, ps, hs).transposedH()  
-        + dGt * Split(Wg, ps, hs).transposedH();
+    dH = dZt * Wzh + dRt * Wrh + dGt * Wgh;
 
     // Compute gradient with respect to output bias bo.
     // airowvector<T> dbo = Y.colwise().sum();
@@ -532,7 +533,7 @@ std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> 
 
     aimatrix<T> v(out.rows(), rnn->output_size);
     airowvector<T> bo(out.cols());
-    BaseOperator::heInitialization(v);
+    BaseOperator::heInitMatrix(v);
     bo.Zero(out.cols());
     return std::make_tuple(v, bo);
 }

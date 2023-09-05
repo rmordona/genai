@@ -39,6 +39,11 @@ void BaseModel<T>::setGraph(Graph<T>* graph) {
 }
 
 template <class T>
+Graph<T>* BaseModel<T>::getGraph( ) {
+    return this->graph;
+}
+
+template <class T>
 void BaseModel<T>::setLoss(std::string& losstype) {
     this->losstype = losstype;
 }

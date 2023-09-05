@@ -302,6 +302,11 @@ void print_double(double value, bool printNextLine) {
     }
 }
 
+template <class T>
+std::string scalar_to_string(const T& value) {
+      return std::to_string(value());
+}
+
 std::string wstringToUtf8(const std::wstring& wstr) {
     std::string utf8Str;
     utf8::utf16to8(wstr.begin(), wstr.end(), std::back_inserter(utf8Str));
@@ -574,6 +579,100 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
 }
  
 LOGGER* ai_log;
+
+/************ Graph / Network ************/
+
+/*
+
+template class Node<float>;  // Instantiate with float
+template class Node<double>;  // Instantiate with double
+
+template class Graph<float>;  // Instantiate with float
+template class Graph<double>;  // Instantiate with double
+*/
+
+/************ Basic Operators ************/
+
+/*
+
+template class BaseModel<float>;  // Instantiate with float
+template class BaseModel<double>;  // Instantiate with double
+
+template class Optimizer<float>;  // Instantiate with float
+template class Optimizer<double>;  // Instantiate with double
+
+template class Linear<float>;  // Instantiate with float
+template class Linear<double>;  // Instantiate with double
+
+template class BatchNorm<float>;  // Instantiate with float
+template class BatchNorm<double>;  // Instantiate with double
+
+template class LayerNorm<float>;  // Instantiate with float
+template class LayerNorm<double>;  // Instantiate with double
+
+template class Activation<float>;  // Instantiate with float
+template class Activation<double>;  // Instantiate with double
+
+template class Loss<float>;  // Instantiate with float
+template class Loss<double>;  // Instantiate with double
+*/
+
+/************ Attention & Transformers ************/
+
+/*
+
+template class Attention<float>;  // Instantiate with float
+template class Attention<double>;  // Instantiate with double
+
+template class FeedForward<float>;  // Instantiate with float
+template class FeedForward<double>;  // Instantiate with double
+
+template class MultiHeadAttention<float>;  // Instantiate with float
+template class MultiHeadAttention<double>;  // Instantiate with double
+
+template class Encoder<float>;  // Instantiate with float
+template class Encoder<double>;  // Instantiate with double
+*/
+
+/************ Tokenizer / Embeddings ************/
+
+// template class Embeddings<float>;  // Instantiate with float
+// template class Embeddings<double>;  // Instantiate with double
+
+/*
+template class TokenModel<float>;  // Instantiate with float
+template class TokenModel<double>;  // Instantiate with double
+
+template class BPETokenizer<float>;  // Instantiate with float
+template class BPETokenizer<double>;  // Instantiate with double
+*/
+
+/**********  Recurrent Network *****************/
+
+/*
+template class CellBase<float>;  // Instantiate with float
+template class CellBase<double>;  // Instantiate with double
+
+template class RNNCell<float>;  // Instantiate with float
+template class RNNCell<double>;  // Instantiate with double
+
+template class LSTMCell<float>;  // Instantiate with float
+template class LSTMCell<double>;  // Instantiate with double
+
+template class GRUCell<float>;  // Instantiate with float
+template class GRUCell<double>;  // Instantiate with double
+
+template class RNN<float>;  // Instantiate with float
+template class RNN<double>;  // Instantiate with double
+
+template class LSTM<float>;  // Instantiate with float
+template class LSTM<double>;  // Instantiate with double
+
+template class GRU<float>;  // Instantiate with float
+template class GRU<double>;  // Instantiate with double
+
+*/
+
  
 PYBIND11_MODULE(genai, m) {
     m.doc() = "Example C++ module for Python";
@@ -611,29 +710,32 @@ PYBIND11_MODULE(genai, m) {
         .value("SOFTMAX", ActivationType::SOFTMAX)
         .export_values();
 
+/*
     py::class_<Node<double>>(m, "Node")
         .def("setData", &Node<double>::setData)
-        .def("sequential", &Node<double>::sequential, py::arg("repeat") = 1)
-        .def("parallel", &Node<double>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
-        .def("setOperations", (Node<double>& (Node<double>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<double>::setOperations)
-        .def("setReduction", &Node<double>::setReduction, py::arg("type") = "add" )
-        .def("forwardPass", &Node<double>::forwardPass)
-        .def("backwardPass", &Node<double>::backwardPass);
+      //  .def("sequential", &Node<double>::sequential, py::arg("repeat") = 1)
+      //  .def("parallel", &Node<double>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
+        .def("setOperations", (Node<double>& (Node<double>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<double>::setOperations);
+      //  .def("setReduction", &Node<double>::setReduction, py::arg("type") = "add" );
+      //  .def("forwardPass", &Node<double>::forwardPass)
+      //  .def("backwardPass", &Node<double>::backwardPass);
 
     py::class_<Node<float>>(m, "Node")
         .def("setData", &Node<float>::setData)
-        .def("sequential", &Node<float>::sequential, py::arg("repeat") = 1)
-        .def("parallel", &Node<float>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
-        .def("setOperations", (Node<float>& (Node<float>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<float>::setOperations)
-        .def("setReduction", &Node<float>::setReduction, py::arg("type") = "add" )
-        .def("forwardPass", &Node<float>::forwardPass)
-        .def("backwardPass", &Node<float>::backwardPass);
+     //   .def("sequential", &Node<float>::sequential, py::arg("repeat") = 1)
+      //  .def("parallel", &Node<float>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
+        .def("setOperations", (Node<float>& (Node<float>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<float>::setOperations);
+     //   .def("setReduction", &Node<float>::setReduction, py::arg("type") = "add" );
+     //   .def("forwardPass", &Node<float>::forwardPass)
+     //   .def("backwardPass", &Node<float>::backwardPass);
+*/
 
+/*
     py::class_<Graph<double>>(m, "Graph")
         .def(py::init<>())
-        .def("addNode", [](Graph<double>& graph, const std::string& name, NodeType type, const py::array_t<double>& embedding) {
-            return graph.createNode(name, type, embedding);
-        })
+       // .def("addNode", [](Graph<double>& graph, const std::string& name, NodeType type, const py::array_t<double>& embedding) {
+       //     return graph.createNode(name, type, embedding);
+       // })
         .def("addNode", [](Graph<double>& graph, const std::string& name, NodeType type) {
             return graph.createNode(name, type);
         })
@@ -647,9 +749,9 @@ PYBIND11_MODULE(genai, m) {
 
     py::class_<Graph<float>>(m, "Graph")
         .def(py::init<>())
-        .def("addNode", [](Graph<float>& graph, const std::string& name, NodeType type, const py::array_t<float>& embedding) {
-            return graph.createNode(name, type, embedding);
-        })
+        //.def("addNode", [](Graph<float>& graph, const std::string& name, NodeType type, const py::array_t<float>& embedding) {
+        //    return graph.createNode(name, type, embedding);
+        // }) 
         .def("addNode", [](Graph<float>& graph, const std::string& name, NodeType type) {
             return graph.createNode(name, type);
         })
@@ -660,9 +762,13 @@ PYBIND11_MODULE(genai, m) {
         .def("forwardPropagation", &Graph<float>::forwardPropagation)
         .def("backwardPropagation", &Graph<float>::backwardPropagation)
         .def("generateDotFormat", &Graph<float>::generateDotFormat);
+    */
 
+/*
     py::class_<BaseModel<double>>(m, "BaseModel")
-        .def(py::init<>())
+        .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
+                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
+                py::arg("learningRate") = 0.01, py::arg("itermax") = 1)
         .def("setGraph", [](BaseModel<double>& model, Graph<double>* graph)  {
              model.setGraph(graph);
         })
@@ -672,7 +778,9 @@ PYBIND11_MODULE(genai, m) {
         .def("setTarget", &BaseModel<double>::setTarget, "set Target of a model");
 
     py::class_<BaseModel<float>>(m, "BaseModel")
-        .def(py::init<>())
+        .def(py::init<const std::string&, const std::string&, const float, const int, const std::string&>(), 
+                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
+                py::arg("learningRate") = 0.01, py::arg("itermax") = 1)
         .def("setGraph", [](BaseModel<float>& model, Graph<float>* graph)  {
              model.setGraph(graph);
         })
@@ -680,9 +788,15 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
                 py::arg("iter")=1, "Training a model")
         .def("setTarget", &BaseModel<float>::setTarget, "set Target of a model");
+*/
 
+    py::class_<Model>(m, "Model")
+        .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
+                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
+                py::arg("learningRate") = 0.01, py::arg("itermax") = 1, py::arg("datatype") = "float");
 
     // Definitions for BaseOperator APIs
+    /*
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
     py::class_<Linear<double>, BaseOperator, std::shared_ptr<Linear<double>>>(m, "Linear")
         .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
@@ -761,9 +875,10 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<int, int, float,  int, bool, RNNType>(), 
                 py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
                 py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
- 
+   */
+
     // Definitions for TokenModel APIs
-    // Definitions for TokenModel APIs
+    /*
     py::class_<TokenModel<double>, std::shared_ptr<TokenModel<double>>>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&>(), py::arg("losstype") = "mse", py::arg("optimizer") = "adagrad")
         .def("tokenize",  (std::vector<std::wstring> (TokenModel<double>::*)(const std::wstring&)) &TokenModel<double>::tokenize, 
@@ -772,7 +887,7 @@ PYBIND11_MODULE(genai, m) {
                 "Tokenize a set of Sentences")
         .def("printVocabulary",  &TokenModel<double>::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
         .def("printWordEmbeddings",  &TokenModel<double>::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
-        .def("trainGloVe", (void (TokenModel<double>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<double>::trainGloVe,
+        .def("trainGloVe", (void (TokenModel<double>::*)(const std::vector<std::wstring>&, int, double, int)) &TokenModel<double>::trainGloVe,
                   py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
                   py::arg("maxiteration"), "Train Word Embedding using GloVe");
 
@@ -788,7 +903,7 @@ PYBIND11_MODULE(genai, m) {
         .def("trainGloVe", (void (TokenModel<float>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<float>::trainGloVe,
                   py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
                   py::arg("maxiteration"), "Train Word Embedding using GloVe");
-
+  
     py::class_<BPETokenizer<double>, TokenModel<double>, std::shared_ptr<BPETokenizer<double>>>(m, "BPETokenizer")
         .def(py::init<>())
         .def("pretrain", (void (BPETokenizer<double>::*)(const std::vector<std::wstring>&, int, int)) &BPETokenizer<double>::pretrain, 
@@ -807,7 +922,7 @@ PYBIND11_MODULE(genai, m) {
     py::class_<Scraper>(m, "Scraper")
         .def(py::init<>())
         .def("crawl", (void (Scraper::*)(std::string&, int)) &Scraper::crawl, py::arg("url"), py::arg("depth") = 0, "Simple crawler");
-
+  */
     // Define function to print hello
     m.def("print_string", &print_string, "Print 'string'");
     m.def("print_double", &print_double, "Print 'double'");

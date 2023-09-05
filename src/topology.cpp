@@ -50,7 +50,7 @@ NodeType Node<T>::nodeType() {
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void Node<T>::setData(py::array_t<T> input_data) {
+void Node<T>::setData(const py::array_t<T>& input_data) {
 
     log_info("=================");
     log_info( "Setting Data ..." );
@@ -73,7 +73,7 @@ void Node<T>::setData(py::array_t<T> input_data) {
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void Node<T>::setDataTensor(py::array_t<T> input_data) {
+void Node<T>::setDataTensor(const py::array_t<T>& input_data) {
 
     log_info("=================");
     log_info( "Setting Data (Tensor) ..." );
@@ -171,108 +171,116 @@ void Node<T>::parallel(ssize_t repeat, std::string& reduce) {
 }
 
 template <class T>
-const aitensor<T>& Node<T>::aggregateData(const aitensor<T>& input_data) {
+const aitensor<T> Node<T>::aggregateData(const aitensor<T>& input_data) {
     // start with any input_data we keep.
-    aitensor<T> output = input_data;
+    aitensor<T> aggregate_input = input_data;
     // Now add any output data from any source Node that connects to this node.
 
     log_info( "====================" );
     log_info( "Aggregating Data ..." );
 
-    if (inputs.size() == 0) {
-        return input_data;
-    }
+    // if (inputs.size() == 0) {
+    //    return input_data;
+    // }
 
-    log_detail( "Getting size of node input: {0}", output.size() );
-
-    for (Node* node : inputs) {
-        aitensor<T> outputx = node->getOutput();
-        log_detail( "Getting size of node [{0}] output: {1}", node->getName(), outputx.size() );
-        // std::cout << outputx << "\n";
-        if (output.size() == 0) {
-            output = outputx;
-            continue;
+    log_detail( "Getting size of node input: {0}", input_data.size() );
+    aiscalar<T> suminputs = 0.0;
+    for (Node* node : this->inputs) { // Check if we have nodes that are feeding this node.
+        aitensor<T> external_input = node->getOutput();
+        log_detail( "Getting size of node [{0}] output: {1}", node->getName(), external_input.size() );
+        if (aggregate_input.size() == 0) {
+            aggregate_input = external_input;
+            continue; // See if there are more external inputs.
         }
         if (reduce == "add" || reduce == "avg") {
             log_detail( "Aggregating Data by add or average ..." );
             // change to use more efficient element-wise function which uses GPU/TPU.
-            output = output.array() + outputx.array();
+            aggregate_input = aggregate_input + external_input;
+            suminputs = suminputs + 1.0;
         } else
         if (reduce == "mul") {
             log_detail( "Aggregating Data by mul ..." );
             // change to use more efficient element-wise function which uses GPU/TPU.
-            output = output.array() * outputx.array();
+            aggregate_input = aggregate_input * external_input;
         } else
-        if (reduce == "matmul") {
-            log_detail(  "Aggregating Data by matmul ..." );
-            // uses cblas_dgemm
-            output = BaseOperator::matmul(output, outputx);
-        } else
-        if (reduce == "concat") { // Assume adding two samples rowwise.
-                aitensor<T> concatOuput(output.rows() + outputx.rows(), output.cols());
+        if (reduce == "concat") { // Assume adding two batches. Requires dimension 1 and 2 are all the same.
 
-                concatOuput << output,
-                               outputx;
-                return concatOuput;
+                int o1_dim0 = aggregate_input.dimension(0);
+                int o1_dim1 = aggregate_input.dimension(1);
+                int o1_dim2 = aggregate_input.dimension(2);
+                int o2_dim0 = external_input.dimension(0);
+                int o2_dim1 = external_input.dimension(1);
+                int o2_dim2 = external_input.dimension(2);
+
+                if (o1_dim1 != o2_dim1 || o1_dim2 != o2_dim2) {
+                    std::cerr << "Error concatenating two batches of different dimensions." << std::endl;
+                }
+
+                aitensor<T> concatOutput(aggregate_input.dimension(0) + external_input.dimension(0), aggregate_input.dimension(1), aggregate_input.dimension(2));
+
+                Eigen::array<Eigen::Index, 3> starting;
+                Eigen::array<Eigen::Index, 3> ending;
+
+                // Fill up concatOutput with output data.
+                starting = {0, 0, 0};
+                ending   = {o1_dim0, o1_dim1, o1_dim2};
+                concatOutput.slice(starting, ending) = external_input;
+
+                // Fill up concatOutput with outputx data.
+                starting = {o1_dim0, o1_dim1, o1_dim2};
+                ending   = {o1_dim0 + o2_dim0, o1_dim1 + o2_dim1, o1_dim2 + o2_dim2};
+                concatOutput.slice(starting, ending) = external_input;
+
+                aggregate_input = concatOutput;
         }
 
     }
     if (reduce == "avg") {
         // change to use more efficient element-wise function which uses GPU/TPU.
         log_detail( "Aggregating Data by average ..." );
-        output = output.array() / inputs.size();
+        aggregate_input = aggregate_input / (aiscalar<T>) (suminputs);
+        this->suminputs = suminputs;
     }
 
     log_detail( "Aggregated output:" );
-    log_matrix( output );
+    log_matrix( aggregate_input );
 
-    return output;
+    return aggregate_input;
 }
 
 template <class T>
 void Node<T>::setGradients(const aitensor<T>& gradients) {
-    dInput = gradients;
+    this->gradients = gradients;
 }
 
 template <class T>
 void Node<T>::propagateGradients(const aitensor<T>& gradients) {
     // Now handle all other gradients for other inputs.
     if (inputs.size() != 0)
-    for (Node* node : inputs) {
+    for (Node* node : this->inputs) { // These are input nodes that connect to this node.
         if (reduce == "add") {
             node->setGradients(gradients);
         } else
         if (reduce == "avg") {
-            node->setGradients(gradients.array() / outputs.size());
+            node->setGradients(gradients / (aiscalar<T>) (this->suminputs));
         } else
         if (reduce == "mul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
             aitensor<T> dInput = gradients;
             for (Node* nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
-                    dInput = dInput.array() * nodex->getOutput().array();
+                    dInput = dInput * nodex->getOutput();
                 }
             }
             node->setGradients(dInput);
-        } else
-        if (reduce == "matmul") {
-            // change to use more efficient element-wise function which uses GPU/TPU.
-            aitensor<T> dInput = gradients;
-            for (Node* nodex : outputs) {
-                if (nodex->getName() != node->getName()) {
-                    dInput = BaseOperator::matmul(dInput, nodex->getOutput());
-                }
-                dInput = dInput.transpose();
-            }
-            node->setGradients(dInput);
-        }
+        } 
     }
 }
  
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
 template <class T>
-const aitensor<T>& Node<T>::forwardPass() {
+void Node<T>::forwardPass() {
     // Propagate forward data to connected nodes
     int size = operations.size();
 
@@ -286,7 +294,7 @@ const aitensor<T>& Node<T>::forwardPass() {
     aitensor<T> output = aggregateData(this->input_data); // see Node.setData
 
     // If we are dealing with 3D
-    aitensor<T> output_tensor = this->input_data_tensor; // see Node.setDataTensor
+    // aitensor<T> output_tensor = this->input_data_tensor; // see Node.setDataTensor
 
     for (const auto& op : operations ) {
             // Check the dynamic type of the object using dynamic_cast
@@ -342,8 +350,7 @@ const aitensor<T>& Node<T>::forwardPass() {
         }
     }
 
-    this->output_data = output;
-    return this->output_data;
+    this->output_data = output; // Cache output for input of connecting nodes.
 }
 
 template <class T>
@@ -426,10 +433,7 @@ void Node<T>::backwardPass() {
     log_detail("Node [{0}] Propagating Gradient", name );
     log_matrix( dInput );
 
-    propagateGradients(dInput);
-
-    // Reinitialize dInput for next EPOCH, as long as parameter gradients have been preserved.
-    dInput.empty();
+    propagateGradients(dInput); // Let's make sure other input nodes get the gradiens.
 
 }
 
@@ -561,12 +565,14 @@ const aitensor<T> Connection<T>::backwardPass(const aitensor<T>& gradients) {
 *****************************************************************************************************/
 
 // Create a node with three arguments: name, type, and initial values
+/*
 template <class T>
 Node<T>* Graph<T>::createNode(const std::string& name, NodeType type, const py::array_t<T>& embedding) {
     Node<T>* node = new Node<T>(name, type, embedding);
     nodes.push_back(node);
     return node;
 }
+*/
 
 // Create a node with two arguments: name and type (no initial values)
 template <class T>

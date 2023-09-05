@@ -40,6 +40,16 @@ template <class T>
 class CellBase {
 public:
 
+    // Here we are splitting the concatenated XH where dimension is Nx(P+H)
+    // such that we split XH into two matrices and get the original dimensions for X and H
+    // so that X will have NxP and H will have NxH
+
+    static std::tuple<aimatrix<T>, aimatrix<T>> split(const aimatrix<T>& XH, int param_size, int hidden_size) {
+        aimatrix<T> A = XH.block(0, 0, param_size, hidden_size);
+        aimatrix<T> B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
+        return std::make_tuple(A.transpose(), B.transpose());
+    }
+
     class Split {
     private:
         aimatrix<T> A;
@@ -50,13 +60,36 @@ public:
             B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
         }
         aimatrix<T> transposedX() {
-            return A.transpose();
+            return (aimatrix<T>) (A.transpose());
         }
         aimatrix<T> transposedH() {
-            return B.transpose();
+            return (aimatrix<T>) (B.transpose());
         }
 
     };
+    /*
+    class Split {  
+    private:
+        aimatrix<T> X;
+        aimatrix<T> H;
+    public:
+        Split(const aimatrix<T>& XH, int param_size, int hidden_size) {
+            int input_size = XH.dimension(0);
+
+            // Create TensorMap for tensor X and H
+            this->X = XH.slice(Eigen::array<int, 2>{0, 0}, Eigen::array<int, 2>{input_size, param_size});
+            this->H = XH.slice(Eigen::array<int, 2>{0, param_size}, Eigen::array<int, 2>{input_size, hidden_size});
+        }
+
+        aimatrix<T> transposedX() {
+            return  (this->X).shuffle(Eigen::array<int, 2>{1, 0});
+        }
+        aimatrix<T> transposedH() {
+            return (this->H).shuffle(Eigen::array<int, 2>{1, 0});
+        }
+
+    };
+    */
 };
 
 /************************************************************************************************************
@@ -383,5 +416,28 @@ const aitensor<T>& forwarding(const aitensor<T>& input_data, CellType* rnn);
 template <typename CellType, class T>
 const aitensor<T>&backprop(const aitensor<T>& gradients, CellType* rnn);
 
+
+/**********  Recurrent Network initialize templates *****************/
+
+template class CellBase<float>;  // Instantiate with float
+template class CellBase<double>;  // Instantiate with double
+
+template class RNNCell<float>;  // Instantiate with float
+template class RNNCell<double>;  // Instantiate with double
+
+template class LSTMCell<float>;  // Instantiate with float
+template class LSTMCell<double>;  // Instantiate with double
+
+template class GRUCell<float>;  // Instantiate with float
+template class GRUCell<double>;  // Instantiate with double
+
+template class RNN<float>;  // Instantiate with float
+template class RNN<double>;  // Instantiate with double
+
+template class LSTM<float>;  // Instantiate with float
+template class LSTM<double>;  // Instantiate with double
+
+template class GRU<float>;  // Instantiate with float
+template class GRU<double>;  // Instantiate with double
 
 #endif
