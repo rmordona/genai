@@ -26,6 +26,7 @@
  *
 */
 #include "genai.h"
+#include "operators.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -1547,3 +1548,23 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
 
     return dInput; // this becomes input to the next Node or next Layer backward.
 }
+
+/************ Basic Operators initialize templates ************/
+
+template class Optimizer<float>;  // Instantiate with float
+template class Optimizer<double>;  // Instantiate with double
+
+template class Linear<float>;  // Instantiate with float
+template class Linear<double>;  // Instantiate with double
+
+template class BatchNorm<float>;  // Instantiate with float
+template class BatchNorm<double>;  // Instantiate with double
+
+template class LayerNorm<float>;  // Instantiate with float
+template class LayerNorm<double>;  // Instantiate with double
+
+template class Activation<float>;  // Instantiate with float
+template class Activation<double>;  // Instantiate with double
+
+template class Loss<float>;  // Instantiate with float
+template class Loss<double>;  // Instantiate with double

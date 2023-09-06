@@ -28,6 +28,8 @@
 
 #include "genai.h"
 #include "recurrent.h"
+#include "transformer.h"
+#include "topology.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -834,6 +836,14 @@ template <class T>
 const std::unordered_map<Node<T>*, int>& Graph<T>::getIndegree() const {
     return indegree;
 }
+
+/************ Graph / Network initialize templates ************/
+
+template class Node<float>;  // Instantiate with float
+template class Node<double>;  // Instantiate with double
+
+template class Graph<float>;  // Instantiate with float
+template class Graph<double>;  // Instantiate with double
 
 
 

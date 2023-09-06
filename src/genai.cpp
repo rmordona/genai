@@ -270,8 +270,11 @@
 * computations on each worker, aggregating gradients, updating parameters, and ensuring synchronization to achieve distributed training and collaboration.
 ******************************************************************************************************************************************/
 #include "genai.h"
+#include "logger.h"
 #include "scraper.h"
 #include "recurrent.h"
+#include "topology.h"
+#include "model.h"
 
 // Define PY as the static member instance of PythonStream
 PythonStream py_cout;
@@ -567,83 +570,6 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
 }
  
 LOGGER* ai_log;
-
-/************ Basic Operators initialize templates ************/
-
-template class Optimizer<float>;  // Instantiate with float
-template class Optimizer<double>;  // Instantiate with double
-
-template class Linear<float>;  // Instantiate with float
-template class Linear<double>;  // Instantiate with double
-
-template class BatchNorm<float>;  // Instantiate with float
-template class BatchNorm<double>;  // Instantiate with double
-
-template class LayerNorm<float>;  // Instantiate with float
-template class LayerNorm<double>;  // Instantiate with double
-
-template class Activation<float>;  // Instantiate with float
-template class Activation<double>;  // Instantiate with double
-
-template class Loss<float>;  // Instantiate with float
-template class Loss<double>;  // Instantiate with double
-
-/**********  Recurrent Network initialize templates *****************/
-
-template class CellBase<float>;  // Instantiate with float
-template class CellBase<double>;  // Instantiate with double
-
-template class RNNCell<float>;  // Instantiate with float
-template class RNNCell<double>;  // Instantiate with double
-
-template class LSTMCell<float>;  // Instantiate with float
-template class LSTMCell<double>;  // Instantiate with double
-
-template class GRUCell<float>;  // Instantiate with float
-template class GRUCell<double>;  // Instantiate with double
-
-template class RNN<float>;  // Instantiate with float
-template class RNN<double>;  // Instantiate with double
-
-template class LSTM<float>;  // Instantiate with float
-template class LSTM<double>;  // Instantiate with double
-
-template class GRU<float>;  // Instantiate with float
-template class GRU<double>;  // Instantiate with double
-
-
-/************ Attention & Transformers initialize template ************/
-
-template class Attention<float>;  // Instantiate with float
-template class Attention<double>;  // Instantiate with double
-
-template class FeedForward<float>;  // Instantiate with float
-template class FeedForward<double>;  // Instantiate with double
-
-template class MultiHeadAttention<float>;  // Instantiate with float
-template class MultiHeadAttention<double>;  // Instantiate with double
-
-template class Encoder<float>;  // Instantiate with float
-template class Encoder<double>;  // Instantiate with double
-
-/************ Graph / Network initialize templates ************/
-
-template class Node<float>;  // Instantiate with float
-template class Node<double>;  // Instantiate with double
-
-template class Graph<float>;  // Instantiate with float
-template class Graph<double>;  // Instantiate with double
-
-/************ Tokenizer / Embeddings initialize template ************/
-
-template class Embeddings<float>;  // Instantiate with float
-template class Embeddings<double>;  // Instantiate with double
-
-template class TokenModel<float>;  // Instantiate with float
-template class TokenModel<double>;  // Instantiate with double
-
-template class BPETokenizer<float>;  // Instantiate with float
-template class BPETokenizer<double>;  // Instantiate with double
 
 PYBIND11_MODULE(genai, m) {
     m.doc() = "Example C++ module for Python";

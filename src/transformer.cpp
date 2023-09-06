@@ -25,7 +25,10 @@
  *
  *
 */
+
 #include "genai.h"
+#include "operators.h"
+#include "transformer.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -601,4 +604,16 @@ std::string Encoder<T>::generateDotFormat() {
     return dot; 
 }
 
+/************ Attention & Transformers initialize template ************/
 
+template class Attention<float>;  // Instantiate with float
+template class Attention<double>;  // Instantiate with double
+
+template class FeedForward<float>;  // Instantiate with float
+template class FeedForward<double>;  // Instantiate with double
+
+template class MultiHeadAttention<float>;  // Instantiate with float
+template class MultiHeadAttention<double>;  // Instantiate with double
+
+template class Encoder<float>;  // Instantiate with float
+template class Encoder<double>;  // Instantiate with double

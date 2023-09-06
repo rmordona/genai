@@ -151,7 +151,9 @@
  * model's ability to handle diverse and specialized language use cases, leading to improved performance and domain-specific 
  * understanding.
 *******************************************************************************************************************************/
+
 #include "genai.h"
+#include "tokenmodel.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -586,8 +588,10 @@ void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSi
     }
 }
 
+/************ Tokenizer / Embeddings initialize template ************/
 
+template class TokenModel<float>;  // Instantiate with float
+template class TokenModel<double>;  // Instantiate with double
 
-
-
-
+template class BPETokenizer<float>;  // Instantiate with float
+template class BPETokenizer<double>;  // Instantiate with double

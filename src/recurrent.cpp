@@ -732,5 +732,27 @@ const aitensor<T>& backprop(const aitensor<T>& gradients, CellType& rnn) {
     return input_gradients;
 }
 
+/**********  Recurrent Network initialize templates *****************/
+
+template class CellBase<float>;  // Instantiate with float
+template class CellBase<double>;  // Instantiate with double
+
+template class RNNCell<float>;  // Instantiate with float
+template class RNNCell<double>;  // Instantiate with double
+
+template class LSTMCell<float>;  // Instantiate with float
+template class LSTMCell<double>;  // Instantiate with double
+
+template class GRUCell<float>;  // Instantiate with float
+template class GRUCell<double>;  // Instantiate with double
+
+template class RNN<float>;  // Instantiate with float
+template class RNN<double>;  // Instantiate with double
+
+template class LSTM<float>;  // Instantiate with float
+template class LSTM<double>;  // Instantiate with double
+
+template class GRU<float>;  // Instantiate with float
+template class GRU<double>;  // Instantiate with double
 
 

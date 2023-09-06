@@ -24,7 +24,10 @@
  * Author: Raymond Michael O. Ordona
  *
  */
+ 
 #include "genai.h"
+#include "topology.h"
+#include "model.h"
 
 namespace py = pybind11;
 using namespace py::literals;

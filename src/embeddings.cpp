@@ -24,7 +24,10 @@
  * Author: Raymond Michael O. Ordona
  *
  */
+
 #include "genai.h"
+#include "logger.h"
+#include "embeddings.h"
 
 namespace py = pybind11;
 using namespace py::literals;
@@ -486,3 +489,8 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
     }
 
 }
+
+/************ Tokenizer / Embeddings initialize template ************/
+
+template class Embeddings<float>;  // Instantiate with float
+template class Embeddings<double>;  // Instantiate with double
