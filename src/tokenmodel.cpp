@@ -449,8 +449,8 @@ void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSi
     embeddings->prefetchVocabularyToCache(corpus);
     embeddings->prefetchEmbeddingsToCache();
 
-    Eigen::MatrixXd& wordEmbeddings = embeddings->getWordEmbeddings();
-    Eigen::VectorXd& wordBiases     = embeddings->getWordBiases();
+    aimatrix<T> wordEmbeddings = embeddings->getWordEmbeddings();
+    aivector<T> wordBiases     = embeddings->getWordBiases();
     std::unordered_map<std::string, int>& tokenHashToIndex = embeddings->getTokenIndex();
 
     int vocabSize     = wordEmbeddings.rows();
@@ -462,7 +462,7 @@ void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSi
     log_detail( "Token Size: {:d}", tokenSize );
 
     // Initialize Adagrad gradients
-    Eigen::MatrixXd adagradGradients = Eigen::MatrixXd::Constant(vocabSize, embeddingSize, 1e-8);
+    aimatrix<T> adagradGradients = aimatrix<T>::Constant(vocabSize, embeddingSize, 1e-8);
     T totalLoss = 0.0;
     T totaliter = 0.0;
 
@@ -563,7 +563,7 @@ void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSi
         adagradGradients += batchGradients.array().square().matrix();
 
         log_detail( "Calculation of Gradient (Iteration {}):",  iteration );
-        log_matrix(  (this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt().array())  );
+        log_matrix( (aimatrix<T>) ((this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt().array())  ));
 
         log_detail( "Updating Parameters (Before image) (Iteration {})...", iteration );
         log_matrix( wordEmbeddings );

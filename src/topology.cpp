@@ -49,6 +49,7 @@ NodeType Node<T>::nodeType() {
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
+/*
 template <class T>
 void Node<T>::setData(const py::array_t<T>& input_data) {
 
@@ -69,11 +70,12 @@ void Node<T>::setData(const py::array_t<T>& input_data) {
     log_detail( "Input Data For Node Name: {0}", this->name );
     log_matrix( this->input_data );
 }
+*/
 
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void Node<T>::setDataTensor(const py::array_t<T>& input_data) {
+void Node<T>::setData(const py::array_t<T>& input_data) {
 
     log_info("=================");
     log_info( "Setting Data (Tensor) ..." );
@@ -114,12 +116,12 @@ void Node<T>::setDataTensor(const py::array_t<T>& input_data) {
 
 template <class T>
 const aitensor<T>& Node<T>::getInput() {
-    return input_data;
+    return this->input_data;
 }
 
 template <class T>
 const aitensor<T>& Node<T>::getOutput() {
-    return output_data;
+    return this->output_data;
 }
 
 template <class T>
@@ -636,7 +638,7 @@ std::vector<Node<T>*> Graph<T>::getNodes() {
 
 // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
 template <class T>
-const aitensor<T>& Graph<T>::forwardPropagation() {
+const aitensor<T> Graph<T>::forwardPropagation() {
 
     std::queue<Node<T>*> q;
     std::unordered_map<Node<T>*, int> indegree_(indegree); 
@@ -656,9 +658,9 @@ const aitensor<T>& Graph<T>::forwardPropagation() {
     log_detail( "Graph: Collecting nodes for the queue." );
     log_detail( "Size of queue: {0}",  q.size() );
 
-    const aitensor<T>& output(0, 0, 0);
-
     log_detail(  "Graph: Entering Queue Loop." );
+
+    aitensor<T> output;
 
     while (!q.empty()) {
         Node<T>* node = q.front();
@@ -666,7 +668,11 @@ const aitensor<T>& Graph<T>::forwardPropagation() {
 
         log_detail( "*** Graph: Entering forward pass for {0} ****", node->name );
 
-        output = node->forwardPass();     
+        // Perform the forward pass. 
+        node->forwardPass();     
+
+        // The last output becomes the final prediction.
+        output = node->getOutput();
 
         for (Connection<T>* connection : this->connections) {
             if (connection->getSource() == node) {
@@ -691,7 +697,7 @@ const aitensor<T>& Graph<T>::forwardPropagation() {
 }
 
 template <class T>
-const aitensor<T>& Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
+const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
     std::queue<Node<T>*> q;
     std::unordered_map<Node<T>*, int> outdegree_(outdegree); 
 
@@ -745,7 +751,7 @@ const aitensor<T>& Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
 }
 
 template <class T>
-const aimatrix<T>& Graph<T>::computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
+const aiscalar<T> Graph<T>::computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "***************************************************" );
     log_info( "*****    Graph: Processing Loss Function  *********" );
@@ -753,16 +759,16 @@ const aimatrix<T>& Graph<T>::computeLoss(std::string losstype, const aitensor<T>
 
     this->lossobj = new Loss<T>(losstype);
 
-    aimatrix<T> loss = this->lossobj->computeLoss(predicted, target);
+    aiscalar<T> loss = this->lossobj->computeLoss(predicted, target);
 
     log_detail( "Loss calculated: " );
-    log_matrix( loss );
+    log_scalar( loss );
 
     return loss;
 }
 
 template <class T>
-const aitensor<T>& Graph<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aitensor<T> Graph<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "*********************************************" );
     log_info( "*****    Graph: Processing Gradient *********" );

@@ -238,7 +238,7 @@ bool Embeddings<T>::retrieveVocabulary(const std::wstring& token, Record& record
         std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
         return false;
     }
-
+ 
     // Bind the hash key
     std::string utf8Str = wstringToUtf8(token);
     sqlite3_bind_text(stmt, 1, utf8Str.c_str(), -1, SQLITE_STATIC);
@@ -443,7 +443,7 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
         int embeddingSizeBytes = sqlite3_column_bytes(stmt, 1);
 
         // Convert the BLOB data to Eigen VectorXd (assuming float64 for the embeddings)
-        Eigen::VectorXd embeddings(embeddingSizeBytes / sizeof(double));
+        aivector<T> embeddings(embeddingSizeBytes / sizeof(double));
         std::memcpy(embeddings.data(), embeddingBlob, embeddingSizeBytes);
 
         double bias = sqlite3_column_double(stmt, 2);

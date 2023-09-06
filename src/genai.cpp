@@ -475,18 +475,6 @@ void process_array1(py::array_t<double> inputArray) {
 void process_array(py::array_t<double> inputArray) {
     py::print("Processing array:");
 
-/*
-    auto bufInfo = inputArray.request();
-    double* dataPtr = static_cast<double*>(bufInfo.ptr);
-
-    ssize_t size = bufInfo.size;
-
-    for (ssize_t i = 0; i < size; ++i) {
-        double value = dataPtr[i];
-        py::print(value);
-    }
-*/
-
     py::buffer_info bufInfo = inputArray.request();
 
     // Get the shape of the array
@@ -580,23 +568,7 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
  
 LOGGER* ai_log;
 
-/************ Graph / Network ************/
-
-/*
-
-template class Node<float>;  // Instantiate with float
-template class Node<double>;  // Instantiate with double
-
-template class Graph<float>;  // Instantiate with float
-template class Graph<double>;  // Instantiate with double
-*/
-
-/************ Basic Operators ************/
-
-/*
-
-template class BaseModel<float>;  // Instantiate with float
-template class BaseModel<double>;  // Instantiate with double
+/************ Basic Operators initialize templates ************/
 
 template class Optimizer<float>;  // Instantiate with float
 template class Optimizer<double>;  // Instantiate with double
@@ -615,41 +587,9 @@ template class Activation<double>;  // Instantiate with double
 
 template class Loss<float>;  // Instantiate with float
 template class Loss<double>;  // Instantiate with double
-*/
 
-/************ Attention & Transformers ************/
+/**********  Recurrent Network initialize templates *****************/
 
-/*
-
-template class Attention<float>;  // Instantiate with float
-template class Attention<double>;  // Instantiate with double
-
-template class FeedForward<float>;  // Instantiate with float
-template class FeedForward<double>;  // Instantiate with double
-
-template class MultiHeadAttention<float>;  // Instantiate with float
-template class MultiHeadAttention<double>;  // Instantiate with double
-
-template class Encoder<float>;  // Instantiate with float
-template class Encoder<double>;  // Instantiate with double
-*/
-
-/************ Tokenizer / Embeddings ************/
-
-// template class Embeddings<float>;  // Instantiate with float
-// template class Embeddings<double>;  // Instantiate with double
-
-/*
-template class TokenModel<float>;  // Instantiate with float
-template class TokenModel<double>;  // Instantiate with double
-
-template class BPETokenizer<float>;  // Instantiate with float
-template class BPETokenizer<double>;  // Instantiate with double
-*/
-
-/**********  Recurrent Network *****************/
-
-/*
 template class CellBase<float>;  // Instantiate with float
 template class CellBase<double>;  // Instantiate with double
 
@@ -671,9 +611,40 @@ template class LSTM<double>;  // Instantiate with double
 template class GRU<float>;  // Instantiate with float
 template class GRU<double>;  // Instantiate with double
 
-*/
 
- 
+/************ Attention & Transformers initialize template ************/
+
+template class Attention<float>;  // Instantiate with float
+template class Attention<double>;  // Instantiate with double
+
+template class FeedForward<float>;  // Instantiate with float
+template class FeedForward<double>;  // Instantiate with double
+
+template class MultiHeadAttention<float>;  // Instantiate with float
+template class MultiHeadAttention<double>;  // Instantiate with double
+
+template class Encoder<float>;  // Instantiate with float
+template class Encoder<double>;  // Instantiate with double
+
+/************ Graph / Network initialize templates ************/
+
+template class Node<float>;  // Instantiate with float
+template class Node<double>;  // Instantiate with double
+
+template class Graph<float>;  // Instantiate with float
+template class Graph<double>;  // Instantiate with double
+
+/************ Tokenizer / Embeddings initialize template ************/
+
+template class Embeddings<float>;  // Instantiate with float
+template class Embeddings<double>;  // Instantiate with double
+
+template class TokenModel<float>;  // Instantiate with float
+template class TokenModel<double>;  // Instantiate with double
+
+template class BPETokenizer<float>;  // Instantiate with float
+template class BPETokenizer<double>;  // Instantiate with double
+
 PYBIND11_MODULE(genai, m) {
     m.doc() = "Example C++ module for Python";
 

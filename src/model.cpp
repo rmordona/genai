@@ -51,16 +51,40 @@ void BaseModel<T>::setLoss(std::string& losstype) {
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void BaseModel<T>::setTarget(py::array_t<T> target) {
+void BaseModel<T>::setTarget(const py::array_t<T>& target) {
 
-    // Convert values to C++ array
-    py::buffer_info values_info = target.request();
-    T* data = static_cast<T*>(values_info.ptr);
-    int v_rows = values_info.shape[0]; // N
-    int v_cols = values_info.shape[1]; // M
-    // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
-    this->target = Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, v_rows, v_cols);
+    log_info("=================");
+    log_info( "Setting Data (Tensor) ..." );
+
+    // request a buffer descriptor from Python
+    py::buffer_info buffer_info = target.request();
+
+    // extract data an shape of input array
+    T* data = static_cast<T *>(buffer_info.ptr);
+    std::vector<ssize_t> shape = buffer_info.shape;
+
+    // Get the dimensions of the py::array_t
+    ssize_t dim0 = shape[0]; // Batch Size
+    ssize_t dim1 = shape[1]; // Input Size
+    ssize_t dim2 = shape[2]; // Parameter / Embedding Size
+
+    // Create an Eigen::Map to map the raw data to an Eigen::Tensor
+    // Eigen::Map<Eigen::Tensor<T,3>> tensor_map(data, dim0, dim1, dim2);
+
+    aitensor<T> tensor(dim0, dim1, dim2);
+
+    // auto ptr = static_cast<T*>(info.ptr);
+    for (int i = 0; i < dim0; ++i) {
+        for (int j = 0; j < dim1; ++j) {
+            for (int k = 0; k < dim2; ++k) {
+                tensor(i, j, k) = *data++;
+            }
+        }
+    }
+    this->target = tensor;
+
 }
+
 
 template <class T>
 aitensor<T> BaseModel<T>::getTarget() {
@@ -73,7 +97,7 @@ void BaseModel<T>::useCrossEntropy() {
 }
 
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T learningRate , int itermax) {
+void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& learningRate , int& itermax) {
 
         // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -110,7 +134,7 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T le
         this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
 
         log_detail( "Compute Gradient ..." );
-        this->gradients = this->graph->computeGradients(this->losstype, this->predicted, this->target);
+        this->gradients = this->graph->computeGradients(this->predicted, this->target);
         log_matrix( this->gradients );
 
         log_detail( "Entering Backward Propagation ..." );
@@ -125,18 +149,18 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T le
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
         py_cout << "-------> Compute Loss:";
-        py_cout << loss;
+        py_cout << this->loss;
         py_cout << " ... elapsed " <<  elapsed_seconds.count();
         py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", loss.array().sum(),  elapsed_seconds.count(), std::ctime(&next_time) );
+        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
 
         iter ++;
 
         if (iter >= itermax) break;
 
-    } while (abs(old_loss - loss(0,0)) > epsilon);
+    } while (abs(old_loss - this->loss) > epsilon);
 
     log_detail( "Training done ..." );
 
@@ -144,9 +168,6 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T le
     //MPI_Finalize();
 
 }
-
-
-
 
 /*
 void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts) {

@@ -43,7 +43,6 @@ public:
     // Here we are splitting the concatenated XH where dimension is Nx(P+H)
     // such that we split XH into two matrices and get the original dimensions for X and H
     // so that X will have NxP and H will have NxH
-
     static std::tuple<aimatrix<T>, aimatrix<T>> split(const aimatrix<T>& XH, int param_size, int hidden_size) {
         aimatrix<T> A = XH.block(0, 0, param_size, hidden_size);
         aimatrix<T> B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
@@ -67,29 +66,7 @@ public:
         }
 
     };
-    /*
-    class Split {  
-    private:
-        aimatrix<T> X;
-        aimatrix<T> H;
-    public:
-        Split(const aimatrix<T>& XH, int param_size, int hidden_size) {
-            int input_size = XH.dimension(0);
 
-            // Create TensorMap for tensor X and H
-            this->X = XH.slice(Eigen::array<int, 2>{0, 0}, Eigen::array<int, 2>{input_size, param_size});
-            this->H = XH.slice(Eigen::array<int, 2>{0, param_size}, Eigen::array<int, 2>{input_size, hidden_size});
-        }
-
-        aimatrix<T> transposedX() {
-            return  (this->X).shuffle(Eigen::array<int, 2>{1, 0});
-        }
-        aimatrix<T> transposedH() {
-            return (this->H).shuffle(Eigen::array<int, 2>{1, 0});
-        }
-
-    };
-    */
 };
 
 /************************************************************************************************************
@@ -278,7 +255,6 @@ public:
     RNN(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
-      //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
             RNNCell<T> cell(hidden_size, learning_rate);
@@ -330,7 +306,6 @@ public:
     LSTM(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
-      //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
             LSTMCell<T> cell(hidden_size, learning_rate);
@@ -381,7 +356,6 @@ public:
     GRU(int hidden_size, int output_size, T learning_rate, int num_layers, 
         bool bidirectional, RNNType rnntype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
-      //  : RecurrentNetwork(num_layers, bidirectional, rnntype) {
 
         for (int i = 0; i < num_layers; ++i) {
             GRUCell<T> cell(hidden_size, learning_rate);
@@ -418,7 +392,7 @@ const aitensor<T>&backprop(const aitensor<T>& gradients, CellType* rnn);
 
 
 /**********  Recurrent Network initialize templates *****************/
-
+/*
 template class CellBase<float>;  // Instantiate with float
 template class CellBase<double>;  // Instantiate with double
 
@@ -439,5 +413,6 @@ template class LSTM<double>;  // Instantiate with double
 
 template class GRU<float>;  // Instantiate with float
 template class GRU<double>;  // Instantiate with double
+*/
 
 #endif

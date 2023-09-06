@@ -583,6 +583,15 @@ public:
         return ss.str();
     }
 
+    template <class T>
+    std::string loggingEigenScalar(const aiscalar<T>& scalar) {
+        std::stringstream ss;
+        ss << "                                          ";
+        ss << fmt::format("{: 8.8f} ", scalar);
+        ss << '\n';
+        return ss.str();
+    }
+
 
     // Variadic function Template for logging detail
     template <typename T, typename ...P>
@@ -631,6 +640,13 @@ public:
         log->info(msg);
     }
 
+    template <class T>
+    void eigen_scalar(const aiscalar<T>& scalar) {
+        aiscalar<T> tmp_scalar = scalar;
+        std::string msg = fmt::format("{:>1}Scalar:\n{}", "", loggingEigenScalar(tmp_scalar));
+        log->info(msg);
+    }
+
     void info(const std::string& msg) { log->info(msg); }
 
     void trace(const std::string& msg) { log->trace(msg); }
@@ -662,6 +678,7 @@ extern LOGGER* ai_log;
 #define log_matrix(msg)    ai_log->eigen_matrix(msg); 
 #define log_vector(msg)    ai_log->eigen_vector(msg); 
 #define log_rowvector(msg) ai_log->eigen_rowvector(msg); 
+#define log_scalar(msg)    ai_log->eigen_scalar(msg); 
 #else
 #define info_tag()
 #define log_info(...)  
@@ -670,6 +687,7 @@ extern LOGGER* ai_log;
 #define log_matrix(msg)
 #define log_vector(msg)
 #define log_rowvector(msg)
+#define log_scalar(msg)
 #endif
 
 #ifdef ENABLE_TRACE
@@ -1349,7 +1367,7 @@ public:
 };
 
 /************ Basic Operators initialize templates ************/
-
+/*
 template class Optimizer<float>;  // Instantiate with float
 template class Optimizer<double>;  // Instantiate with double
 
@@ -1367,6 +1385,7 @@ template class Activation<double>;  // Instantiate with double
 
 template class Loss<float>;  // Instantiate with float
 template class Loss<double>;  // Instantiate with double
+*/
 
 #endif
 
@@ -1613,7 +1632,7 @@ public:
 };
 
 /************ Attention & Transformers initialize template ************/
-
+/*
 template class Attention<float>;  // Instantiate with float
 template class Attention<double>;  // Instantiate with double
 
@@ -1625,6 +1644,7 @@ template class MultiHeadAttention<double>;  // Instantiate with double
 
 template class Encoder<float>;  // Instantiate with float
 template class Encoder<double>;  // Instantiate with double
+*/
 
 #endif
 
@@ -1685,12 +1705,12 @@ public:
 
     NodeType nodeType();
 
-    // The input is assumed to have NxM where N=number of samples, M=embedding vector size
+    // The input is assumed to have BxNxM where B=Batch, N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
     void setData(const py::array_t<T>& embedding);
 
     // Let's handle Tensors
-    void setDataTensor(const py::array_t<T>& embedding);
+    //void setDataTensor(const py::array_t<T>& embedding);
 
     const aitensor<T>& getInput();
 
@@ -1785,13 +1805,13 @@ public:
     std::vector<Node<T>*> getNodes();
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
-    const aitensor<T>& forwardPropagation();
+    const aitensor<T> forwardPropagation();
 
-    const aitensor<T>& backwardPropagation(const aitensor<T>& gradients);
+    const aitensor<T> backwardPropagation(const aitensor<T>& gradients);
 
-    const aimatrix<T>& computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T> computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor<T>& computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
+    const aitensor<T> computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
@@ -1804,13 +1824,13 @@ public:
 };
 
 /************ Graph / Network initialize templates ************/
-
+/*
 template class Node<float>;  // Instantiate with float
 template class Node<double>;  // Instantiate with double
 
 template class Graph<float>;  // Instantiate with float
 template class Graph<double>;  // Instantiate with double
-
+*/
 #endif
 
 #ifndef BASEMODEL_H
@@ -1827,7 +1847,7 @@ private:
     aiscalar<T> loss;
     std::string losstype = "mse";
     std::string optimizertype = "adam";
-    double learningRate = 0.01;
+    T learningRate = 0.01;
     int itermax = 1;
 public:
     BaseModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
@@ -1846,13 +1866,13 @@ public:
 
     // The input is assumed to have NxM where N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setTarget(py::array_t<T> target);
+    void setTarget(const py::array_t<T>& target);
 
     aitensor<T> getTarget();
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, T learningRate = 0.01, int itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, T& learningRate = 0.01, int& itermax = 1);
 
 };
 
@@ -1915,11 +1935,11 @@ public:
         if (datatype == "float") {
             Node<float>* node1 =  (modelXf.getGraph())->createNode(name, ntype);
             //node1->setData(input_dataf);
-            node1->setDataTensor(input_dataf);
+            node1->setData(input_dataf);
         } else if (datatype == "double") {
             Node<double>* node1 =  (modelXd.getGraph())->createNode(name, ntype);
             //node1->setData(input_datad);
-            node1->setDataTensor(input_datad);
+            node1->setData(input_datad);
         } else {
             throw std::invalid_argument("Unsupported datatype");
         }
@@ -1945,6 +1965,12 @@ public:
 
 
 };
+
+/************ Base Model initialize templates ************/
+
+template class BaseModel<float>;  // Instantiate with float
+template class BaseModel<double>;  // Instantiate with double
+
 
 #endif
 
@@ -2045,15 +2071,11 @@ public:
     int getEmbeddingSize() { return this->wordEmbeddings.cols(); }
 
     // Get Embeddings and indcies
-    Eigen::MatrixXd& getWordEmbeddings() { return this->wordEmbeddings; }
-    Eigen::VectorXd& getWordBiases() { return this->wordBiases; }
+    const aimatrix<T> getWordEmbeddings() { return this->wordEmbeddings; }
+    const aivector<T> getWordBiases() { return this->wordBiases; }
     std::unordered_map<std::string, int>& getTokenIndex() { return this->tokenHashToIndex; }
 };
 
-#endif
-
-#ifndef TOKENIZER_MODEL_H
-#define TOKENIZER_MODEL_H
 
 #include <sqlite3.h>
 
@@ -2167,13 +2189,16 @@ public:
 };
 
 /************ Tokenizer / Embeddings initialize template ************/
+/*
+template class Embeddings<float>;  // Instantiate with float
+template class Embeddings<double>;  // Instantiate with double
 
 template class TokenModel<float>;  // Instantiate with float
 template class TokenModel<double>;  // Instantiate with double
 
 template class BPETokenizer<float>;  // Instantiate with float
 template class BPETokenizer<double>;  // Instantiate with double
-
+*/
 #endif
 
 /*
