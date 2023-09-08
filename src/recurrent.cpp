@@ -473,39 +473,45 @@ const aimatrix<T>& GRUCell<T>::backward(const aimatrix<T>& input_data, const aim
 *****************************************************************************************************************/
 
 template <class T>
-const aitensor<T>&  RNN<T>::forward(const aitensor<T>& input_data) {
-    this->Yhat = forwarding(input_data, this);
-    return this->Yhat;
+const aitensor<T> RNN<T>::forward(const aitensor<T>& input_data) {
+    const aitensor<T> Yhat = this->forwarding(input_data);
+    this->setPrediction(Yhat);
+    return Yhat;
 }
 
 template <class T>
-const aitensor<T>&  RNN<T>::backward(const aitensor<T>& gradients) {
-    this->gradients = backprop(gradients, this);
-    return this->gradients;
+const aitensor<T>  RNN<T>::backward(const aitensor<T>& gradients) {
+    const aitensor<T> dInput = this->backprop(gradients);
+    this->setGradients(dInput);
+    return dInput;
 }
 
 template <class T>
-const aitensor<T>&  LSTM<T>::forward(const aitensor<T>& input_data) {
-    this->Yhat = forwarding(input_data, this);
-    return this->Yhat;
+const aitensor<T> LSTM<T>::forward(const aitensor<T>& input_data) {
+    const aitensor<T> Yhat = this->forwarding(input_data);
+    this->setPrediction(Yhat);
+    return Yhat;
 }
 
 template <class T>
-const aitensor<T>&  LSTM<T>::backward(const aitensor<T>& gradients) {
-    this->gradients = backprop(gradients, this);
-    return this->gradients;
+const aitensor<T> LSTM<T>::backward(const aitensor<T>& gradients) {
+    const aitensor<T> dInput = this->backprop(gradients);
+    this->setGradients(dInput);
+    return dInput;
 }
 
 template <class T>
-const aitensor<T>&  GRU<T>::forward(const aitensor<T>& input_data) {
-    this->Yhat = forwarding(input_data, this);
-    return this->Yhat;
+const aitensor<T> GRU<T>::forward(const aitensor<T>& input_data) {
+    const aitensor<T> Yhat = this->forwarding(input_data);
+    this->setPrediction(Yhat);
+    return Yhat;
 }
 
 template <class T>
-const aitensor<T>&  GRU<T>::backward(const aitensor<T>& gradients) {
-    this->gradients = backprop(gradients, this);
-    return this->gradients;
+const aitensor<T>  GRU<T>::backward(const aitensor<T>& gradients) {
+    const aitensor<T> dInput = this->backprop(gradients);
+    this->setGradients(dInput);
+    return dInput;
 }
  
 template <class T>
@@ -524,180 +530,202 @@ void GRU<T>::updateParameters(std::string& optimizertype, T& learningRate, int& 
 }
 
 
-template <typename CellType, class T>
-std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> out, CellType& rnn) {
+template <class T>
+std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::setInitialWeights(int step, aimatrix<T> out) {
 
-    if (rnn->iniitalized) {
-        return std::make_tuple(rnn->V[step], rnn->bo[step]);
+    if (this->isInitialized()) {
+        return std::make_tuple(this->get_V()[step], this->get_bo()[step]);
     }
 
-    aimatrix<T> v(out.rows(), rnn->output_size);
+    aimatrix<T> v(out.rows(), this->getOutputSize());
     airowvector<T> bo(out.cols());
     BaseOperator::heInitMatrix(v);
     bo.Zero(out.cols());
     return std::make_tuple(v, bo);
 }
 
-template <typename CellType, class T>
-const std::vector<aimatrix<T>>& processOutputs(CellType& rnn) {
+template <class T>
+const aitensor<T> RecurrentBase<T>::processOutputs() {
 
-    const aimatrix<T>& out, v, yhat;
-    const airowvector<T> bo;
+    aimatrix<T> out, v, yhat;
+    airowvector<T> bo;
 
-    for (int step = 0; step < rnn->sequence_length; ++step) {
+    int sequence_length           = this->getSequenceLength();
+    int input_size                = this->getInputSize();
+    int embedding_size            = this->getEmbeddingSize();
+
+    ReductionType rnntype         = this->getRType();
+    aitensor<T> prediction;
+
+    if (rnntype == ReductionType::CONCAT) {
+        prediction(sequence_length, input_size, embedding_size * 2);
+    } else {
+        prediction(sequence_length, input_size, embedding_size);
+    }
+
+    for (int step = 0; step < this->getSequenceLength(); ++step) {
 
         // merge bidirectional outputs
-        if (rnn->rtype == ReductionType::SUM) {
-            out = rnn->foutput[step].array() + rnn->boutput[step].array();
+        if (rnntype == ReductionType::SUM) {
+            out = this->getFoutput()[step].array() + this->getBoutput()[step].array();
         } else 
-        if (rnn->rtype == ReductionType::AVG) {
-            out = ( rnn->foutput[step].array() + rnn->boutput[step].array() ) / 2;
+        if (rnntype == ReductionType::AVG) {
+            out = ( this->getFoutput()[step].array() + this->getBoutput()[step].array() ) / 2;
         } else 
-        if (rnn->rtype == ReductionType::CONCAT) {
-            out << rnn->foutput[step], rnn->boutput[step];
+        if (rnntype == ReductionType::CONCAT) {
+            out << this->getFoutput()[step], this->getBoutput()[step];
         }
 
         // Initialize the weights for the output;
-        std::tie(v, bo) = setInitialWeights(step, out, rnn);
+        std::tie(v, bo) = setInitialWeights(step, out);
 
-        if (rnn->otype == ActivationType::SOFTMAX) {
-            yhat = BaseOperator::softmax(out * v + bo);
+        if (this->getOType() == ActivationType::SOFTMAX) {
+            yhat = BaseOperator::softmax((aimatrix<T>) (out * v + bo));
         } else 
-        if (rnn->otype == ActivationType::TANH) {
-            yhat = BaseOperator::tanh(out * v + bo);
+        if (this->getOType() == ActivationType::TANH) {
+            yhat = BaseOperator::tanh((aimatrix<T>) (out * v + bo));
         } else
-        if (rnn->otype == ActivationType::SIGMOID) {
-            yhat = BaseOperator::sigmoid(out * v + bo);
+        if (this->getOType() == ActivationType::SIGMOID) {
+            yhat = BaseOperator::sigmoid((aimatrix<T>) (out * v + bo));
         } else {
-            rnn->output_size = rnn->hidden_size;
+            this->setOutputSize( this->getHiddenSize());
             yhat = out; // no activation, pure Hidden State output
         }
 
-        rnn->outputs(step, 0) = out;
-        rnn->Yhat(step, 0) = yhat;
+        // rnn->outputs.chip(step, 0) = tensor_view(out);
+        prediction.chip(step, 0) = tensor_view(yhat);
 
-        if (!rnn->initialized) {
-            rnn->V.push_back( v );
-            rnn->bo.push_back( bo );
+        if (!this->isInitialized()) {
+            this->addV( v );
+            this->addbo( bo );
         }
     }
 
-    return rnn->Yhat; // Cache output for backward pass while also pass it to next operations.
+    // this->setOutput(prediction);
+    this->setPrediction(prediction);
+    return prediction; // Cache output for backward pass while also pass it to next operations.
 }
 
-template <typename CellType, class T>
-void processGradients(const aitensor<T>& gradients, CellType& rnn) {
+template <class T>
+void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 
-    const aimatrix<T>& dOut, out, yhat;
+    aimatrix<T> dOut, yhat;
 
     // Gradient will have dimension of: sequence_size, batch_size, output_size (instead of hidden_size)
 
-    for (int step = 0; step < rnn->sequence_length; ++step) {
+    ActivationType       otype        = this->getOType();
+    const aitensor<T>&   prediction   = this->getPrediction();
+
+    for (int step = 0; step < this->getSequenceLength(); ++step) {
 
         // Process gradient for the activation operation
-        dOut = gradients[step];
-        out  = rnn->outputs[step];
-        yhat = rnn->Yhat(step, 0);
-        if (rnn->otype == ActivationType::SOFTMAX) {
+        dOut = matrix_view(chip(gradients, step, 0));  
+        // out  = this->getOutput()[step];
+        yhat = matrix_view(chip(prediction, step, 0));
+        if (otype == ActivationType::SOFTMAX) {
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
-            rnn->dV[step] = dOut * out.transpose();
-            rnn->dbo[step] = dOut.colwise().sum;
+            this->set_V(step, dOut * yhat.transpose());
+            this->set_bo(step, dOut.colwise().sum());
 
         } else 
-        if (rnn->otype == ActivationType::TANH) {
+        if (otype == ActivationType::TANH) {
             dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
-            rnn->dV[step] = dOut * out.transpose();
-            rnn->dbo[step] = dOut.colwise().sum;
+            this->set_V(step, dOut * yhat.transpose());
+            this->set_bo(step, dOut.colwise().sum());;
         } else
-        if (rnn->otype == ActivationType::SIGMOID) {
+        if (otype == ActivationType::SIGMOID) {
             dOut = BaseOperator::sigmoidGradient(dOut, yhat);  // dsigmoidV
-            rnn->dV[step] = dOut * out.transpose();
-            rnn->dbo[step] = dOut.colwise().sum;
+            this->set_V(step, dOut * yhat.transpose());
+            this->set_bo(step, dOut.colwise().sum());
         }
 
-        gradients[step] = dOut * rnn->V[step].transpose(); // get dInput
+        gradients.chip(step, 0) = tensor_view((aimatrix<T>) (dOut * V[step].transpose())); // get dInput
 
     }
 }
 
-template <typename CellType, class T>
-const aitensor<T>& forwarding(const aitensor<T>& input_data, CellType& rnn) {
+template <class T>
+const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
 
-    rnn->input_data = input_data;
-    rnn->otype = ActivationType::SOFTMAX;
-    rnn->rtype = ReductionType::AVG;
-
-    // int batch_size = input_data.dimension(0);  
-    // int embedding_size = input_data.dimension(1);
-    // rnn->sequence_length = input_data.dimension(2);
+    this->setData(input_data);
+    this->setOType(ActivationType::SOFTMAX);
+    this->setRType(ReductionType::AVG);
 
     int batch_size     = input_data.dimension(0);  // sequence
     int input_size     = input_data.dimension(1);
     int embedding_size = input_data.dimension(2);
-    rnn->sequence_length = batch_size;
 
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
+    this->setSequenceLength(batch_size);
+    this->setInputSize(input_size);
+    this->setEmbeddingSize(embedding_size);
+
+    // CellType celltype = this->getCellType();
+
+    for (int direction = 0; direction < this->getNumDirections(); ++direction) {
+        this->setCells(direction);
 
         // Forward pass: Run from first to last time step
-        for (int step = 0; step < rnn->sequence_length; ++step) {
-            aimatrix<T> input_batch = input_data.chip(step, 0);
+        for (int step = 0; step < this->getSequenceLength(); ++step) {
+            aimatrix<T> input_batch = matrix_view(chip(input_data, step, 0));
+
 
             // Forward pass through each layer of the RNN
-            for (int layer = 0; layer < rnn->num_layers; ++layer) {
-                input_batch = rnn->cells[layer].forward(input_batch); // This is the Hidden State
+            for (int layer = 0; layer < this->getNumLayers(); ++layer) {
+                auto cell = this->getCells(); // std::dynamic_pointer_cast<RNNCell<T>>(this->getCells());
+                input_batch = cell[layer]->forward(input_batch); // This is the Hidden State
             }
 
             if (direction == 0) {
-                rnn->foutput.push_back(input_batch);
+                (this->getFoutput()).push_back(input_batch);
             } else {
-                rnn->boutput.push_back(input_batch);
+                (this->getBoutput()).push_back(input_batch);
             }
         }
     }
 
-    const aitensor<T>& Yhat = processOutputs(rnn);
+    aitensor<T> Yhat = processOutputs();
 
     // marker to indicate the weights are all initialized, as they depend on these sizes.
-    rnn->initialized = true;
+    this->setInitialized();
 
     return Yhat;
 }
 
-template <typename CellType, class T>
-const aitensor<T>& backprop(const aitensor<T>& gradients, CellType& rnn) {
+template <class T>
+const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
 
-    const aitensor<T>& input_data = rnn->input_data;
-
-    // int batch_size = input_data.dimension(0);
-    // int embedding_size = input_data.dimension(1);
-    // int sequence_length = input_data.dimension(2);
+    const aitensor<T>& input_data = this->getData();
 
     int batch_size      = input_data.dimension(0);  // sequence
     int input_size      = input_data.dimension(1);
     int embedding_size  = input_data.dimension(2);
     int sequence_length = batch_size;
 
-    processGradients(gradients, rnn);
+    aitensor<T> dInput = gradients;
+
+    processGradients(dInput);
 
     std::vector<aimatrix<T>> dOutf, dOutb;
     aimatrix<T> dOuts;
 
+    ReductionType rtype = this->getRType();
+
     // Now, let us see if we need to split;
     // Process gradient for the reduction operation
     for (int step = sequence_length - 1; step >= 0; --step) {
-        aimatrix<T> seq_f, seq_b;
-        if (rnn->rtype == ReductionType::SUM) {
-            seq_f = gradients(step,0);
-            seq_b = gradients(step,0);
+        aimatrix<T> seq_f, seq_b, seq_m;
+        if (rtype == ReductionType::SUM) {
+            seq_f = matrix_view(chip(dInput, step, 0)); // gradients(step,0);
+            seq_b = matrix_view(chip(dInput, step, 0)); // gradients(step,0);
         } else 
-        if (rnn->rtype == ReductionType::AVG) {
-            seq_f = gradients(step,0) / 2;
-            seq_b = gradients(step,0) / 2;
+        if (rtype == ReductionType::AVG) {
+            seq_f = matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
+            seq_b = matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
         } else 
-        if (rnn->rtype == ReductionType::CONCAT) {
-            seq_f = gradients(step,0).block(0, 0, batch_size, embedding_size);
-            seq_b = gradients(step,0).block(0, embedding_size, batch_size, embedding_size);
+        if (rtype == ReductionType::CONCAT) {
+            seq_m = matrix_view(chip(dInput, step, 0));
+            seq_f = seq_m.block(0, 0, batch_size, embedding_size);
+            seq_b = seq_m.block(0, embedding_size, batch_size, embedding_size);
         }
         dOutf.push_back(seq_f);
         dOutb.push_back(seq_b);
@@ -706,12 +734,12 @@ const aitensor<T>& backprop(const aitensor<T>& gradients, CellType& rnn) {
     // We need to send back the same structure of input_gradients as the input to the forward pass
     aitensor<T> input_gradients(batch_size, input_size, embedding_size);
 
-    for (int direction = 0; direction < rnn->num_directions; ++direction) {
-        rnn->cells  = (direction == 0) ? rnn->fcells : rnn->bcells;
+    for (int direction = 0; direction < this->getNumDirections(); ++direction) {
+        this->setCells(direction);
 
         // Backward pass: Run from last to first time step
-        for (int step = sequence_length - 1; step >= 0; --step) {
-            aimatrix<T> input_batch = input_data.chip(step, 0);
+        for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
+            aimatrix<T> input_batch = matrix_view(chip(input_data, step, 0));  
 
             if (direction == 0) {
                 dOuts = dOutf[step];
@@ -720,13 +748,14 @@ const aitensor<T>& backprop(const aitensor<T>& gradients, CellType& rnn) {
             }
 
             // Backward pass through each layer of the RNN
-            for (int layer = rnn->num_layers - 1; layer >= 0; --layer) {
-                dOuts = rnn->cells[layer].backward(input_batch, dOuts);
-                input_batch = rnn->cells[layer].getHiddenState();
+            for (int layer = this->getNumLayers() - 1; layer >= 0; --layer) {
+                auto cells = this->getCells();
+                dOuts = cells[layer]->backward(input_batch, dOuts);
+                input_batch = cells[layer]->getHiddenState();
             }
 
             // Store the gradients for input data
-            input_gradients.chip(step, 0) = dOuts;
+            input_gradients.chip(step, 0) = tensor_view(dOuts);
         }
     }
     return input_gradients;
@@ -745,6 +774,9 @@ template class LSTMCell<double>;  // Instantiate with double
 
 template class GRUCell<float>;  // Instantiate with float
 template class GRUCell<double>;  // Instantiate with double
+
+template class RecurrentBase<float>;  // Instantiate with float
+template class RecurrentBase<double>;  // Instantiate with double
 
 template class RNN<float>;  // Instantiate with float
 template class RNN<double>;  // Instantiate with double

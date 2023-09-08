@@ -37,6 +37,12 @@ enum RNNType {
     MANY_TO_MANY
 };
 
+enum CellType {
+    RNN_VANILLA,
+    RNN_LSTM,
+    RNN_GRU
+};
+
 template <class T>
 class CellBase {
 public:
@@ -50,23 +56,9 @@ public:
         return std::make_tuple(A.transpose(), B.transpose());
     }
 
-    class Split {
-    private:
-        aimatrix<T> A;
-        aimatrix<T> B;
-    public:
-        Split(const aimatrix<T>& XH, int param_size, int hidden_size) {
-            A = XH.block(0, 0, param_size, hidden_size);
-            B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
-        }
-        aimatrix<T> transposedX() {
-            return (aimatrix<T>) (A.transpose());
-        }
-        aimatrix<T> transposedH() {
-            return (aimatrix<T>) (B.transpose());
-        }
-
-    };
+    virtual const aimatrix<T>& forward(const aimatrix<T>& input_data) = 0; 
+    virtual const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h) = 0;  
+    virtual const aimatrix<T>& getHiddenState() = 0;
 
 };
 
@@ -223,26 +215,23 @@ public:
 };
 
 template <class T>
-class RNN : public BaseOperator {
+class RecurrentBase {
 private:
-    std::vector<RNNCell<T>> fcells;
-    std::vector<RNNCell<T>> bcells;
-    std::vector<RNNCell<T>> cells;
-    
+    std::vector<std::shared_ptr<CellBase<T>>> fcells;
+    std::vector<std::shared_ptr<CellBase<T>>> bcells;
+    std::vector<std::shared_ptr<CellBase<T>>> cells;
+
     aitensor<T> input_data;
 
     int num_directions = 2;
-    int sequence_length;
-    int initialized = false;
-    int hidden_size;
-    int output_size;
-    int num_layers;
-    bool bidirectional;
-    RNNType rnntype;
+    int sequence_length = 0;
+    int input_size = 0;
+    int embedding_size = 0;
+
     ActivationType otype;
     ReductionType rtype;
 
-    std::vector<aimatrix<T>> foutput, boutput, outputs;
+    std::vector<aimatrix<T>> foutput, boutput, output;
     std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
     std::vector<airowvector<T>> bo;  // Bias for the predicted output
 
@@ -252,22 +241,124 @@ private:
     aitensor<T> gradients;
     aitensor<T> Yhat;
 
-public:
-    RNN(int hidden_size, int output_size, T learning_rate, int num_layers, 
-        bool bidirectional, RNNType rnntype) 
-        : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
+    bool initialized = false;
 
-        for (int i = 0; i < num_layers; ++i) {
-            RNNCell<T> cell(hidden_size, learning_rate);
-            fcells.push_back(cell);
-        }
-        for (int i = 0; i < num_layers; ++i) {
-            RNNCell<T> cell(hidden_size, learning_rate);
-            bcells.push_back(cell);
+    int hidden_size;
+    int output_size;
+    T   learning_rate = 0.01;
+    int num_layers;
+    bool bidirectional;
+    RNNType rnntype;
+    CellType celltype;
+
+        // Factory function to create cell objects based on an option
+    std::shared_ptr<CellBase<T>> createCell(CellType celltype, int hidden_size, int learning_rate) {
+        if (celltype == CellType::RNN_VANILLA) {
+            return std::make_unique<RNNCell<T>>(hidden_size, learning_rate);
+        } else
+        if (celltype == CellType::RNN_LSTM) {
+            return std::make_unique<LSTMCell<T>>(hidden_size, learning_rate);
+        } else
+        if (celltype == CellType::RNN_GRU) {
+            return std::make_unique<GRUCell<T>>(hidden_size, learning_rate);
+        } else {
+            return nullptr; // Invalid option
         }
     }
-    const aitensor<T>&  forward(const aitensor<T>& input_data);
-    const aitensor<T>&  backward(const aitensor<T>& gradients);
+
+public:
+    RecurrentBase(int hidden_size, int output_size, T learning_rate, int num_layers, bool bidirectional, RNNType rnntype, CellType celltype) 
+        : hidden_size(hidden_size), output_size(output_size), learning_rate(learning_rate), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype), celltype(celltype) {
+
+        for (int i = 0; i < num_layers; ++i) {
+            std::shared_ptr<CellBase<T>> rnn_ptr1 = createCell(celltype, hidden_size, learning_rate);
+            std::shared_ptr<CellBase<T>> rnn_ptr2 = createCell(celltype, hidden_size, learning_rate);
+            this->fcells.push_back( std::move(rnn_ptr1)); 
+            this->bcells.push_back( std::move(rnn_ptr2));
+        }
+    }
+
+    std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> out);
+
+    const aitensor<T> processOutputs();
+
+    void processGradients(aitensor<T>& gradients);
+
+    const aitensor<T> forwarding(const aitensor<T>& input_data);
+
+    const aitensor<T> backprop(const aitensor<T>& gradients);
+
+    RNNType getRNNType() { return this->rnntype; }
+    ActivationType getOType() { return this->otype; }
+    ReductionType getRType() { return this->rtype; }
+    int getNumDirections() { return this->num_directions;}
+    int getNumLayers() { return this->num_layers; }
+
+    // void setOutput(const std::vector<aimatrix<T>>& output) { this->output = output; }
+    void setPrediction(const aitensor<T>& Yhat) { this->Yhat = Yhat; }
+    const aitensor<T>& getPrediction() { return this->Yhat; }
+
+    void setGradients(const aitensor<T>& gradients) { this->gradients = gradients; }
+    const aitensor<T>& getGradients() { return this->gradients; }
+
+    void setData(const aitensor<T>& input_data) { this->input_data = input_data; }
+    void setRNNType(RNNType rnntype) {  this->rnntype = rnntype; }
+    void setOType(ActivationType otype) {  this->otype = otype; }
+    void setRType(ReductionType rtype) {  this->rtype = rtype; }
+
+    void setSequenceLength(int sequence_length) { this->sequence_length = sequence_length; }
+    void setInputSize(int input_size) { this->input_size = input_size; }
+    void setEmbeddingSize(int embedding_size) { this->embedding_size = embedding_size; }
+
+    int getSequenceLength() { return this->sequence_length; }
+    int getInputSize() { return this->input_size; }
+    int getEmbeddingSize() { return this->embedding_size; }
+
+    void setInitialized() { this->initialized = true; }
+    bool isInitialized() { return this->initialized; }
+
+    CellType getCellType() { return this->celltype; }
+
+    void setCells(int direction) {
+        this->cells = (direction == 0) ? this->fcells : this->bcells;
+    }
+
+    std::vector<std::shared_ptr<CellBase<T>>> getCells() const { return this->cells; }
+
+    void setOutputSize(int output_size) { this->output_size = output_size; }
+
+    int getOutputSize() { return this->output_size;  }
+    int getHiddenSize() { return this->hidden_size;  }
+
+    const std::vector<aimatrix<T>>& get_V() { return this->V; }     
+    const std::vector<airowvector<T>>& get_bo() { return this->bo; }  
+
+    void set_V(int step, const aimatrix<T>& V) { this->V[step] = V; }     
+    void set_bo(int step, const airowvector<T>& bo ) { this->bo[step] = bo; }  
+
+    const std::vector<aimatrix<T>>& get_dV() { return this->dV; }     
+    const std::vector<airowvector<T>>& get_dbo() { return this->dbo; }  
+
+    void addV(aimatrix<T> V) { this->V.push_back( V ); }
+    void addbo(airowvector<T> bo) { this->bo.push_back( bo ); }
+
+    const aitensor<T>& getData() { return this->input_data; }
+    std::vector<aimatrix<T>> getFoutput() { return this->foutput; }
+    std::vector<aimatrix<T>> getBoutput() { return this->boutput; }
+    std::vector<aimatrix<T>> getOutput() { return this->output; }
+
+
+
+};
+
+template <class T>
+class RNN : public BaseOperator, public RecurrentBase<T> {
+public:
+    RNN(int hidden_size, int output_size, T learning_rate, int num_layers, bool bidirectional, RNNType rnntype) 
+        : RecurrentBase<T>(hidden_size, output_size, learning_rate, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA) {}
+
+    const aitensor<T> forward(const aitensor<T>& input_data);
+    const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
@@ -276,49 +367,13 @@ public:
 };
 
 template <class T>
-class LSTM : public BaseOperator {
-private:
-    std::vector<LSTMCell<T>> fcells;
-    std::vector<LSTMCell<T>> bcells;
-    std::vector<LSTMCell<T>> cells;
-    aitensor<T> input_data;
-    int num_directions = 2;
-    int sequence_length;
-    int initialized = false;
-    int hidden_size;
-    int output_size;
-    int num_layers;
-    bool bidirectional;
-    RNNType rnntype;
-    ActivationType otype;
-    ReductionType rtype;
-
-    std::vector<aimatrix<T>> foutput, boutput, outputs;
-    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> bo;  // Bias for the predicted output
-
-    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
-
-    aitensor<T> gradients;
-    aitensor<T> Yhat;
-
+class LSTM : public BaseOperator, public RecurrentBase<T> {
 public:
-    LSTM(int hidden_size, int output_size, T learning_rate, int num_layers, 
-        bool bidirectional, RNNType rnntype) 
-        : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
+    LSTM(int hidden_size, int output_size, T learning_rate, int num_layers, bool bidirectional, RNNType rnntype) 
+        : RecurrentBase<T>(hidden_size, output_size, learning_rate, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA) {}
 
-        for (int i = 0; i < num_layers; ++i) {
-            LSTMCell<T> cell(hidden_size, learning_rate);
-            fcells.push_back(cell);
-        }
-        for (int i = 0; i < num_layers; ++i) {
-            LSTMCell<T> cell(hidden_size, learning_rate);
-            bcells.push_back(cell);
-        }
-    }
-    const aitensor<T>&  forward(const aitensor<T>& input_data);
-    const aitensor<T>&  backward(const aitensor<T>& gradients);
+    const aitensor<T> forward(const aitensor<T>& input_data);
+    const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
@@ -326,56 +381,20 @@ public:
 };
 
 template <class T>
-class GRU : public BaseOperator {
-private:
-    std::vector<GRUCell<T>> fcells;
-    std::vector<GRUCell<T>> bcells;
-    std::vector<GRUCell<T>> cells;
-    aitensor<T> input_data;
-    int num_directions = 2;
-    int sequence_length;
-    int initialized = false;
-    int hidden_size;
-    int output_size;
-    int num_layers;
-    bool bidirectional;
-    RNNType rnntype;
-    ActivationType otype;
-    ReductionType rtype;
-
-    std::vector<aimatrix<T>> foutput, boutput, outputs;
-    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> bo;  // Bias for the predicted output
-
-    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
-
-    aitensor<T> gradients;
-    aitensor<T> Yhat;
-
+class GRU : public BaseOperator, public RecurrentBase<T> {
 public:
-    GRU(int hidden_size, int output_size, T learning_rate, int num_layers, 
-        bool bidirectional, RNNType rnntype) 
-        : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype) {
+    GRU(int hidden_size, int output_size, T learning_rate, int num_layers, bool bidirectional, RNNType rnntype) 
+        : RecurrentBase<T>(hidden_size, output_size, learning_rate, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA) {}
 
-        for (int i = 0; i < num_layers; ++i) {
-            GRUCell<T> cell(hidden_size, learning_rate);
-            fcells.push_back(cell);
-        }
-        for (int i = 0; i < num_layers; ++i) {
-            GRUCell<T> cell(hidden_size, learning_rate);
-            bcells.push_back(cell);
-        }
-    }
-    const aitensor<T>& forward(const aitensor<T>& input_data);
-    const aitensor<T>&  backward(const aitensor<T>& gradients);
+    const aitensor<T> forward(const aitensor<T>& input_data);
+    const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {}
     void backwardPass() {}
 };
 
-
+/*
 template <typename CellType, class T>
 std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> out, CellType& rnn);
 
@@ -390,6 +409,9 @@ const aitensor<T>& forwarding(const aitensor<T>& input_data, CellType* rnn);
 
 template <typename CellType, class T>
 const aitensor<T>&backprop(const aitensor<T>& gradients, CellType* rnn);
+*/
+
+
 
 
 #endif

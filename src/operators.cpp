@@ -1323,14 +1323,14 @@ const aitensor<T> Activation<T>::forward(const aitensor<T>& input_data) {
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        input_batch = matrix_view((aitensor2<T>) (input_data.chip(i, 0)));
+        input_batch = matrix_view((aitensor2<T>) (chip(this->input_data, i, 0)));
 
         // Perform Activation
         this->output_data.chip(i, 0) = tensor_view(computeActivation(input_batch));
     }
 
     log_detail("Activation Result" );
-    log_matrix(  matrix_view(chip(this->output_data, 0, 0) ) );
+    log_matrix(matrix_view(chip(this->output_data, 0, 0)));
 
     return this->output_data; // this becomes input to the next Node or next Layer.
 }
