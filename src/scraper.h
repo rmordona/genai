@@ -73,6 +73,33 @@ a server (replier). It might not be the best fit for a URL frontier where you wa
 * - Routes the selected URL to the Crawler.
 **************************************************************************************************************************/
 
+#ifndef SCRAPER_H
+#define SCRAPER_H
+
+#include <curl/curl.h>
+#include <libxml/parser.h>
+#include <libxml/tree.h>
+
+class Scraper {
+private:
+
+public:
+
+    Scraper() {
+        curl_global_init(CURL_GLOBAL_ALL);
+    }
+
+    ~Scraper() {
+        curl_global_cleanup();
+    }
+
+    size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output);
+    bool crawl(const std::string& url, int depth = 0);
+
+};
+
+
+
 extern int getPriorityPercentageFromUrl(const std::string& url, int defaultPriorityPercentage);
 
 class CrawlerService {
@@ -480,3 +507,5 @@ public:
 
 };
 
+
+#endif

@@ -421,8 +421,9 @@ void print_string(const std::string& text, bool printNextLine);
 
 void print_double(double value, bool printNextLine);
 
-template <class T>
-std::string scalar_to_string(const T& value);
+std::string scalar_to_string(const float& value);
+
+std::string scalar_to_string(const double& value);
 
 double* allocate_matrix(ssize_t rows, ssize_t cols);
 
@@ -735,10 +736,6 @@ class BaseOperator {
 
 #endif
 
-
-
-
-
 /*
 #ifndef URLFRONTIER_H
 #define URLFRONTIER_H
@@ -809,33 +806,6 @@ public:
 
 #endif
 */
-
-#ifndef SCRAPER_H
-#define SCRAPER_H
-
-#include <curl/curl.h>
-#include <libxml/parser.h>
-#include <libxml/tree.h>
-
-class Scraper {
-private:
-
-public:
-
-    Scraper() {
-        curl_global_init(CURL_GLOBAL_ALL);
-    }
-
-    ~Scraper() {
-        curl_global_cleanup();
-    }
-
-    size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* output);
-    bool crawl(const std::string& url, int depth = 0);
-
-};
-
-#endif
 
 #ifndef DISTRIBUTED_KVS_H
 #define DISTRIBUTED_KVS_H

@@ -296,7 +296,7 @@ void print_string(const std::string& text, bool printNextLine) {
         py::print(text, py::arg("end") = "");
     }
 }
- 
+
 void print_double(double value, bool printNextLine) {
     if (printNextLine) {
         py::print(value);
@@ -305,9 +305,12 @@ void print_double(double value, bool printNextLine) {
     }
 }
 
-template <class T>
-std::string scalar_to_string(const T& value) {
-      return std::to_string(value());
+std::string scalar_to_string(const float& value) {
+      return std::to_string(value);
+}
+
+std::string scalar_to_string(const double& value) {
+      return std::to_string(value);
 }
 
 std::string wstringToUtf8(const std::wstring& wstr) {
@@ -814,12 +817,13 @@ PYBIND11_MODULE(genai, m) {
             py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
         .def("train", (void (BPETokenizer<float>::*)(const std::vector<std::wstring>&, int)) &BPETokenizer<float>::train, 
             py::arg("corpus"), py::arg("merges"), "Train a BPE tokenizer");
+*/
 
     // Definitions for Scraper APIs
     py::class_<Scraper>(m, "Scraper")
         .def(py::init<>())
         .def("crawl", (void (Scraper::*)(std::string&, int)) &Scraper::crawl, py::arg("url"), py::arg("depth") = 0, "Simple crawler");
-  */
+  
     // Define function to print hello
     m.def("print_string", &print_string, "Print 'string'");
     m.def("print_double", &print_double, "Print 'double'");
