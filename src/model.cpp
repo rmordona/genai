@@ -71,12 +71,8 @@ void BaseModel<T>::setTarget(const py::array_t<T>& target) {
     ssize_t dim1 = shape[1]; // Input Size
     ssize_t dim2 = shape[2]; // Parameter / Embedding Size
 
-    // Create an Eigen::Map to map the raw data to an Eigen::Tensor
-    // Eigen::Map<Eigen::Tensor<T,3>> tensor_map(data, dim0, dim1, dim2);
-
     aitensor<T> tensor(dim0, dim1, dim2);
 
-    // auto ptr = static_cast<T*>(info.ptr);
     for (int i = 0; i < dim0; ++i) {
         for (int j = 0; j < dim1; ++j) {
             for (int k = 0; k < dim2; ++k) {
@@ -102,7 +98,7 @@ void BaseModel<T>::useCrossEntropy() {
 template <class T>
 void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& learningRate , int& itermax) {
 
-        // Initialize MPI
+    // Initialize MPI
     //MPI_Init(NULL, NULL);
 
     this->losstype = losstype;

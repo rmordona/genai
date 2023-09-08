@@ -96,6 +96,7 @@ public:
         } else {
             throw std::invalid_argument("Unsupported datatype");
         }
+        std::cout << "Got here !" << std::endl;
         createGraph();
     }
 

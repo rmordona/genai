@@ -4,11 +4,12 @@ ai.print_string("Hello", True)
 
 class MyModel(ai.Model):
 
-   def __init__(self, datatype = datatype):
-     super().__init__(datatype = datatype);
+   def __init__(self, datatype):
+     super().__init__(datatype);
 
 
-model = MyModel(datatype = "double");
+dtype = "double"
+model = MyModel(datatype=dtype);
 
 target = [[1.0, 2.0, 3.0], [3.0, 4.0, 5.0]];
 #model.setTarget(target);
