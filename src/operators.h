@@ -23,9 +23,6 @@
  *
  */
 
-#pragma once
-#include "logger.h"
-
 #ifndef OPERATORS_H
 #define OPERATORS_H
 

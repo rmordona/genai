@@ -27,6 +27,7 @@
 */
 
 #include "genai.h"
+#include "logger.h"
 #include "recurrent.h"
 #include "transformer.h"
 #include "topology.h"

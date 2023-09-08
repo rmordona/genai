@@ -294,8 +294,10 @@
 #include <mutex>
 #include <ctime>
 #include <chrono>
-
+#include <stdexcept>
 #include <algorithm>
+#include <functional>
+#include <curl/curl.h>
 #include <map>
 
 /**************************************************************************************************

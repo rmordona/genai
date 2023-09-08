@@ -271,10 +271,9 @@
 ******************************************************************************************************************************************/
 #include "genai.h"
 #include "logger.h"
-#include "scraper.h"
-#include "recurrent.h"
 #include "topology.h"
 #include "model.h"
+#include "scraper.h"
 
 // Define PY as the static member instance of PythonStream
 PythonStream py_cout;

@@ -28,20 +28,6 @@
 #include "genai.h"
 #include "scraper.h"
 
-#include <zmq.hpp>
-#include <queue>
-#include <unordered_map>
-#include <string>
-#include <stdexcept>
-#include <algorithm>
-#include <chrono>
-#include <thread>
-#include <vector>
-#include <functional>
-#include <curl/curl.h>
-#include <iostream>
-#include <map>
-
 /*****************************************************************************************************
 * Scraper / Crawler Function
 * The crawl function is responsible for crawling sites.
@@ -316,6 +302,10 @@ bool PriorityQueueService::hasMoreUrls() const {
         zmq::message_t message;
         return pq.second.second->recv(message, zmq::recv_flags::dontwait);
     });
+}
+
+bool PriorityQueueService::isEmpty() const {
+    return priorityQueues.empty();
 }
 
 // Get the next Url

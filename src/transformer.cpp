@@ -27,6 +27,7 @@
 */
 
 #include "genai.h"
+#include "logger.h"
 #include "operators.h"
 #include "transformer.h"
 
@@ -575,7 +576,7 @@ const aitensor<T> Encoder<T>::backward(const aitensor<T>& gradients) {
 
     return dInput;
 }  
-
+ 
 template <class T>
 void Encoder<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 

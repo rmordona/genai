@@ -25,7 +25,9 @@
  *
  *
 */
+
 #include "genai.h"
+#include "logger.h"
 #include "operators.h"
 
 namespace py = pybind11;

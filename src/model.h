@@ -23,9 +23,11 @@
  *
  */
 
-#pragma once
+#include "topology.h"
+
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
+
 
 template <class T>
 class BaseModel {

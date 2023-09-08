@@ -79,6 +79,7 @@ a server (replier). It might not be the best fit for a URL frontier where you wa
 #include <curl/curl.h>
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+#include <zmq.hpp>
 
 class Scraper {
 private:
@@ -97,8 +98,6 @@ public:
     bool crawl(const std::string& url, int depth = 0);
 
 };
-
-
 
 extern int getPriorityPercentageFromUrl(const std::string& url, int defaultPriorityPercentage);
 
