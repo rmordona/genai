@@ -43,7 +43,7 @@ ext_modules = [
                     '/usr/local/Cellar/zeromq/4.3.4/include',
                     '/usr/local/Cellar/libmemcached/1.0.18_2/include'],
         extra_compile_args = ['-DEIGEN_USE_BLAS', '-DFMT_HEADER_ONLY', '-DENABLE_DEBUG', '-DENABLE_TRACE', '-DENABLE_WARNING', '-DENABLE_INFO', '-DENABLE_ERROR', '-DERROR_CRITICAL'],
-        extra_link_args = ['-fopenmp', '-Wall', '-fpermissive', '-fPIC', '-mavx', '-mfma' ],
+        extra_link_args = ['-fopenmp', '-Wall', '-fpermissive', '-fPIC', '-mavx', '-mfma' , '-DENABLE_INFO'],
         libraries=['cblas', 'mpi', 'zmq', 'memcached', 'ssl','crypto', 'sqlite3', 'fmt', 'xml2', 'curl' ],
         library_dirs=['/usr/local/Cellar/open-mpi/4.1.5/lib',
                      '/usr/local/Cellar/openblas/0.3.23/lib',

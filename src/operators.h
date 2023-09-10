@@ -183,7 +183,7 @@ private:
     int param_size;
 
 public:
-    BatchNorm(int size) {
+    BatchNorm() {
       // initialize gradients for next iteration.
         vgscale.empty();
         vgshift.empty();
@@ -239,7 +239,7 @@ private:
     int param_size;
 
 public:
-    LayerNorm(int size) {
+    LayerNorm() {
         // initialize gradients for next iteration.
         vgscale.empty();
         vgshift.empty();
@@ -277,7 +277,7 @@ private:
     aitensor<T> dInput; // Gradient
 
     std::string activationtype = "leakyrelu";
-    float alpha = 0.01; // for leakyReLU
+    T alpha = 0.01; // for leakyReLU
 
     int N = 0;
     int M = 0;
@@ -293,7 +293,7 @@ public:
         log_info( "**** Activation instance created ****" );
     }
 
-    Activation(const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    Activation(const std::string& activationtype = "leakyrelu", const T alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
         log_info( "**** Activation instance created ****" );

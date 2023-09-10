@@ -287,7 +287,7 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     if (M1.empty()) {
         for (int i = 0; i < this->H; i++) {
-            Attention<T>* A1  = new Attention<T>(this->H, this->W);
+            Attention<T>* A1  = new Attention<T>(this->W);
             M1.push_back(A1);
         }
     }
@@ -478,9 +478,9 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
     log_detail( "Size of input: {:d}", this->input_data.size() );
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr) {
-        LN2 = new LayerNorm<T>(this->W);
+        LN2 = new LayerNorm<T>();
         F1  = new FeedForward<T>(this->W, this->bias, this->activationtype,  this->alpha);
-        LN1 = new LayerNorm<T>(this->W); 
+        LN1 = new LayerNorm<T>(); 
         M1  = new MultiHeadAttention<T>(this->H, this->W);
     }
 

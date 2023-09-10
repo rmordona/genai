@@ -57,9 +57,8 @@ private:
     bool bias = false;
 
 public:
-    Attention(int heads = 1, int size = 3, bool bias = false)  {
+    Attention(int size = 3, bool bias = false)  {
         this->W = size;
-        // this->H = heads;
         this->bias = bias;
         log_info( "**** Attention instance created ****" );
     }

@@ -168,6 +168,117 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& l
 
 }
 
+void ModelNode::setDataFloat(const py::array_t<float>& input_data) {
+
+    // request a buffer descriptor from Python
+    py::buffer_info buffer_info = input_data.request();
+
+    // extract data an shape of input array
+    float* data = static_cast<float *>(buffer_info.ptr);
+    this->input_fdata = data;
+}
+
+void ModelNode::setDataDouble(const py::array_t<double>& input_data) {
+
+    // request a buffer descriptor from Python
+    py::buffer_info buffer_info = input_data.request();
+
+    // extract data an shape of input array
+    double* data = static_cast<double *>(buffer_info.ptr);
+    this->input_ddata = data;
+}
+
+Model::Model(const std::string& losstype, const std::string& optimizertype, 
+        const double learningRate, const int itermax, const std::string& datatype) {
+    this->losstype = losstype;
+    this->optimizertype = optimizertype;
+    this->learningRate = learningRate;
+    this->itermax = itermax;
+    this->datatype = datatype;
+    if (datatype == "float") {
+        BaseModel<float> mymodelf(losstype, optimizertype, (float) learningRate, itermax);
+        this->modelXf = mymodelf;
+    } else if (datatype == "double") {
+        BaseModel<double> mymodeld(losstype, optimizertype, (double) learningRate, itermax);
+        this->modelXd = mymodeld;
+    } else {
+        throw std::invalid_argument("Unsupported datatype");
+    }
+    std::cout << "Got here :" << datatype << " learningRate " << learningRate << std::endl;
+    createGraph();
+}
+
+void Model::createGraph() {
+    if (datatype == "float") {
+        graphXf = Graph<float>();
+        this->modelXf.setGraph(&graphXf);
+    } else if (datatype == "double") {
+        graphXd = Graph<double>();
+        this->modelXd.setGraph(&graphXd);
+    } else {
+        throw std::invalid_argument("Unsupported datatype");
+    }
+} 
+
+std::shared_ptr<ModelNode> Model::addNode(const std::string& name, NodeType ntype) {
+    if (datatype == "float") {
+        if (!isNode(name)) {
+            std::shared_ptr<ModelNode> node = std::make_unique<ModelNode>(name, ntype);
+            this->nodes.push_back(node);
+            return node;
+        } else {
+            std::cerr << "Node already exists. Use another name ..." << std::endl;
+        }
+    } else if (datatype == "double") {
+        if (!isNode(name)) {
+            std::shared_ptr<ModelNode> node = std::make_unique<ModelNode>(name, ntype);
+            this->nodes.push_back(node);
+            return node;
+        } else {
+            std::cerr << "Node already exists. Use another name ..." << std::endl;
+        }
+    } else {
+        throw std::invalid_argument("Unsupported datatype");
+    }
+    return nullptr;
+}
+
+void Model::connect(std::shared_ptr<ModelNode> from,std::shared_ptr<ModelNode> to) {
+    try {
+        if (from == nullptr) {
+        throw AIException(" Source node is missing ...");
+        }
+        if (to == nullptr) {
+        throw AIException(" Target node is missing ...");
+        }
+        if (datatype == "float") {
+            std::shared_ptr<Node<float>> from_node =  (modelXf.getGraph())->createNode(from->getName(), from->getNodeType());
+            std::shared_ptr<Node<float>> to_node =  (modelXf.getGraph())->createNode(to->getName(), to->getNodeType());
+            (modelXf.getGraph())->addConnection(std::make_unique<Connection<float>>(from_node, to_node));
+        } else
+        if (datatype == "double") {
+            std::shared_ptr<Node<double>> from_node =  (modelXd.getGraph())->createNode(from->getName(), from->getNodeType());
+            std::shared_ptr<Node<double>> to_node =  (modelXd.getGraph())->createNode(to->getName(), to->getNodeType());
+            (modelXd.getGraph())->addConnection(std::make_unique<Connection<double>>(from_node, to_node));
+        }
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+void Model::connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::shared_ptr<ModelNode> to) {
+    for (auto& from : from_nodes) {
+        this->connect(from, to);
+    }
+}
+
+
 /*
 void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts) {
 

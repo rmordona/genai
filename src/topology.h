@@ -43,15 +43,12 @@ class Node {
 private:
     int id;
    // Graph* graph; // Pointer to the graph that the node belongs to
-    std::unordered_set<Node*> outputs;
-    std::unordered_set<Node*> inputs;
+    std::unordered_set<std::shared_ptr<Node<T>>> outputs;
+    std::unordered_set<std::shared_ptr<Node<T>>> inputs;
     std::vector<std::shared_ptr<BaseOperator>> operations;
     aitensor<T> input_data;
     aitensor<T> output_data;
     aitensor<T> gradients;
-    // aitensor<T> dInput;
-
-    // Reduction* reduce_op = nullptr;
     ssize_t repeat = 1;
     std::string reduce = "add";
 
@@ -94,15 +91,15 @@ public:
 
     const aitensor<T>& getOutput();
 
-    void addInput(Node* input);
+    void addInput(std::shared_ptr<Node<T>> input, std::shared_ptr<Node<T>> output);
 
-    void addOutput(Node* output);
+    void addOutput(std::shared_ptr<Node<T>> output, std::shared_ptr<Node<T>> input);
 
-    std::unordered_set<Node*> getOutputs();
+    std::unordered_set<std::shared_ptr<Node<T>>> getOutputs();
 
-    std::unordered_set<Node*> getInputs();
+    std::unordered_set<std::shared_ptr<Node<T>>> getInputs();
 
-    Node& setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations);
+    std::shared_ptr<Node<T>> setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations);
 
     void setReduction(std::string& reducttype);
 
@@ -132,15 +129,15 @@ public:
 template <class T>
 class Connection {
 private:
-    Node<T>* source;
-    Node<T>* destination;
+    std::shared_ptr<Node<T>> source;
+    std::shared_ptr<Node<T>> destination;
 
 public:
-    Connection(Node<T>* sourceNode, Node<T>* destinationNode) : source(sourceNode), destination(destinationNode) {}
+    Connection(std::shared_ptr<Node<T>> sourceNode, std::shared_ptr<Node<T>> destinationNode) : source(sourceNode), destination(destinationNode) {}
 
-    Node<T>* getSource();
+    std::shared_ptr<Node<T>> getSource();
 
-    Node<T>* getDestination();
+    std::shared_ptr<Node<T>> getDestination();
 
     void forwardPass();
 
@@ -151,10 +148,10 @@ public:
 template <class T>
 class Graph {
 private:
-    std::vector<Node<T>*> nodes;
-    std::vector<Connection<T>*> connections;
-    std::unordered_map<Node<T>*, int> indegree;
-    std::unordered_map<Node<T>*, int> outdegree;
+    std::vector<std::shared_ptr<Node<T>>> nodes;
+    std::vector<std::shared_ptr<Connection<T>>> connections;
+    std::unordered_map<std::shared_ptr<Node<T>>, int> indegree;
+    std::unordered_map<std::shared_ptr<Node<T>>, int> outdegree;
     aitensor<T> input_data;
     aitensor<T> predicted;
     aitensor<T> target;
@@ -168,19 +165,19 @@ public:
     // Node<T>* createNode(const std::string& name, NodeType type, const py::array_t<T>& embedding);
 
     // Create a node with two arguments: name and type (no initial values)
-    Node<T>* createNode(const std::string& name, NodeType type);
+    std::shared_ptr<Node<T>> createNode(const std::string& name, NodeType type);
 
-    void connect(Node<T>* from, Node<T>* to);
+    void connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to);
 
-    void connect(Node<T>* from, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations);
 
-    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to);
+    void connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to);
 
-    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations);
 
-    void addConnection(Connection<T>* connection);
+    void addConnection(std::shared_ptr<Connection<T>> connection);
 
-    std::vector<Node<T>*> getNodes();
+    std::vector<std::shared_ptr<Node<T>>> getNodes();
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
     const aitensor<T> forwardPropagation();
@@ -195,7 +192,7 @@ public:
 
     void nextBatch();
 
-    const std::unordered_map<Node<T>*, int>& getIndegree() const;
+    const std::unordered_map<std::shared_ptr<Node<T>>, int>& getIndegree() const;
 
     std::string generateDotFormat();
 

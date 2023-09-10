@@ -410,6 +410,27 @@ static const std::vector<aitensor<T>> feature_slice(const aitensor<T>& tensor, i
     return tensors;
 }
 
+/*************************************************************************************************
+// Helper class for Exceptions
+**************************************************************************************************/
+
+#ifndef AIEXCEPTION_H
+#define AIEXCEPTION_H
+
+class AIException : public std::exception {
+public:
+    AIException(const char* message) : message_(message) {}
+
+    // Overriding the what() function for customized message.
+    const char* what() const noexcept override {
+        return message_.c_str();
+    }
+
+private:
+    std::string message_;
+};
+
+#endif
  
 /**************************************************************************************************
   Helper Functions shared by other classes

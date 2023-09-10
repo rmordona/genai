@@ -689,10 +689,43 @@ PYBIND11_MODULE(genai, m) {
         .def("setTarget", &BaseModel<float>::setTarget, "set Target of a model");
 */
 
+    py::class_<ModelNode, std::shared_ptr<ModelNode>>(m, "Node")
+        .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
+        .def("setData", (void (ModelNode::*)(const py::array_t<float>&)) &ModelNode::setDataFloat, "Function with float argument")
+        .def("setData", (void (ModelNode::*)(const py::array_t<double>&)) &ModelNode::setDataDouble, "Function with double argument");
+
+
     py::class_<Model>(m, "Model")
         .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
                 py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-                py::arg("learningRate") = 0.01, py::arg("itermax") = 1, py::arg("datatype") = "float");
+                py::arg("learningRate") = 0.01, py::arg("itermax") = 1, py::arg("datatype") = "float")
+        .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
+                  py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
+        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
+        .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to multiple nodes");
+
+    py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
+    py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Linear")
+        .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
+    py::class_<ModelBatchNorm, BaseOperator, std::shared_ptr<ModelBatchNorm>>(m, "BatchNorm")
+        .def(py::init<>());
+    py::class_<ModelLayerNorm, BaseOperator, std::shared_ptr<ModelLayerNorm>>(m, "LayerNorm")
+        .def(py::init<>()); 
+    py::class_<ModelReduction, BaseOperator, std::shared_ptr<ModelReduction>>(m, "Reduction")
+        .def(py::init<const std::string&>(), py::arg("type") = "sum");  
+    py::class_<ModelActivation, BaseOperator, std::shared_ptr<ModelActivation>>(m, "Activation")
+        .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
+        .def(py::init<int, bool>(), py::arg("size") = 3, py::arg("bias") = false); 
+    py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")
+        .def(py::init<int, bool, const std::string&, const float>(), 
+                py::arg("size") = 3, py::arg("bias") = true,
+                py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
+        .def(py::init<int, int, bool, const std::string&, const float>(), 
+                py::arg("heads") = 1,
+                py::arg("size") = 3, py::arg("bias") = true,
+                py::arg("type") = "relu", py::arg("alpha") = 0.01);
 
     // Definitions for BaseOperator APIs
     /*

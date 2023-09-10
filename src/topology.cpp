@@ -128,31 +128,31 @@ const aitensor<T>& Node<T>::getOutput() {
 }
 
 template <class T>
-void Node<T>::addInput(Node<T>* input) {
+void Node<T>::addInput(std::shared_ptr<Node<T>> input, std::shared_ptr<Node<T>> output) {
     inputs.insert(input);
-    input->outputs.insert(this);
+    input->outputs.insert(output); // struggling to use enable_from_this()
 }
 
 template <class T>
-void Node<T>::addOutput(Node<T>* output) {
+void Node<T>::addOutput(std::shared_ptr<Node<T>> output, std::shared_ptr<Node<T>> input) {
     outputs.insert(output);
-    output->inputs.insert(this);
+    output->inputs.insert(input);  // struggling to use enable_from_this()
 }
 
 template <class T>
-std::unordered_set<Node<T>*> Node<T>::getOutputs() {
+std::unordered_set<std::shared_ptr<Node<T>>> Node<T>::getOutputs() {
     return outputs;
 }
 
 template <class T>
-std::unordered_set<Node<T>*> Node<T>::getInputs() {
+std::unordered_set<std::shared_ptr<Node<T>>> Node<T>::getInputs() {
     return inputs;
 }
 
 template <class T>
-Node<T>& Node<T>::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
+std::shared_ptr<Node<T>> Node<T>::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
     this->operations = operations;
-    return *this;
+    return (std::shared_ptr<Node<T>>) this;
 }
 
 template <class T>
@@ -190,7 +190,7 @@ const aitensor<T> Node<T>::aggregateData(const aitensor<T>& input_data) {
 
     log_detail( "Getting size of node input: {0}", input_data.size() );
     aiscalar<T> suminputs = 0.0;
-    for (Node* node : this->inputs) { // Check if we have nodes that are feeding this node.
+    for (auto& node : this->inputs) { // Check if we have nodes that are feeding this node.
         aitensor<T> external_input = node->getOutput();
         log_detail( "Getting size of node [{0}] output: {1}", node->getName(), external_input.size() );
         if (aggregate_input.size() == 0) {
@@ -262,7 +262,7 @@ template <class T>
 void Node<T>::propagateGradients(const aitensor<T>& gradients) {
     // Now handle all other gradients for other inputs.
     if (inputs.size() != 0)
-    for (Node* node : this->inputs) { // These are input nodes that connect to this node.
+    for (auto& node : this->inputs) { // These are input nodes that connect to this node.
         if (reduce == "add") {
             node->setGradients(gradients);
         } else
@@ -272,7 +272,7 @@ void Node<T>::propagateGradients(const aitensor<T>& gradients) {
         if (reduce == "mul") {
             // change to use more efficient element-wise function which uses GPU/TPU.
             aitensor<T> dInput = gradients;
-            for (Node* nodex : outputs) {
+            for (auto& nodex : outputs) {
                 if (nodex->getName() != node->getName()) {
                     dInput = dInput * nodex->getOutput();
                 }
@@ -493,14 +493,14 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
 }
 
 template <class T>
-std::string removeSpace(Node<T>* node) {
+std::string removeSpace(std::shared_ptr<Node<T>> node) {
     std::string s = node->getName();
     s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
     return s;
 }
 
 template <class T>
-std::string replaceSpace(Node<T>* node) {
+std::string replaceSpace(std::shared_ptr<Node<T>> node) {
     std::string nodename = node->getName();
     std::replace(nodename.begin(), nodename.end(), ' ', '_');
     return nodename;
@@ -508,7 +508,7 @@ std::string replaceSpace(Node<T>* node) {
 
 template <class T>
 std::string Node<T>::generateDotFormat() {
-    std::string nodename = replaceSpace(this);
+    std::string nodename = replaceSpace((std::shared_ptr<Node<T>>) this);
     std::string nodelabel = nodename + "_label";
     std::string dot_ = "";
     int cnt = 0; 
@@ -547,12 +547,12 @@ std::string Node<T>::generateDotFormat() {
 *****************************************************************************************************/
 
 template <class T>
-Node<T>* Connection<T>::getSource() {
+std::shared_ptr<Node<T>> Connection<T>::getSource() {
     return source;
 }
 
 template <class T>
-Node<T>* Connection<T>::getDestination() {
+std::shared_ptr<Node<T>> Connection<T>::getDestination() {
     return destination;
 }
 
@@ -581,53 +581,53 @@ Node<T>* Graph<T>::createNode(const std::string& name, NodeType type, const py::
 
 // Create a node with two arguments: name and type (no initial values)
 template <class T>
-Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
-    Node<T>* node = new Node<T>(name, type);
+std::shared_ptr<Node<T>> Graph<T>::createNode(const std::string& name, NodeType type) {
+    std::shared_ptr<Node<T>> node = std::make_unique<Node<T>>(name, type);
     nodes.push_back(node);
     return node;
 }
 
 template <class T>
-void Graph<T>::connect(Node<T>* from, Node<T>* to) {
-    addConnection(new Connection<T>(from, to));
+void Graph<T>::connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to) {
+    addConnection(std::make_unique<Connection<T>>(from, to));
 }
 
 template <class T>
-void Graph<T>::connect(Node<T>* from, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+void Graph<T>::connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
     to->setOperations(operations);
-    addConnection(new Connection<T>(from, to));
+    addConnection(std::make_unique<Connection<T>>(from, to));
 }
 
 template <class T>
-void Graph<T>::connect(std::vector<Node<T>*> from_nodes, Node<T>* to) {
-    for (Node<T>* from : from_nodes) {
-        addConnection(new Connection<T>(from, to));
+void Graph<T>::connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to) {
+    for (auto& from : from_nodes) {
+        addConnection(std::make_unique<Connection<T>>(from, to));
     }
 }
 
 template <class T>
-void Graph<T>::connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
+void Graph<T>::connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
     to->setOperations(operations);
-    for (Node<T>* from : from_nodes) {
-        addConnection(new Connection<T>(from, to));
+    for (auto& from : from_nodes) {
+        addConnection(std::make_unique<Connection<T>>(from, to));
     }
 }
-
+ 
 template <class T>
-void Graph<T>::addConnection(Connection<T>* connection) {
+void Graph<T>::addConnection(std::shared_ptr<Connection<T>> connection) {
 
     log_info( "***************************************" );
     log_info( "***    Graph Add Connection  **********" );
     log_info( "***************************************" );
 
     connections.push_back(connection);
-    Node<T>* from = connection->getSource();
-    Node<T>* to = connection->getDestination();
+    std::shared_ptr<Node<T>> from = connection->getSource();
+    std::shared_ptr<Node<T>> to = connection->getDestination();
     outdegree[from]++;
     indegree[to]++;
 
-    to->addInput(from);
-    from->addOutput(to);
+    to->addInput(from, to);
+    from->addOutput(to, from);
 
     log_detail( "Source Node: {0}", from->getName() );
     log_detail( "Destination Node: {0}", to->getName() );
@@ -635,7 +635,7 @@ void Graph<T>::addConnection(Connection<T>* connection) {
 }
 
 template <class T>
-std::vector<Node<T>*> Graph<T>::getNodes() {
+std::vector<std::shared_ptr<Node<T>>> Graph<T>::getNodes() {
     return nodes;
 }
 
@@ -643,8 +643,8 @@ std::vector<Node<T>*> Graph<T>::getNodes() {
 template <class T>
 const aitensor<T> Graph<T>::forwardPropagation() {
 
-    std::queue<Node<T>*> q;
-    std::unordered_map<Node<T>*, int> indegree_(indegree); 
+    std::queue<std::shared_ptr<Node<T>>> q;
+    std::unordered_map<std::shared_ptr<Node<T>>, int> indegree_(indegree); 
 
     log_info( "***************************************" );
     log_info( "*****    Graph Forward Pass  **********" );
@@ -652,7 +652,7 @@ const aitensor<T> Graph<T>::forwardPropagation() {
 
     log_detail( "Number of Nodes: {0}", getNodes().size() );
 
-    for (Node<T>* node : nodes) {
+    for (auto& node : nodes) {
         if (indegree[node] == 0) {
             q.push(node);
         }
@@ -666,7 +666,7 @@ const aitensor<T> Graph<T>::forwardPropagation() {
     aitensor<T> output;
 
     while (!q.empty()) {
-        Node<T>* node = q.front();
+        std::shared_ptr<Node<T>> node = q.front();
         q.pop();
 
         log_detail( "*** Graph: Entering forward pass for {0} ****", node->name );
@@ -677,14 +677,14 @@ const aitensor<T> Graph<T>::forwardPropagation() {
         // The last output becomes the final prediction.
         output = node->getOutput();
 
-        for (Connection<T>* connection : this->connections) {
+        for (auto& connection : this->connections) {
             if (connection->getSource() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
                 //connection->forwardPass();
         
                 // Propagate gradient to source node
-                Node<T>* dstNode = connection->getDestination();
+                std::shared_ptr<Node<T>> dstNode = connection->getDestination();
 
                 indegree_[dstNode]--;
                 if (indegree_[dstNode] == 0) {
@@ -701,8 +701,8 @@ const aitensor<T> Graph<T>::forwardPropagation() {
 
 template <class T>
 const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
-    std::queue<Node<T>*> q;
-    std::unordered_map<Node<T>*, int> outdegree_(outdegree); 
+    std::queue<std::shared_ptr<Node<T>>> q;
+    std::unordered_map<std::shared_ptr<Node<T>>, int> outdegree_(outdegree); 
 
     log_info( "***************************************" );
     log_info( "*****    Graph Backward Pass  *********" );
@@ -710,7 +710,7 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
 
     log_detail( "Number of Nodes:", getNodes().size() );
 
-    for (Node<T>* node : nodes) {
+    for (auto& node : nodes) {
         if (outdegree[node] == 0) {
             node->setGradients(gradients); // gradients with respect to loss function.
             q.push(node);
@@ -723,7 +723,7 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
     log_detail( "Entering Queue Loop." );
 
     while (!q.empty()) {
-        Node<T>* node = q.front();
+        std::shared_ptr<Node<T>> node = q.front();
         q.pop();
 
         log_detail( "*** Graph: Entering backward pass for {0} ****", node->name );
@@ -731,14 +731,14 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
         // Compute gradients for the node
         node->backwardPass();
 
-        for (Connection<T>* connection : this->connections) {
+        for (auto& connection : this->connections) {
             if (connection->getDestination() == node) {
 
                 //std::cout << "Processing completed for connection.\n";
                 //Eigen::MatrixXd srcGradients = connection->backwardPass(gradients);
 
                 // Propagate gradient to source node
-                Node<T>* srcNode = connection->getSource();
+                std::shared_ptr<Node<T>> srcNode = connection->getSource();
 
                 outdegree_[srcNode]--;
                 if (outdegree_[srcNode] == 0) {
@@ -792,7 +792,7 @@ void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, int
     log_info( "*****    Graph: Processing Parameter Update ***********" );
     log_info( "*******************************************************" );
 
-    for (Node<T>* node: nodes) {
+    for (auto& node: nodes) {
         node->updateParameters(optimizertype, learningRate, iter);
     }
 
@@ -805,18 +805,18 @@ std::string Graph<T>::generateDotFormat() {
     std::string dot = 
         "digraph G {  node [shape=circle]; rankdir=LR; ";
 
-    for (Node<T>* node: nodes) {
+    for (auto& node: nodes) {
         dot += removeSpace(node) + "; ";
     }
 
-    for (Connection<T>* connection : this->connections) {
-        Node<T> *source = connection->getSource();
-        Node<T> *destination = connection->getDestination();
+    for (auto& connection : this->connections) {
+        std::shared_ptr<Node<T>> source = connection->getSource();
+        std::shared_ptr<Node<T>> destination = connection->getDestination();
         std::string edge = removeSpace(source) + "->" + removeSpace(destination) + ";";
         dot += edge;
     }
 
-    for (Node<T>* node: nodes) {
+    for (auto& node: nodes) {
         dot += node->generateDotFormat();
     }
 
@@ -826,7 +826,7 @@ std::string Graph<T>::generateDotFormat() {
 
 template <class T>
 void Graph<T>::nextBatch() {
-    for (Node<T>* node: nodes) {
+    for (auto& node: nodes) {
         if (node->nodeType() == NodeType::Input)  {
 
         }
@@ -834,7 +834,7 @@ void Graph<T>::nextBatch() {
 }
 
 template <class T>
-const std::unordered_map<Node<T>*, int>& Graph<T>::getIndegree() const {
+const std::unordered_map<std::shared_ptr<Node<T>>, int>& Graph<T>::getIndegree() const {
     return indegree;
 }
 

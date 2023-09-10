@@ -68,6 +68,34 @@ public:
 
 };
 
+class ModelNode {
+private:
+    std::string name;
+    NodeType ntype;
+    std::vector<std::shared_ptr<BaseOperator>> operations;
+    float* input_fdata;
+    double* input_ddata;
+public: 
+    ModelNode(std::string name, NodeType ntype) { 
+        this->name = name; 
+        this->ntype = ntype;
+    }
+
+    std::string getName() { return this->name; }
+
+    NodeType getNodeType() { return this->ntype; }
+
+    void setDataFloat(const py::array_t<float>& input_data);
+    void setDataDouble(const py::array_t<double>& input_data);
+
+    void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
+        this->operations = operations;
+    }
+
+    std::vector<std::shared_ptr<BaseOperator>> getOperations() { return this->operations; }
+
+};
+
 class Model {
 private:
     std::string losstype = "mse";
@@ -79,83 +107,32 @@ private:
     Graph<double> graphXd;
     BaseModel<float> modelXf;
     BaseModel<double> modelXd;
+    std::vector<std::shared_ptr<ModelNode>> nodes;
+
+    // Iterate through the vector to search for the name
+    bool isNode(const std::string& target) {
+        for (auto& node : nodes) {
+            if (node->getName() == target) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 public:
     Model(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float") {
-        this->losstype = losstype;
-        this->optimizertype = optimizertype;
-        this->learningRate = learningRate;
-        this->itermax = itermax;
-        this->datatype = datatype;
-        if (datatype == "float") {
-            BaseModel<float> mymodelf(losstype, optimizertype, (float) learningRate, itermax);
-            this->modelXf = mymodelf;
-        } else if (datatype == "double") {
-            BaseModel<double> mymodeld(losstype, optimizertype, (double) learningRate, itermax);
-            this->modelXd = mymodeld;
-        } else {
-            throw std::invalid_argument("Unsupported datatype");
-        }
-        std::cout << "Got here !" << std::endl;
-        createGraph();
-    }
+          const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float");
 
-    void createGraph() {
-        if (datatype == "float") {
-            graphXf = Graph<float>();
-            modelXf.setGraph(&graphXf);
-        } else if (datatype == "double") {
-            graphXd = Graph<double>();
-            modelXd.setGraph(&graphXd);
-        } else {
-            throw std::invalid_argument("Unsupported datatype");
-        }
-    }
+    void createGraph();
 
-    void addNode(const std::string& name, NodeType ntype, std::vector<std::shared_ptr<BaseOperator>>& operations) {
-        if (datatype == "float") {
-            Node<float>* node1 =  (modelXf.getGraph())->createNode(name, ntype);
-            node1->setOperations(operations);
-        } else if (datatype == "double") {
-            Node<double>* node1 =  (modelXd.getGraph())->createNode(name, ntype);
-            node1->setOperations(operations);
-        } else {
-            throw std::invalid_argument("Unsupported datatype");
-        }
-    }
+    // void addNode(const std::string& name, NodeType ntype, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    std::shared_ptr<ModelNode> addNode(const std::string& name, NodeType ntype);
 
-    void setData(const std::string& name, NodeType ntype, const py::array_t<float>& input_dataf, const py::array_t<double>& input_datad) {
-        if (datatype == "float") {
-            Node<float>* node1 =  (modelXf.getGraph())->createNode(name, ntype);
-            //node1->setData(input_dataf);
-            node1->setData(input_dataf);
-        } else if (datatype == "double") {
-            Node<double>* node1 =  (modelXd.getGraph())->createNode(name, ntype);
-            //node1->setData(input_datad);
-            node1->setData(input_datad);
-        } else {
-            throw std::invalid_argument("Unsupported datatype");
-        }
-    }
+    void setData(const std::string& name, NodeType ntype, const py::array_t<float>& input_dataf, const py::array_t<double>& input_datad);
 
-    template <class T>
-    void connect(Node<T>* from, Node<T>* to) {
-        addConnection(new Connection<T>(from, to));
-    }
+    void connect(std::shared_ptr<ModelNode> from, std::shared_ptr<ModelNode> to);
 
-    template <class T>
-    void connect(Node<T>* from, Node<T>* to, std::vector<std::shared_ptr<BaseOperator>>& operations) {
-        to->setOperations(operations);
-        addConnection(new Connection<T>(from, to));
-    }
-
-    template <class T>
-    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to) {
-        for (Node<T>* from : from_nodes) {
-            addConnection(new Connection<T>(from, to));
-        }
-    }
-
+    void connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::shared_ptr<ModelNode> to);
 
 };
 
@@ -163,6 +140,147 @@ public:
 
 template class BaseModel<float>;  // Instantiate with float
 template class BaseModel<double>;  // Instantiate with double
+
+/************ Wrapper Objects for Python API */
+
+class ModelLinear : public BaseOperator {
+private:
+    int W = 0; // number of weights 
+    bool bias = true; // Use bias by default.
+public: 
+    ModelLinear(int size, bool bias = true)  {
+        this->W = size;
+        this->bias = bias;
+    }
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelBatchNorm : public BaseOperator {
+private:
+public: 
+    ModelBatchNorm() {}
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelLayerNorm : public BaseOperator {
+private:
+public: 
+    ModelLayerNorm() {}
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelActivation : public BaseOperator {
+private:
+    std::string activationtype = "leakyrelu";
+    float alpha = 0.01;
+public: 
+    ModelActivation(const std::string& activationtype = "leakyrelu") {
+        this->activationtype = activationtype;
+    }
+    ModelActivation(const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+    }
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelReduction : public BaseOperator {
+private:
+    std::string reducttype = "add";
+public: 
+    ModelReduction(const std::string& reducttype = "add") {
+        this->reducttype = reducttype;
+    }
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelAttention : public BaseOperator {
+private:
+    int W = 0;  // number of weights (or number of features)
+    int H = 1;  // number of heads
+    bool bias = true;
+public: 
+    ModelAttention(int size = 3, bool bias = false)  {
+        this->H = 1;
+        this->W = size;
+        this->bias = bias;
+    }
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelFeedForward : public BaseOperator {
+private:
+    int W = 0;
+    bool bias = true;
+    std::string activationtype = "leakyrelu";
+    float alpha = 0.01;
+public: 
+    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+        this->activationtype = activationtype;
+        this->W = size;
+        this->bias = bias;
+    }
+
+    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+        this->W = size;
+        this->bias = bias;
+    }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelMultiHeadAttention : public BaseOperator {
+private:
+    int W = 0;  // number of weights (or number of features)
+    int H = 1;  // number of heads
+    bool bias = true;
+public: 
+    ModelMultiHeadAttention(int heads = 3, int size = 3, bool bias = false)  {
+        this->W = size;
+        this->H = heads;
+        this->bias = bias;
+        // M1.setZero();
+        log_info( "**** MultiHeadAttention instance created ****" );
+    }
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+class ModelEncoder : public BaseOperator {
+private:
+    std::string activationtype = "leakyrelu";
+    int W = 0;  // number of weights (or number of features)
+    int H = 1;  // number of heads
+    bool bias = true;
+    float alpha = 0.01;
+public: 
+    ModelEncoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+        this->activationtype = activationtype;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+    }
+
+    ModelEncoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+    }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
 
 
 #endif
