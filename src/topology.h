@@ -39,50 +39,6 @@ enum class NodeType {
 
 class ConvertData {
 public:
-/*
-    template <class T>
-    static aitensor<T> totensor1(const py::array_t<T>& parray) {
-
-        log_info("Converting data ...");
-
-        int ndim = parray.ndim();
-        py::buffer_info buffer_info = parray.request();
-
-        log_info( "Received buffer info:" );
-        log_detail( "Format: {0}", buffer_info.format );
-        log_detail( "Item size: {0}", buffer_info.itemsize );
-        log_detail( "Size: {0}", buffer_info.size );
-        log_detail("dimension: {0}", ndim );
-
-        std::vector<ssize_t> shape = buffer_info.shape;
-        // extract data and shape of input array
-        T* dataPtr = static_cast<T *>(buffer_info.ptr);
-
-        ssize_t dim0, dim1, dim2;
-
-        if (ndim == 2) {
-            dim0 = 1;        // Batch Size
-            dim1 = shape[0]; // Input Size
-            dim2 = shape[1]; // Parameter / Embedding Size
-            
-        } else
-        if (ndim == 3) {
-            dim0 = shape[0]; // Batch Size
-            dim1 = shape[1]; // Input Size
-            dim2 = shape[2]; // Parameter / Embedding Size        
-        } else {
-            throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
-        } 
-
-        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
-
-        aitensor<T> tensor(dim0, dim1, dim2);
-
-        std::memcpy(tensor.data(), dataPtr, dim0 * dim1 * dim2 * sizeof(T));
-
-        return tensor;
-    }
-    */
 
     template <class T>
     static aitensor<T> totensor(const py::array_t<T>& parray) {

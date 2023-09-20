@@ -735,7 +735,7 @@ PYBIND11_MODULE(genai, m) {
         .def("train", &Model::train, py::arg("loss") = "mse",  
                 py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
                 py::arg("iter")=1, "Training a model");
-    
+     
     /*
         // Definitions for BaseOperator APIs
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");

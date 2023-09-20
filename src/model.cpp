@@ -264,7 +264,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        } /* else
+        }  else
         if (auto attention = std::dynamic_pointer_cast<ModelAttention>(op)) {
             if (datatype == "float") {
                 Attention<float>* newop = new Attention<float>(
@@ -322,18 +322,8 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        }  */
+        }  
     }
-    /*
-    if (this->operations.size() != 0) {
-        if (datatype == "float") {
-            (modelXf.getGraph())->setOperations(node->getName(), node->getOperations());
-        } else
-        if (datatype == "double") {
-            (modelXd.getGraph())->setOperations(node->getName(), node->getOperations());
-        }
-    } */
-
 }
 
 /************************************************************************************************
