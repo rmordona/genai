@@ -107,6 +107,7 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         log_detail( "Predicted Result" );
         log_matrix( this->predicted );
 
+        log_detail( "Compute Loss ..." );
         this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
 
         log_detail( "Compute Gradient ..." );
@@ -516,6 +517,8 @@ void Model::train(std::string& losstype, std::string& optimizertype, double lear
             this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), itermax);
             std::cout << "Hello 6 ..." << std::endl;
         }
+    } catch (const AIException& e) {
+        std::cerr << "(Model::train) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
         std::cerr << "(Model:train) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;

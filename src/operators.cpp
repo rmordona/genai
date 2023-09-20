@@ -377,7 +377,7 @@ const aitensor<T> Linear<T>::forward(aitensor<T> input_data) {
 
         input = this->input_data.at(i); // matrix_view(chip(this->input_data,i, 0)); // input_size x embedding_size
 
-        log_detail( "Size of input:", input.size() );
+        log_detail( "Size of input: {0}", input.size() );
 
         // Perform Linear Transformation.
         aimatrix<T> output = linearTransform(input);
@@ -1356,6 +1356,8 @@ const aitensor<T> Activation<T>::forward(const aitensor<T>& input_data) {
     // Cache for later back propagation.
     this->input_data = input_data;
 
+    this->output_data.clear();
+
     // if input_data is from liner transform, then dimension is BxNxW
     this->batch_size = this->input_data.size();
     this->input_size = this->input_data.at(0).rows();
@@ -1538,6 +1540,14 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
 
     aimatrix<T> batch_predicted, batch_target;
 
+    if (predicted.size()        != target.size() || 
+        predicted.at(0).rows()  != target.at(0).rows() || 
+        predicted.at(0).cols()  != target.at(0).cols() ) {
+
+        throw AIException("Dimension of Prediction and target do not match ...");
+
+    }
+
     for (int i = 0; i < this->batch_size; ++i) {
 
         batch_predicted = predicted.at(i); // matrix_view(chip(predicted, i, 0));
@@ -1555,8 +1565,8 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
         if (losstype == "hingeLoss") {
             output = hingeLoss(batch_predicted, batch_target);
         } 
-
         total_output += output;
+
     }
 
     total_output = total_output / this->batch_size;

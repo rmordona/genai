@@ -804,7 +804,11 @@ const aiscalar<T> Graph<T>::computeLoss(std::string losstype, const aitensor<T>&
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
+    std::cout << "Entering Graph computeLoss 1 ..." << std::endl;
+
     this->lossobj = new Loss<T>(losstype);
+
+    std::cout << "Entering Graph computeLoss 2 ..." << std::endl;
 
     aiscalar<T> loss = this->lossobj->computeLoss(predicted, target);
 
