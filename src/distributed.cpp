@@ -94,7 +94,15 @@ void DistributedKVStore::replicationSubscriberThread() {
     while (true) {
         // Receive replication messages from the queue node's Pull socket
         zmq::message_t message;
-        queuePullSocket.recv(message, zmq::recv_flags::none); // Use the correct recv signature
+        zmq::recv_result_t result = queuePullSocket.recv(message, zmq::recv_flags::none); // Use the correct recv signature
+
+        if (result.has_value()) {
+            // Successfully received data
+            // You can access the received data in 'empty'
+        } else {
+            // Handle the error condition
+            // You can use result.error() to get information about the error
+        }
 
         // Parse the message (key-value pair) and use libmemcached to store the replicated data locally
         std::string messageStr(static_cast<char*>(message.data()), message.size());
@@ -380,7 +388,15 @@ void DistributedKVStore::replicateDataZMQReqRep(const std::string& nodeIdentifie
     backendSocket.send(valueMsg, zmq::send_flags::none);
 
     zmq::message_t reply;
-    backendSocket.recv(reply, zmq::recv_flags::none);
+    zmq::recv_result_t result = backendSocket.recv(reply, zmq::recv_flags::none);
+    if (result.has_value()) {
+        // Successfully received data
+        // You can access the received data in 'empty'
+    } else {
+        // Handle the error condition
+        // You can use result.error() to get information about the error
+    }
+
 }
 
 
@@ -502,7 +518,15 @@ bool DistributedKVStore::pingNode(const std::string& nodeIdentifier) {
 
     // Wait for the response from the node
     zmq::message_t response;
-    reqSocket.recv(response, zmq::recv_flags::none);
+    zmq::recv_result_t result = reqSocket.recv(response, zmq::recv_flags::none);
+
+    if (result.has_value()) {
+        // Successfully received data
+        // You can access the received data in 'empty'
+    } else {
+        // Handle the error condition
+        // You can use result.error() to get information about the error
+    }
 
     // Check if the response is as expected
     std::string responseMsg(static_cast<const char*>(response.data()), response.size());
@@ -553,12 +577,27 @@ void DistributedKVStore::startServer() {
             zmq::poll(items, 2, std::chrono::milliseconds(-1));
 
             if (items[0].revents & ZMQ_POLLIN) {
-                frontendSocket.recv(msg, zmq::recv_flags::none);
+                zmq::recv_result_t result1 = frontendSocket.recv(msg, zmq::recv_flags::none);
+                if (result1.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
+
 
                 // Get the client ID (socket identity)
                 std::string clientId(static_cast<char*>(msg.data()), msg.size());
 
-                frontendSocket.recv(msg, zmq::recv_flags::none);
+                zmq::recv_result_t result2 = frontendSocket.recv(msg, zmq::recv_flags::none);
+                if (result2.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
 
                 // Get the key from the client request
                 std::string key(static_cast<char*>(msg.data()), msg.size());
@@ -581,10 +620,42 @@ void DistributedKVStore::startServer() {
                 zmq::message_t key;
                 zmq::message_t value;
 
-                backendSocket.recv(nodeId, zmq::recv_flags::none);
-                backendSocket.recv(empty, zmq::recv_flags::none);
-                backendSocket.recv(key, zmq::recv_flags::none);
-                backendSocket.recv(value, zmq::recv_flags::none);
+                zmq::recv_result_t resultn = backendSocket.recv(nodeId, zmq::recv_flags::none);
+                if (resultn.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
+
+                zmq::recv_result_t resulte = backendSocket.recv(empty, zmq::recv_flags::none);
+                if (resulte.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
+
+                zmq::recv_result_t resultk = backendSocket.recv(key, zmq::recv_flags::none);
+                if (resultk.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
+
+                zmq::recv_result_t resultv = backendSocket.recv(value, zmq::recv_flags::none);
+                if (resultv.has_value()) {
+                    // Successfully received data
+                    // You can access the received data in 'empty'
+                } else {
+                    // Handle the error condition
+                    // You can use result.error() to get information about the error
+                }
+
 
                 // Store the replicated data locally using libmemcached
                 replica = std::string(static_cast<char*>(nodeId.data()), nodeId.size());

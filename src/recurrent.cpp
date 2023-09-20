@@ -551,19 +551,13 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
     airowvector<T> bo;
 
     int sequence_length           = this->getSequenceLength();
-    int input_size                = this->getInputSize();
-    int embedding_size            = this->getEmbeddingSize();
+    //int input_size                = this->getInputSize();
+    //int embedding_size            = this->getEmbeddingSize();
 
     ReductionType rnntype         = this->getRType();
     aitensor<T> prediction;
 
-    if (rnntype == ReductionType::CONCAT) {
-        prediction(sequence_length, input_size, embedding_size * 2);
-    } else {
-        prediction(sequence_length, input_size, embedding_size);
-    }
-
-    for (int step = 0; step < this->getSequenceLength(); ++step) {
+    for (int step = 0; step < sequence_length; ++step) {
 
         // merge bidirectional outputs
         if (rnntype == ReductionType::SUM) {
@@ -593,7 +587,7 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
         }
 
         // rnn->outputs.chip(step, 0) = tensor_view(out);
-        prediction.chip(step, 0) = tensor_view(yhat);
+        prediction.push_back(yhat); // prediction.chip(step, 0) = tensor_view(yhat);
 
         if (!this->isInitialized()) {
             this->addV( v );
@@ -619,9 +613,9 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     for (int step = 0; step < this->getSequenceLength(); ++step) {
 
         // Process gradient for the activation operation
-        dOut = matrix_view(chip(gradients, step, 0));  
+        dOut = gradients.at(step); // matrix_view(chip(gradients, step, 0));  
         // out  = this->getOutput()[step];
-        yhat = matrix_view(chip(prediction, step, 0));
+        yhat = prediction.at(step); // matrix_view(chip(prediction, step, 0));
         if (otype == ActivationType::SOFTMAX) {
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
             this->set_V(step, dOut * yhat.transpose());
@@ -639,7 +633,8 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
             this->set_bo(step, dOut.colwise().sum());
         }
 
-        gradients.chip(step, 0) = tensor_view((aimatrix<T>) (dOut * V[step].transpose())); // get dInput
+        gradients.at(step) = (dOut * V[step].transpose());
+        // gradients.chip(step, 0) = tensor_view((aimatrix<T>) (dOut * V[step].transpose())); // get dInput
 
     }
 }
@@ -651,9 +646,9 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
     this->setOType(ActivationType::SOFTMAX);
     this->setRType(ReductionType::AVG);
 
-    int batch_size     = input_data.dimension(0);  // sequence
-    int input_size     = input_data.dimension(1);
-    int embedding_size = input_data.dimension(2);
+    int batch_size     = input_data.size(); // sequence
+    int input_size     = input_data.at(0).rows();
+    int embedding_size = input_data.at(0).cols();
 
     this->setSequenceLength(batch_size);
     this->setInputSize(input_size);
@@ -666,7 +661,7 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
 
         // Forward pass: Run from first to last time step
         for (int step = 0; step < this->getSequenceLength(); ++step) {
-            aimatrix<T> input_batch = matrix_view(chip(input_data, step, 0));
+            aimatrix<T> input_batch = input_data.at(step); // matrix_view(chip(input_data, step, 0));
 
 
             // Forward pass through each layer of the RNN
@@ -696,9 +691,10 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
 
     const aitensor<T>& input_data = this->getData();
 
-    int batch_size      = input_data.dimension(0);  // sequence
-    int input_size      = input_data.dimension(1);
-    int embedding_size  = input_data.dimension(2);
+    int batch_size     = input_data.size(); // sequence
+    //int input_size     = input_data.at(0).rows();
+    int embedding_size = input_data.at(0).cols();
+
     int sequence_length = batch_size;
 
     aitensor<T> dInput = gradients;
@@ -715,15 +711,15 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
     for (int step = sequence_length - 1; step >= 0; --step) {
         aimatrix<T> seq_f, seq_b, seq_m;
         if (rtype == ReductionType::SUM) {
-            seq_f = matrix_view(chip(dInput, step, 0)); // gradients(step,0);
-            seq_b = matrix_view(chip(dInput, step, 0)); // gradients(step,0);
+            seq_f = dInput.at(step); // matrix_view(chip(dInput, step, 0)); // gradients(step,0);
+            seq_b = dInput.at(step); // matrix_view(chip(dInput, step, 0)); // gradients(step,0);
         } else 
         if (rtype == ReductionType::AVG) {
-            seq_f = matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
-            seq_b = matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
+            seq_f = dInput.at(step) / 2; // matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
+            seq_b = dInput.at(step) / 2; // matrix_view(chip(dInput, step, 0)) / 2; // gradients(step,0) / 2;
         } else 
         if (rtype == ReductionType::CONCAT) {
-            seq_m = matrix_view(chip(dInput, step, 0));
+            seq_m = dInput.at(step); // matrix_view(chip(dInput, step, 0));
             seq_f = seq_m.block(0, 0, batch_size, embedding_size);
             seq_b = seq_m.block(0, embedding_size, batch_size, embedding_size);
         }
@@ -732,14 +728,14 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
     }
 
     // We need to send back the same structure of input_gradients as the input to the forward pass
-    aitensor<T> input_gradients(batch_size, input_size, embedding_size);
+    aitensor<T> input_gradients; // (batch_size, input_size, embedding_size);
 
     for (int direction = 0; direction < this->getNumDirections(); ++direction) {
         this->setCells(direction);
 
         // Backward pass: Run from last to first time step
         for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
-            aimatrix<T> input_batch = matrix_view(chip(input_data, step, 0));  
+            aimatrix<T> input_batch = input_data.at(step); // matrix_view(chip(input_data, step, 0));  
 
             if (direction == 0) {
                 dOuts = dOutf[step];
@@ -755,7 +751,7 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
             }
 
             // Store the gradients for input data
-            input_gradients.chip(step, 0) = tensor_view(dOuts);
+            input_gradients.push_back(dOuts); // input_gradients.chip(step, 0) = tensor_view(dOuts);
         }
     }
     return input_gradients;

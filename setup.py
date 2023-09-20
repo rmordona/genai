@@ -12,7 +12,7 @@ def build_cpp_project():
 class BuildExt(build_ext):
     def build_extensions(self):
         # self.extensions[0].extra_compile_args.append("-std=c++11")
-        self.extensions[0].extra_compile_args.append("-std=gnu++14")
+        self.extensions[0].extra_compile_args.append("-std=gnu++17")
         # self.extensions[0].include_dirs.append("/usr/local/pkg/homebrew/lib/python3.7/site-packages/pybind11/include")
         self.extensions[0].include_dirs.append("/usr/local/Cellar/pybind11/2.11.1/include")
         super().build_extensions()
@@ -20,7 +20,8 @@ class BuildExt(build_ext):
 ext_modules = [
     Extension(
         "genai",
-#         sources=[ "src/scraper.cpp" ],
+#        sources=["src/operators.cpp", "src/transformer.cpp", "src/recurrent.cpp", "src/topology.cpp", "src/model.cpp", "src/genai.cpp" ],
+#         sources=[ "src/operators.cpp" ],
 #         sources=[ "src/model.cpp", "src/genai.cpp", "src/distributed.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp" ],
 #        sources=[ "src/operators.cpp", "src/transformer.cpp" ],
 #        sources=[  "src/operators.cpp", "src/transformer.cpp", "src/topology.cpp", "src/recurrent.cpp", "src/model.cpp", "src/genai.cpp" ],
@@ -43,7 +44,7 @@ ext_modules = [
                     '/usr/local/Cellar/zeromq/4.3.4/include',
                     '/usr/local/Cellar/libmemcached/1.0.18_2/include'],
         extra_compile_args = ['-DEIGEN_USE_BLAS', '-DFMT_HEADER_ONLY', '-DENABLE_DEBUG', '-DENABLE_TRACE', '-DENABLE_WARNING', '-DENABLE_INFO', '-DENABLE_ERROR', '-DERROR_CRITICAL'],
-        extra_link_args = ['-fopenmp', '-Wall', '-fpermissive', '-fPIC', '-mavx', '-mfma' , '-DENABLE_INFO'],
+        extra_link_args = ['-fopenmp', '-Wall', '-fpermissive', '-fPIC', '-mavx', '-mfma' , '-DFMT_HEADER_ONLY', '-DENABLE_INFO'],
         libraries=['cblas', 'mpi', 'zmq', 'memcached', 'ssl','crypto', 'sqlite3', 'fmt', 'xml2', 'curl' ],
         library_dirs=['/usr/local/Cellar/open-mpi/4.1.5/lib',
                      '/usr/local/Cellar/openblas/0.3.23/lib',

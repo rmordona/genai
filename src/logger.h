@@ -131,21 +131,21 @@ public:
         return ss.str();
     }
 
-
     // Variadic function Template for logging detail
-    template <typename T, typename ...P>
-    void logging_detail(T &&format, P &&... params)
+    template <typename T1, typename ...T2>
+    void logging_detail(T1 &&format, T2 &&... params)
     {
         std::string indent = "{:>1}{}";
-        std::string msg = fmt::format(indent, "", fmt::format( std::forward<T>(format), std::forward<P>(params)...));
+        std::string msg = fmt::format(indent, "", fmt::format( std::forward<T1>(format), std::forward<T2>(params)...));
+        std::cout << "tab(xyz): " << msg << std::endl;
         log->info(msg);
     }
 
-    template <typename T, typename ...P>
-    void logging_wdetail(T&& format, P&&... params)
+    template <typename T1, typename ...T2>
+    void logging_wdetail(T1&& format, T2&&... params)
     {
         std::wstring indent = L"{:>1}{}";
-        std::wstring msg = fmt::format(indent, L"", fmt::format(std::forward<T>(format), std::forward<P>(params)...));
+        std::wstring msg = fmt::format(indent, L"", fmt::format(std::forward<T1>(format), std::forward<T2>(params)...));
         log->info(wstringToUtf8(msg));
     }
 
@@ -156,14 +156,25 @@ public:
         log->info(msg);
     }
 
-
     template <class T>
     void eigen_matrix(const aitensor<T>& mat) {
+        ssize_t batches = mat.size();
+        std::string msg;
+        for (int i = 0; i < batches; i++) {
+            aimatrix<T> tmp_mat = mat.at(i);  
+            msg = msg + fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
+        }
+        log->info(msg);
+    }
+
+/*
+    template <class T>
+    void eigen_matrix(const aitensor3<T>& mat) {
         aimatrix<T> tmp_mat = matrix_view(chip(mat, 0,0));
         std::string msg = fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
         log->info(msg);
     }
-
+*/
 
     template <class T>
     void eigen_vector(const aivector<T>& vec) {

@@ -28,11 +28,15 @@
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
 
-
+/*************************************************************************************************
+ * BaseModel is the actual structure we use to build graphs, nodes, connections, and the
+ * underlying operations needed to train a model.
+ *************************************************************************************************/
 template <class T>
 class BaseModel {
 private:
-    Graph<T>* graph;
+    std::shared_ptr<Graph<T>> graph;
+
     aitensor<T> target;
     aitensor<T> predicted;
     aitensor<T> gradients;
@@ -50,9 +54,9 @@ public:
         this->itermax = itermax;
     }
 
-    void setGraph(Graph<T>* graph);
+    void setGraph(std::shared_ptr<Graph<T>>  graph);
 
-    Graph<T>* getGraph();
+    std::shared_ptr<Graph<T>> getGraph();
 
     void setLoss(std::string& losstype);
 
@@ -64,21 +68,32 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, T& learningRate = 0.01, int& itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, const T learningRate = 0.01, const int itermax = 1);
 
 };
 
+/************ Base Model initialize templates ************/
+
+template class BaseModel<float>;  // Instantiate with float
+template class BaseModel<double>;  // Instantiate with double
+
+/************************************************************************************************
+* We use ModelNode class as a meta model only for use  as entry point for python API.
+* The actual model is the Node class.
+*************************************************************************************************/
 class ModelNode {
 private:
     std::string name;
     NodeType ntype;
-    std::vector<std::shared_ptr<BaseOperator>> operations;
-    float* input_fdata;
-    double* input_ddata;
+    std::string datatype;
+    std::vector<BaseOperator*> operations;
+    aitensor<float> input_fdata;
+    aitensor<double> input_ddata;
 public: 
-    ModelNode(std::string name, NodeType ntype) { 
+    ModelNode(std::string name, NodeType ntype, std::string datatype) { 
         this->name = name; 
         this->ntype = ntype;
+        this->datatype = datatype;
     }
 
     std::string getName() { return this->name; }
@@ -86,27 +101,44 @@ public:
     NodeType getNodeType() { return this->ntype; }
 
     void setDataFloat(const py::array_t<float>& input_data);
+
     void setDataDouble(const py::array_t<double>& input_data);
 
-    void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
-        this->operations = operations;
+    ssize_t getDataSize() { 
+        if (datatype == "float") {
+            return this->input_fdata.size(); 
+        } else 
+        if (datatype == "double") {
+            return this->input_ddata.size(); 
+        }
+        return 0;
     }
 
-    std::vector<std::shared_ptr<BaseOperator>> getOperations() { return this->operations; }
+    aitensor<float> getDataFloat() { return this->input_fdata; }
+    aitensor<double> getDataDouble() { return this->input_ddata; }
+
+    void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations); // accept as ModelNode operations
+
+    std::vector<BaseOperator*> getOperations() { return this->operations; }    // return as Node operations
 
 };
 
+/************************************************************************************************
+* We use Model class as a meta model only for use  as entry point for python API.
+* The actual model is the BaseModel class.
+* All other meta models include the Model operations.
+*************************************************************************************************/
 class Model {
 private:
     std::string losstype = "mse";
     std::string optimizertype = "adam";
-    double learningRate = 0.01;
     int itermax = 1;
     std::string datatype = "float";
-    Graph<float> graphXf;
-    Graph<double> graphXd;
-    BaseModel<float> modelXf;
-    BaseModel<double> modelXd;
+    double learningRate = 0.01;
+    std::shared_ptr<Graph<float>> graphXf;
+    std::shared_ptr<Graph<double>> graphXd;
+    std::shared_ptr<BaseModel<float>> modelXf;
+    std::shared_ptr<BaseModel<double>> modelXd;
     std::vector<std::shared_ptr<ModelNode>> nodes;
 
     // Iterate through the vector to search for the name
@@ -123,26 +155,33 @@ public:
     Model(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
           const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float");
 
-    void createGraph();
+    std::shared_ptr<ModelNode> addNode(std::string name, NodeType ntype);
 
-    // void addNode(const std::string& name, NodeType ntype, std::vector<std::shared_ptr<BaseOperator>>& operations);
-    std::shared_ptr<ModelNode> addNode(const std::string& name, NodeType ntype);
+    void unpackData();
 
-    void setData(const std::string& name, NodeType ntype, const py::array_t<float>& input_dataf, const py::array_t<double>& input_datad);
+    void unpackOperations();
+
+    void setTargetFloat(const py::array_t<float>& target);
+    
+    void setTargetDouble(const py::array_t<double>& target);
 
     void connect(std::shared_ptr<ModelNode> from, std::shared_ptr<ModelNode> to);
 
     void connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::shared_ptr<ModelNode> to);
 
+    void seedNodes();
+
+    void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int itermax = 1);
+
 };
 
-/************ Base Model initialize templates ************/
 
-template class BaseModel<float>;  // Instantiate with float
-template class BaseModel<double>;  // Instantiate with double
 
-/************ Wrapper Objects for Python API */
 
+/************************************************************************************************
+* We use ModelLinear class as a meta model only for use  as entry point for python API.
+* The actual model is the Linear class.
+*************************************************************************************************/
 class ModelLinear : public BaseOperator {
 private:
     int W = 0; // number of weights 
@@ -152,10 +191,17 @@ public:
         this->W = size;
         this->bias = bias;
     }
+    int getSize() { return  this->W; }
+    bool getBias() { return this->bias; }
+
     void forwardPass() {}
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelBatchNorm class as a meta model only for use  as entry point for python API.
+* The actual model is the BatchNorm  class.
+*************************************************************************************************/
 class ModelBatchNorm : public BaseOperator {
 private:
 public: 
@@ -164,6 +210,10 @@ public:
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelLayerNorm class as a meta model only for use  as entry point for python API.
+* The actual model is the LayerNorm  class.
+*************************************************************************************************/
 class ModelLayerNorm : public BaseOperator {
 private:
 public: 
@@ -172,6 +222,10 @@ public:
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelActivation class as a meta model only for use  as entry point for python API.
+* The actual model is the Activation  class.
+*************************************************************************************************/
 class ModelActivation : public BaseOperator {
 private:
     std::string activationtype = "leakyrelu";
@@ -184,10 +238,18 @@ public:
         this->activationtype = activationtype;
         this->alpha = alpha;
     }
+
+    std::string getActivationType() { return this->activationtype; }
+    float getAlpha() { return this->alpha; }
+
     void forwardPass() {}
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelReduction class as a meta model only for use  as entry point for python API.
+* The actual model is the Reduction  class.
+*************************************************************************************************/
 class ModelReduction : public BaseOperator {
 private:
     std::string reducttype = "add";
@@ -199,6 +261,10 @@ public:
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelAttention class as a meta model only for use  as entry point for python API.
+* The actual model is the Attention  class.
+*************************************************************************************************/
 class ModelAttention : public BaseOperator {
 private:
     int W = 0;  // number of weights (or number of features)
@@ -210,10 +276,18 @@ public:
         this->W = size;
         this->bias = bias;
     }
+
+    int getSize() { return this->W; }
+    bool getBias() { return this->bias; }
+
     void forwardPass() {}
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelFeedForward class as a meta model only for use  as entry point for python API.
+* The actual model is the FeedForward  class.
+*************************************************************************************************/
 class ModelFeedForward : public BaseOperator {
 private:
     int W = 0;
@@ -234,10 +308,19 @@ public:
         this->bias = bias;
     }
 
+    int getSize() { return this->W; }
+    bool getBias() { return this->bias; }
+    std::string getActivationType() { return this->activationtype; }
+    float getAlpha() { return this->alpha; }
+
     void forwardPass() {}
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelMultiHeadAttention class as a meta model only for use  as entry point for python API.
+* The actual model is the MultiHeadAttention  class.
+*************************************************************************************************/
 class ModelMultiHeadAttention : public BaseOperator {
 private:
     int W = 0;  // number of weights (or number of features)
@@ -251,10 +334,19 @@ public:
         // M1.setZero();
         log_info( "**** MultiHeadAttention instance created ****" );
     }
+
+    int getHead() { return this->H; }
+    int getSize() { return this->W; }
+    bool getBias() { return this->bias; }
+
     void forwardPass() {}
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelEncoder class as a meta model only for use  as entry point for python API.
+* The actual model is the Encoder  class.
+*************************************************************************************************/
 class ModelEncoder : public BaseOperator {
 private:
     std::string activationtype = "leakyrelu";
@@ -277,6 +369,12 @@ public:
         this->bias = bias;
         this->H = heads;
     }
+
+    int getHead() { return this->H; }
+    int getSize() { return this->W; }
+    bool getBias() { return this->bias; }
+    std::string getActivationType() { return this->activationtype; }
+    float getAlpha() { return this->alpha; }
 
     void forwardPass() {}
     void backwardPass() {}

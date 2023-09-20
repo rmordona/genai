@@ -22,9 +22,25 @@
  * Author: Raymond Michael O. Ordona
  *
  */
-
+ 
 #ifndef OPERATORS_H
 #define OPERATORS_H
+
+#include <any>
+
+class SampleClass {
+private:
+    std::any privmember;
+
+public:
+    template <typename T>
+    SampleClass(T value) : privmember(value) {}
+
+    template <typename T>
+    T getPrivateMember() {
+        return std::any_cast<T>(privmember);
+    }
+};
 
 template<class T>
 class Optimizer : public BaseOperator {
@@ -95,6 +111,7 @@ template <class T>
 class Linear : public BaseOperator {
 private:
     aitensor<T> input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
+    aitensor<T> output_data;
 
     OperationParams<T> parameters; // Learnable Parameters. The core of AI.
 
@@ -133,7 +150,11 @@ public:
     // where weights is NxW and bias is W.
     const aimatrix<T> linearTransform(const aimatrix<T>& input_data);
 
-    const aitensor<T> forward(const aitensor<T>& input_data);
+    // const aitensor<T> forward(const aitensor<T>& input_data);
+
+    const aitensor<T> forward(aitensor<T> input_data);
+
+    // aitensor<T> getOutput() { return this->output_data; }
 
     OperationParams<T> gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gradients, const aimatrix<T>& input_data);
 
@@ -161,16 +182,16 @@ private:
     aitensor<T> input_data; // BxNxM samples where B=Batch Size, N=input Size, M=number of features
 
     // Across W dimension
-    airowvector<T> scale; // (gamma) Learnable parameter.
-    airowvector<T> shift; // (beta) Learnable parameter.
+    aivector<T> scale; // (gamma) Learnable parameter.
+    aivector<T> shift; // (beta) Learnable parameter.
 
-    std::vector<airowvector<T>> vgscale; // gradient for scale (gamma)
-    std::vector<airowvector<T>> vgshift; // gradient for the shift (beta)
+    std::vector<aivector<T>> vgscale; // gradient for scale (gamma)
+    std::vector<aivector<T>> vgshift; // gradient for the shift (beta)
 
 
-    aitensor<T> normalizedInput; // BxNxW samples 
-    aitensor<T> minusMean;
-    airowvector<T> batchStdDev;
+    aitensor<T> normalizedInput; // BxNxM (initial dataset) or  BxNxW after transformation
+    aitensor<T> minusMean; 
+    aivector<T> batchStdDev;
     int M = 0;
 
     double epsilon=1e-8;
@@ -185,8 +206,8 @@ private:
 public:
     BatchNorm() {
       // initialize gradients for next iteration.
-        vgscale.empty();
-        vgshift.empty();
+        vgscale.clear();
+        vgshift.clear();
         log_info( "**** Batch normalization instance created ****" );
     }
 
@@ -241,8 +262,8 @@ private:
 public:
     LayerNorm() {
         // initialize gradients for next iteration.
-        vgscale.empty();
-        vgshift.empty();
+        vgscale.clear();
+        vgshift.clear();
         log_info( "**** Layer normalization instance created ****" );
     }
 
@@ -274,7 +295,10 @@ private:
     // Cached data for backpropagation.
     aitensor<T> input_data; // BxNxW samples 
     aitensor<T> output_data; // BxNxW samples 
-    aitensor<T> dInput; // Gradient
+
+    // To support generateDotFormat()
+    int max_dInput = 0;
+    int min_dInput = 0;
 
     std::string activationtype = "leakyrelu";
     T alpha = 0.01; // for leakyReLU

@@ -24,7 +24,7 @@
  * Author: Raymond Michael O. Ordona
  *
  */
-
+  
 #include "genai.h"
 #include "topology.h"
 #include "model.h"
@@ -32,17 +32,17 @@
 namespace py = pybind11;
 using namespace py::literals;
 
-
 template <class T>
-void BaseModel<T>::setGraph(Graph<T>* graph) {
+void BaseModel<T>::setGraph(std::shared_ptr<Graph<T>>  graph) {
 
-    auto mygraph = dynamic_cast<Graph<T>*>(graph);
-    this->graph = mygraph;
+    // auto mygraph = dynamic_cast<Graph<T>*>(graph);
+    // this->graph = mygraph;
+    this->graph = graph;
     log_detail( "SetGraph ... Node count: {:d}", this->graph->getNodes().size() );
 }
 
 template <class T>
-Graph<T>* BaseModel<T>::getGraph( ) {
+std::shared_ptr<Graph<T>> BaseModel<T>::getGraph( ) {
     return this->graph;
 }
 
@@ -56,38 +56,13 @@ void BaseModel<T>::setLoss(std::string& losstype) {
 template <class T>
 void BaseModel<T>::setTarget(const py::array_t<T>& target) {
 
-    log_info("=================");
-    log_info( "Setting Data (Tensor) ..." );
-
-    // request a buffer descriptor from Python
-    py::buffer_info buffer_info = target.request();
-
-    // extract data an shape of input array
-    T* data = static_cast<T *>(buffer_info.ptr);
-    std::vector<ssize_t> shape = buffer_info.shape;
-
-    // Get the dimensions of the py::array_t
-    ssize_t dim0 = shape[0]; // Batch Size
-    ssize_t dim1 = shape[1]; // Input Size
-    ssize_t dim2 = shape[2]; // Parameter / Embedding Size
-
-    aitensor<T> tensor(dim0, dim1, dim2);
-
-    for (int i = 0; i < dim0; ++i) {
-        for (int j = 0; j < dim1; ++j) {
-            for (int k = 0; k < dim2; ++k) {
-                tensor(i, j, k) = *data++;
-            }
-        }
-    }
-    this->target = tensor;
+    this->target = ConvertData::totensor(target);
 
 }
 
-
 template <class T>
 aitensor<T> BaseModel<T>::getTarget() {
-    return target;
+    return this->target;
 }
 
 template <class T>
@@ -96,7 +71,7 @@ void BaseModel<T>::useCrossEntropy() {
 }
 
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& learningRate , int& itermax) {
+void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, const T learningRate , const int itermax) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -113,11 +88,13 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& l
     aiscalar<T> epsilon = 1e-3;
     aiscalar<T> old_loss = inf();
 
+    std::cout << "Setting Training Time ..." << std::endl;
+
     int iter = 0;
 
     auto start_time = std::chrono::system_clock::now();
 
-    py_cout << "Starting Iteration ..." << std::endl;
+    std::cout << "Starting Iteration ..." << std::endl;
 
     do {
 
@@ -167,27 +144,203 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, T& l
     //MPI_Finalize();
 
 }
-
+  
+/**************************************************************************************************
+* ModelNode::setDataFloat
+* Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
+* Upon training entry, the double pointer will be transformed to an aitensor and handed over
+* to the Node class.
+**************************************************************************************************/
 void ModelNode::setDataFloat(const py::array_t<float>& input_data) {
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
+        }
 
-    // request a buffer descriptor from Python
-    py::buffer_info buffer_info = input_data.request();
+        this->input_fdata = ConvertData::totensor(input_data);
 
-    // extract data an shape of input array
-    float* data = static_cast<float *>(buffer_info.ptr);
-    this->input_fdata = data;
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
 }
 
+/**************************************************************************************************
+* MModelNode::setDataDouble
+* Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
+* Upon training entry, the double pointer will be transformed to an aitensor and handed over
+* to the Node class.
+**************************************************************************************************/
 void ModelNode::setDataDouble(const py::array_t<double>& input_data) {
 
-    // request a buffer descriptor from Python
-    py::buffer_info buffer_info = input_data.request();
+    try {
+        if (datatype == "float") {
+            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+        }
 
-    // extract data an shape of input array
-    double* data = static_cast<double *>(buffer_info.ptr);
-    this->input_ddata = data;
+        this->input_ddata = ConvertData::totensor(input_data);
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
 }
 
+/**************************************************************************************************
+* MModelNode::setOperations
+* Captures operations for the node and temporarily caches into the ModelNode instance. Later, it will
+* be transfered to the main Node class as part of preparation for Model.train().
+**************************************************************************************************/
+void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations) {
+    // Let's now seed with operations
+
+    for (auto& op : operations) {
+        // Check the dynamic type of the object using dynamic_cast
+        std::cout << "Entering linear operation set ..." << std::endl;
+        if (auto linear = std::dynamic_pointer_cast<ModelLinear>(op)) {
+            if (datatype == "float") {
+                std::cout << "Entering linear operation set 1 ..." << std::endl;
+                Linear<float>* newop = new Linear<float>(
+                                                            linear->getSize(), 
+                                                            linear->getBias()
+                                                        );
+                std::cout << "Entering linear operation set 2 ..." << std::endl;
+                this->operations.push_back(newop);
+                std::cout << "Entering linear operation set 3 ..." << std::endl;
+            } else 
+            if (datatype == "double") {
+                Linear<double>* newop = new Linear<double>(
+                                                            linear->getSize(), 
+                                                            linear->getBias()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } else
+        if (auto batchnorm = std::dynamic_pointer_cast<ModelBatchNorm>(op)) {
+            if (datatype == "float") {
+                BatchNorm<float>* newop = new BatchNorm<float>();
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                BatchNorm<double>* newop = new BatchNorm<double>();
+                this->operations.push_back(newop);
+            }
+        } else
+        if (auto layernorm = std::dynamic_pointer_cast<ModelLayerNorm>(op)) {
+            if (datatype == "float") {
+                LayerNorm<float>* newop = new LayerNorm<float>();
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                LayerNorm<double>* newop = new LayerNorm<double>();
+                this->operations.push_back(newop);
+            }
+        } else
+        if (auto activate = std::dynamic_pointer_cast<ModelActivation>(op)) {
+                std::cout << "Entering activation operation set 1 ..." << std::endl;
+            if (datatype == "float") {
+                Activation<float>* newop = new Activation<float>(
+                                                            activate->getActivationType(), 
+                                                            activate->getAlpha()
+                                                        );
+                std::cout << "Entering activation operation set 2 ..." << std::endl;
+                this->operations.push_back(newop);
+                std::cout << "Entering activation operation set 3 ..." << std::endl;
+            } else 
+            if (datatype == "double") {
+                Activation<double>* newop = new Activation<double>(
+                                                            activate->getActivationType(), 
+                                                            activate->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } /* else
+        if (auto attention = std::dynamic_pointer_cast<ModelAttention>(op)) {
+            if (datatype == "float") {
+                Attention<float>* newop = new Attention<float>(
+                                                            attention->getSize(),
+                                                            attention->getBias()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Attention<double>* newop = new Attention<double>(
+                                                            attention->getSize(),
+                                                            attention->getBias()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } else
+        if (auto feedforward = std::dynamic_pointer_cast<ModelFeedForward>(op)) {
+            if (datatype == "float") {
+                FeedForward<float>* newop = new FeedForward<float>(
+                                                            feedforward->getSize(),
+                                                            feedforward->getBias(),
+                                                            feedforward->getActivationType(),
+                                                            feedforward->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                FeedForward<double>* newop = new FeedForward<double>(
+                                                            feedforward->getSize(),
+                                                            feedforward->getBias(),
+                                                            feedforward->getActivationType(),
+                                                            feedforward->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } else
+        if (auto encoder = std::dynamic_pointer_cast<ModelEncoder>(op)) {
+            if (datatype == "float") {
+                Encoder<float>* newop = new Encoder<float>(
+                                                            encoder->getHead(),
+                                                            encoder->getSize(),
+                                                            encoder->getBias(),
+                                                            encoder->getActivationType(),
+                                                            encoder->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Encoder<double>* newop = new Encoder<double>(
+                                                            encoder->getHead(),
+                                                            encoder->getSize(),
+                                                            encoder->getBias(),
+                                                            encoder->getActivationType(),
+                                                            encoder->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        }  */
+    }
+    /*
+    if (this->operations.size() != 0) {
+        if (datatype == "float") {
+            (modelXf.getGraph())->setOperations(node->getName(), node->getOperations());
+        } else
+        if (datatype == "double") {
+            (modelXd.getGraph())->setOperations(node->getName(), node->getOperations());
+        }
+    } */
+
+}
+
+/************************************************************************************************
+* Model::Model
+* This is the Model Constructor Implementation - Note that this is only a meta model.
+* The actual model is the BaseModel Class.
+*************************************************************************************************/
 Model::Model(const std::string& losstype, const std::string& optimizertype, 
         const double learningRate, const int itermax, const std::string& datatype) {
     this->losstype = losstype;
@@ -196,42 +349,45 @@ Model::Model(const std::string& losstype, const std::string& optimizertype,
     this->itermax = itermax;
     this->datatype = datatype;
     if (datatype == "float") {
-        BaseModel<float> mymodelf(losstype, optimizertype, (float) learningRate, itermax);
-        this->modelXf = mymodelf;
+        std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>(losstype, optimizertype, static_cast<float>(learningRate), itermax);
+        std::shared_ptr<Graph<float>> graphXf = std::make_unique<Graph<float>>();
+        bmodelf->setGraph(graphXf);
+        this->modelXf = bmodelf;
     } else if (datatype == "double") {
-        BaseModel<double> mymodeld(losstype, optimizertype, (double) learningRate, itermax);
-        this->modelXd = mymodeld;
+        std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>(losstype, optimizertype, static_cast<double>(learningRate), itermax);
+        std::shared_ptr<Graph<double>> graphXd = std::make_unique<Graph<double>>();
+        bmodeld->setGraph(graphXd);
+        this->modelXd = bmodeld;
     } else {
         throw std::invalid_argument("Unsupported datatype");
     }
     std::cout << "Got here :" << datatype << " learningRate " << learningRate << std::endl;
-    createGraph();
 }
 
-void Model::createGraph() {
+/************************************************************************************************
+* Model::addNode
+* First, we create a meta node to support python API. Alongside, we also create the node 
+* and register to the graph.
+*************************************************************************************************/
+std::shared_ptr<ModelNode> Model::addNode(std::string name, NodeType ntype) {
     if (datatype == "float") {
-        graphXf = Graph<float>();
-        this->modelXf.setGraph(&graphXf);
-    } else if (datatype == "double") {
-        graphXd = Graph<double>();
-        this->modelXd.setGraph(&graphXd);
-    } else {
-        throw std::invalid_argument("Unsupported datatype");
-    }
-} 
-
-std::shared_ptr<ModelNode> Model::addNode(const std::string& name, NodeType ntype) {
-    if (datatype == "float") {
-        if (!isNode(name)) {
-            std::shared_ptr<ModelNode> node = std::make_unique<ModelNode>(name, ntype);
+                    std::cout << "Entering add Node ..." << std::endl;
+        if (!isNode(name)) { 
+              std::cout << "Entering add Node 1..." << std::endl;
+            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
+              std::cout << "Entering add Node 2..." << std::endl;
+            this->modelXf->getGraph()->createNode(name, ntype);
+              std::cout << "Entering add Node 3 ..." << std::endl;
             this->nodes.push_back(node);
+            std::cout << "Entering add Node 4 ..." << std::endl;
             return node;
         } else {
             std::cerr << "Node already exists. Use another name ..." << std::endl;
         }
     } else if (datatype == "double") {
         if (!isNode(name)) {
-            std::shared_ptr<ModelNode> node = std::make_unique<ModelNode>(name, ntype);
+            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
+            this->modelXd->getGraph()->createNode(name, ntype);
             this->nodes.push_back(node);
             return node;
         } else {
@@ -243,6 +399,10 @@ std::shared_ptr<ModelNode> Model::addNode(const std::string& name, NodeType ntyp
     return nullptr;
 }
 
+/************************************************************************************************
+* Model::connect
+* Connect nodes in the graph.
+*************************************************************************************************/
 void Model::connect(std::shared_ptr<ModelNode> from,std::shared_ptr<ModelNode> to) {
     try {
         if (from == nullptr) {
@@ -252,23 +412,19 @@ void Model::connect(std::shared_ptr<ModelNode> from,std::shared_ptr<ModelNode> t
         throw AIException(" Target node is missing ...");
         }
         if (datatype == "float") {
-            std::shared_ptr<Node<float>> from_node =  (modelXf.getGraph())->createNode(from->getName(), from->getNodeType());
-            std::shared_ptr<Node<float>> to_node =  (modelXf.getGraph())->createNode(to->getName(), to->getNodeType());
-            (modelXf.getGraph())->addConnection(std::make_unique<Connection<float>>(from_node, to_node));
+            modelXf->getGraph()->connect(from->getName(), to->getName());
         } else
         if (datatype == "double") {
-            std::shared_ptr<Node<double>> from_node =  (modelXd.getGraph())->createNode(from->getName(), from->getNodeType());
-            std::shared_ptr<Node<double>> to_node =  (modelXd.getGraph())->createNode(to->getName(), to->getNodeType());
-            (modelXd.getGraph())->addConnection(std::make_unique<Connection<double>>(from_node, to_node));
+            modelXd->getGraph()->connect(from->getName(), to->getName());
         }
     } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "(Model:connect) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << std::endl;
+        std::cerr << "(Model:connect) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
+        std::cerr << "(Model:connect) Unknown Error:" << std::endl;
     }
 }
 
@@ -278,6 +434,106 @@ void Model::connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::sha
     }
 }
 
+/************************************************************************************************
+* Model::seedNodes
+* Here, we begin to fill the nodes with data and operations as assigned to them.
+*************************************************************************************************/
+void Model::seedNodes() {
+    for (auto& node: nodes) {
+        // First, let's seed with data
+        ssize_t size = node->getDataSize();
+        if (size != 0) {
+            if (datatype == "float") {
+                modelXf->getGraph()->setData(node->getName(), node->getDataFloat());
+            } else
+            if (datatype == "double") {
+                modelXd->getGraph()->setData(node->getName(), node->getDataDouble());
+            }
+        }
+        std::cout << "(Operations) Node: " << node->getName() << std::endl;
+        if (datatype == "float") {
+            modelXf->getGraph()->setOperations(node->getName(), node->getOperations());
+        } else
+        if (datatype == "double") {
+            modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
+        }
+
+    }
+}
+
+/************************************************************************************************
+* Model::setTargetFlat
+* We use modelXf.setTarget to convert the python array to aitensor<float> and store
+* the tensor inside the model.
+*************************************************************************************************/
+void Model::setTargetFloat(const py::array_t<float>& target) {
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
+        }
+
+        modelXf->setTarget(target);
+
+    } catch (const AIException& e) {
+        std::cerr << "(Model:setTargetFloat) Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "(Model:setTargetFloat) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "(Model:setTargetFloat) Unknown Error:" << std::endl;
+    }
+}
+
+/************************************************************************************************
+* Model::setTargetDouble
+* We use modelXd.setTarget to convert the python array to aitensor<double> and store
+* the tensor inside the model.
+*************************************************************************************************/
+void Model::setTargetDouble(const py::array_t<double>& target) {
+    try {
+        if (datatype == "float") {
+            throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
+        }
+        modelXd->setTarget(target);
+
+    } catch (const AIException& e) {
+        std::cerr << "(Model:setTargetDouble) Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "(Model:setTargetDouble)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "(Model:setTargetDouble) Unknown Error:" << std::endl;
+    }
+}
+
+/************************************************************************************************
+* Model::train
+* This is where training begins. We train the actual model by passing hyperparameters.
+*************************************************************************************************/
+void Model::train(std::string& losstype, std::string& optimizertype, double learningRate,  int itermax) {
+    try {
+            std::cout << "Hello 1 ..." << std::endl;
+        this->seedNodes();
+        if (datatype == "float") {
+            std::cout << "Hello 2 ..." << std::endl;
+            this->modelXf->train(losstype, optimizertype, static_cast<float>(learningRate), itermax);
+            std::cout << "Hello 2a ..." << std::endl;
+        }
+        if (datatype == "double") {
+            std::cout << "Hello 4 ..." << std::endl;
+            this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), itermax);
+            std::cout << "Hello 6 ..." << std::endl;
+        }
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "(Model:train) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "(Model:train) Unknown Error:" << std::endl;
+    }
+}
 
 /*
 void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts) {

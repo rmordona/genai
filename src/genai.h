@@ -320,8 +320,9 @@
 *    });
 **************************************************************************************************/
 
+
 template <class T>
-using aitensor = Eigen::Tensor<T,3,Eigen::RowMajor>;
+using aitensor3 = Eigen::Tensor<T,3,Eigen::RowMajor>;
 
 template <class T>
 using aitensor2 = Eigen::Tensor<T,2,Eigen::RowMajor>;
@@ -338,6 +339,9 @@ using airowvector = Eigen::RowVector<T, Eigen::Dynamic>;  // (horizontal/row)
 template <class T>
 using aiscalar = T; // Eigen::Tensor<T, 0>; // (scalar)
 
+template <class T>
+using aitensor = std::vector<aimatrix<T>>;
+
 /**************************************************************************************************
   Tensor Helper Functions
 **************************************************************************************************/
@@ -345,25 +349,50 @@ using aiscalar = T; // Eigen::Tensor<T, 0>; // (scalar)
 // Create a Map to view the same data as a matrix (no data copying)
 template <class T>
 static const aimatrix<T> matrix_view(const aitensor2<T>& tensor) {
-    Eigen::Map<const aimatrix<T>> matrix(tensor.data(), tensor.dimension(0), tensor.dimension(1));
+    std::cout << "Convert Tensor to Matrix" << std::endl;
+    Eigen::Map<const aimatrix<T>, Eigen::RowMajor> matrix(tensor.data(), tensor.dimension(0), tensor.dimension(1));
+    std::cout << "Matrix Convertion done " << std::endl;
     return matrix;
 }
 
 // Create a Map to view the same data as a tensor (no data copying)
 template <class T>
 static aitensor2<T> tensor_view(const aimatrix<T>& matrix) {
-    Eigen::TensorMap<aitensor2<T>> tensor(const_cast<T*>(matrix.data()), matrix.rows(), matrix.cols());
+    std::cout << "Convert Matrix to Tensor 1" << matrix.size() << std::endl;
+    // Eigen::TensorMap<aitensor2<T>, Eigen::RowMajor> tensor(const_cast<T*>(matrix.data()), matrix.rows(), matrix.cols());
+    
+    ssize_t dim0 = matrix.rows();
+    ssize_t dim1 = matrix.cols();
+    aitensor2<T> tensor(dim0, dim1);
+
+    for (int i = 0; i < dim0; i++) {
+        for (int j = 0; j < dim1; j++) {
+            tensor(i, j) = matrix(i, j);
+        }
+    }
+    
+    std::cout << "Convert Matrix to Tensor 2:" << tensor.size() << std::endl;
     return tensor;
 }
+
+/*
+
+template <class T>
+aibatch<T> convertdata(aitensor<T> input_data) {
+    ssize_t dim0 = input_data.dimension(0);
+    ssize_t dim1 = input_data.dimension(1);
+    ssize_t dim2 = input_data.dimension(2);  
+}
+*/
 
 // This function takes a sub-tensor slice of a tensor. 
 template <class T>
 static const aitensor2<T> chip(const aitensor<T>& tensor, int idx, int dimension) {
     int dimx = 0;
     int dimy = 0;
-    int dim0 = tensor.dimension(0);
-    int dim1 = tensor.dimension(1);
-    int dim2 = tensor.dimension(2);
+    int dim0 = tensor.size();
+    int dim1 = tensor.at(0).rows();
+    int dim2 = tensor.at(0).cols();
     aitensor<T> input;
     Eigen::array<Eigen::Index, 3> start, size;
     if (dimension == 0) {
@@ -390,24 +419,24 @@ static const aitensor2<T> chip(const aitensor<T>& tensor, int idx, int dimension
 // This function takes a sub-tensor slice of a tensor. 
 template <class T>
 static const std::vector<aitensor<T>> feature_slice(const aitensor<T>& tensor, int splits) {
-    int dim0 = tensor.dimension(0);
-    int dim1 = tensor.dimension(1);
-    int dim2 = tensor.dimension(2);
+    int dim0 = tensor.size();
+    int dim1 = tensor.at(0).rows();
+    int dim2 = tensor.at(0).cols();
 
-    std::vector<aitensor<T>> tensors;
-    Eigen::array<Eigen::Index, 3> starting;
-    Eigen::array<Eigen::Index, 3> ending;
-
+    std::vector<aitensor<T>> heads;
     int splitSize =  dim2 / splits;
 
     for (int i = 0; i < splits; i++) {
+        aitensor<T> head;
         int start = i * splitSize;
-        starting = {0, 0, start};
-        ending   = {dim0, dim1, splitSize};
-        aitensor<T> input = tensor.slice(starting, ending);
-        tensors.push_back(input);
+        for (int j = 0; j < dim0; j++) {
+            aimatrix<T> input = tensor.at(j).block(0, start, dim1, splitSize);
+            head.push_back(input);
+        }
+        heads.push_back(head);
     }
-    return tensors;
+
+    return heads;
 }
 
 /*************************************************************************************************
@@ -577,13 +606,21 @@ class BaseOperator {
         int ldb = K;  // leading dimension of B.
         int ldc = M;  // leading dimension of C.
 
+        std::cout << "matmul:" << std::endl;
+        std::cout << "M:" << M << ", N:" << N << ", K:" << K << std::endl;
+
         aimatrix<float> C(M, N);
+
+        std::cout << "matmul declaration done ..." << std::endl;
 
         // Default:
         // Here we assume the following:
         //  A = MxK,  B = KxN,    C = MxN. 
         // Therefore for a Column Major (Vertical), lda = M, ldb = K, ldc = M. Those represent the length of rows per matrix.
         cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+
+        std::cout << "cblas sgemm done ..." << std::endl;
+
         return C;
     }
 

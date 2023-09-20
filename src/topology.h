@@ -25,6 +25,7 @@
 
 #include "logger.h"
 #include "operators.h"
+#include "transformer.h"
 
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H
@@ -35,17 +36,117 @@ enum class NodeType {
     Output
 };
 
+
+class ConvertData {
+public:
+/*
+    template <class T>
+    static aitensor<T> totensor1(const py::array_t<T>& parray) {
+
+        log_info("Converting data ...");
+
+        int ndim = parray.ndim();
+        py::buffer_info buffer_info = parray.request();
+
+        log_info( "Received buffer info:" );
+        log_detail( "Format: {0}", buffer_info.format );
+        log_detail( "Item size: {0}", buffer_info.itemsize );
+        log_detail( "Size: {0}", buffer_info.size );
+        log_detail("dimension: {0}", ndim );
+
+        std::vector<ssize_t> shape = buffer_info.shape;
+        // extract data and shape of input array
+        T* dataPtr = static_cast<T *>(buffer_info.ptr);
+
+        ssize_t dim0, dim1, dim2;
+
+        if (ndim == 2) {
+            dim0 = 1;        // Batch Size
+            dim1 = shape[0]; // Input Size
+            dim2 = shape[1]; // Parameter / Embedding Size
+            
+        } else
+        if (ndim == 3) {
+            dim0 = shape[0]; // Batch Size
+            dim1 = shape[1]; // Input Size
+            dim2 = shape[2]; // Parameter / Embedding Size        
+        } else {
+            throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
+        } 
+
+        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
+
+        aitensor<T> tensor(dim0, dim1, dim2);
+
+        std::memcpy(tensor.data(), dataPtr, dim0 * dim1 * dim2 * sizeof(T));
+
+        return tensor;
+    }
+    */
+
+    template <class T>
+    static aitensor<T> totensor(const py::array_t<T>& parray) {
+
+        log_info("Converting data ...");
+
+        int ndim = parray.ndim();
+        py::buffer_info buffer_info = parray.request();
+
+        log_info( "Received buffer info:" );
+        log_detail( "Format: {0}", buffer_info.format );
+        log_detail( "Item size: {0}", buffer_info.itemsize );
+        log_detail( "Size: {0}", buffer_info.size );
+        log_detail("dimension: {0}", ndim );
+
+        std::vector<ssize_t> shape = buffer_info.shape;
+        // extract data and shape of input array
+        T* dataPtr = static_cast<T *>(buffer_info.ptr);
+
+        ssize_t dim0, dim1, dim2;
+
+        if (ndim == 2) {
+            dim0 = 1;        // Batch Size
+            dim1 = shape[0]; // Input Size
+            dim2 = shape[1]; // Parameter / Embedding Size
+            
+        } else
+        if (ndim == 3) {
+            dim0 = shape[0]; // Batch Size
+            dim1 = shape[1]; // Input Size
+            dim2 = shape[2]; // Parameter / Embedding Size        
+        } else {
+            throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
+        } 
+
+        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
+
+        aitensor<T> eigenMatrices;
+        eigenMatrices.reserve(dim0);
+
+        for (int i = 0; i < dim0; ++i) {
+            aimatrix<T> eigenMatrix(dim1, dim2);
+            std::memcpy(eigenMatrix.data(), &dataPtr[i * dim1 * dim2], dim1 * dim2 * sizeof(T));
+            eigenMatrices.push_back(eigenMatrix);
+        }
+
+        return eigenMatrices;
+    }
+
+};
+
 /*****************************************************************************************************
 * Node
 *****************************************************************************************************/
 template <class T>
 class Node {
 private:
+    std::string name = "";
+    NodeType ntype;
+
     int id;
-   // Graph* graph; // Pointer to the graph that the node belongs to
-    std::unordered_set<std::shared_ptr<Node<T>>> outputs;
-    std::unordered_set<std::shared_ptr<Node<T>>> inputs;
-    std::vector<std::shared_ptr<BaseOperator>> operations;
+    std::unordered_set<Node<T>*> outputs;
+    std::unordered_set<Node<T>*> inputs;
+    std::vector<BaseOperator*> operations;
     aitensor<T> input_data;
     aitensor<T> output_data;
     aitensor<T> gradients;
@@ -58,31 +159,32 @@ private:
     bool tensor = false;
 
     // If Node has other input sources, count the number of sources.
-    aiscalar<T> suminputs = 0.0;
+    T suminputs = 0.0;
 
 public:
-    std::string name;
-    NodeType type;
 
-    Node(const std::string& name, NodeType type, const py::array_t<T>& embedding = {})
-        : name(name), type(type) {
-        if (embedding.size() != 0) {
-         //   setData(embedding);
-        } else {
-            gradients.setZero();   
-            input_data.setZero();  
-            output_data.setZero();
-        }
+    Node(std::string name, NodeType ntype) : name(name), ntype(ntype)  {
+
+        //input_data.setZero();  
+        //output_data.setZero();
+        //gradients.setZero();
+
         log_info( "**** Node instance created ****" );
     }
 
-    std::string getName();
+    ~Node() {
+    }
 
-    NodeType nodeType();
+    std::string getName() { return this->name; }
+
+    NodeType nodeType() { return this->ntype; }
 
     // The input is assumed to have BxNxM where B=Batch, N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setData(const py::array_t<T>& embedding);
+    void setData(const py::array_t<T>& data);
+
+    // Invoked by Graph.setData from Model.setData class
+    void setData(const aitensor<T> data);
 
     // Let's handle Tensors
     //void setDataTensor(const py::array_t<T>& embedding);
@@ -91,15 +193,15 @@ public:
 
     const aitensor<T>& getOutput();
 
-    void addInput(std::shared_ptr<Node<T>> input, std::shared_ptr<Node<T>> output);
+    void addInput(Node<T>* input, Node<T>* output);
 
-    void addOutput(std::shared_ptr<Node<T>> output, std::shared_ptr<Node<T>> input);
+    void addOutput(Node<T>* output, Node<T>* input);
 
-    std::unordered_set<std::shared_ptr<Node<T>>> getOutputs();
+    std::unordered_set<Node<T>*> getOutputs();
 
-    std::unordered_set<std::shared_ptr<Node<T>>> getInputs();
+    std::unordered_set<Node<T>*> getInputs();
 
-    std::shared_ptr<Node<T>> setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations);
+    Node<T>* setOperations(std::vector<BaseOperator*>& operations);
 
     void setReduction(std::string& reducttype);
 
@@ -129,15 +231,15 @@ public:
 template <class T>
 class Connection {
 private:
-    std::shared_ptr<Node<T>> source;
-    std::shared_ptr<Node<T>> destination;
+    Node<T>* source;
+    Node<T>* destination;
 
 public:
-    Connection(std::shared_ptr<Node<T>> sourceNode, std::shared_ptr<Node<T>> destinationNode) : source(sourceNode), destination(destinationNode) {}
+    Connection(Node<T>* sourceNode, Node<T>* destinationNode) : source(sourceNode), destination(destinationNode) {}
 
-    std::shared_ptr<Node<T>> getSource();
+    Node<T>* getSource();
 
-    std::shared_ptr<Node<T>> getDestination();
+    Node<T>* getDestination();
 
     void forwardPass();
 
@@ -148,10 +250,10 @@ public:
 template <class T>
 class Graph {
 private:
-    std::vector<std::shared_ptr<Node<T>>> nodes;
+    std::vector<Node<T>*> nodes;
     std::vector<std::shared_ptr<Connection<T>>> connections;
-    std::unordered_map<std::shared_ptr<Node<T>>, int> indegree;
-    std::unordered_map<std::shared_ptr<Node<T>>, int> outdegree;
+    std::unordered_map<Node<T>*, int> indegree;
+    std::unordered_map<Node<T>*, int> outdegree;
     aitensor<T> input_data;
     aitensor<T> predicted;
     aitensor<T> target;
@@ -161,23 +263,36 @@ private:
 
 public:
 
-    // Create a node with three arguments: name, type, and initial values
-    // Node<T>* createNode(const std::string& name, NodeType type, const py::array_t<T>& embedding);
+    ~Graph() { // release nodes.
+       // for (auto& node : nodes) {
+         //   delete node;
+      //  }
+    }
+
+    Node<T>* findNode(const std::string& nodename);
+
+    void setData(const std::string& nodename, const aitensor<T>& data);
+
+    void setData(const std::string& nodename, const py::array_t<T>& input_data);
+
+    void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
+
+    const std::vector<Node<T>*> getNodes() { return this->nodes; }
 
     // Create a node with two arguments: name and type (no initial values)
-    std::shared_ptr<Node<T>> createNode(const std::string& name, NodeType type);
+    Node<T>* createNode(const std::string& name, NodeType type);
 
-    void connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to);
+    void connect(std::string from_name, std::string to_name);
 
-    void connect(std::shared_ptr<Node<T>> from, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(Node<T>* from, Node<T>* to);
 
-    void connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to);
+    void connect(Node<T>* from, Node<T>* to, std::vector<BaseOperator*>& operations);
 
-    void connect(std::vector<std::shared_ptr<Node<T>>> from_nodes, std::shared_ptr<Node<T>> to, std::vector<std::shared_ptr<BaseOperator>>& operations);
+    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to);
+
+    void connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<BaseOperator*>& operations);
 
     void addConnection(std::shared_ptr<Connection<T>> connection);
-
-    std::vector<std::shared_ptr<Node<T>>> getNodes();
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
     const aitensor<T> forwardPropagation();
@@ -192,7 +307,7 @@ public:
 
     void nextBatch();
 
-    const std::unordered_map<std::shared_ptr<Node<T>>, int>& getIndegree() const;
+    const std::unordered_map<Node<T>*, int>& getIndegree() const;
 
     std::string generateDotFormat();
 
