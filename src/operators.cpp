@@ -105,11 +105,11 @@ void Optimizer<T>::adam(aimatrix<T>& weights, const aimatrix<T>& gradients, int 
     T beta1_t = std::pow(beta1, currentEpoch + 1);
     T beta2_t = std::pow(beta2, currentEpoch + 1);
 
-    int doublePrecision = std::numeric_limits<T>::digits10;
-    std::cout.precision(doublePrecision);
+    // int doublePrecision = std::numeric_limits<T>::digits10;
+    // std::cout.precision(doublePrecision);
 
-    log_detail( "Beta 1 Calculation: {:2.10f} based on beta1: {}", beta1_t, beta1 );
-    log_detail( "Beta 2 Calculation: {:2.10f} based on beta2: {}", beta2_t, beta2 );
+    log_detail( "Beta 1 Calculation: {:2.10f} based on beta1: {:2.10f}", beta1_t, beta1 );
+    log_detail( "Beta 2 Calculation: {:2.10f} based on beta2: {:2.10f}", beta2_t, beta2 );
 
     log_detail( "Calculating: beta1 * moments.array()" );
     log_matrix( (aimatrix<T>) (beta1 * moments.array()) );
@@ -318,8 +318,6 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
 
     // Initialize the parameters.
     setInitialWeights(input_data.cols());
-    // aimatrix<T>& weights = parameters.weights;
-    // airowvector<T>& biases = parameters.biases;
 
     log_detail( "Size of Input: {:d}", input_data.size() );
     log_detail( "Size of Weights: {:d}", parameters.weights.size() );
@@ -336,14 +334,12 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
     log_detail( "bias" );
     log_rowvector( parameters.biases );
  
-    aimatrix<T> output;
+    aimatrix<T> output = BaseOperator::matmul(input_data, parameters.weights);
     
     if (bias == true) {
         // rowwise() means, slice one row at a time and add to bias (which is 1 row horizontally).
-        output = aimatrix<T> (BaseOperator::matmul(input_data, parameters.weights) + parameters.biases.replicate(this->embedding_size,1));// Ax + b = Wx + b; NxW dimension.
-    } else {
-        output = aimatrix<T> (BaseOperator::matmul(input_data, parameters.weights)); // Ax   = Wx; NxW dimension.
-    }
+        output = output.rowwise() + parameters.biases;// Ax + b = Wx + b; NxW dimension.
+    } 
     return output;
 }
 
@@ -389,15 +385,7 @@ const aitensor<T> Linear<T>::forward(aitensor<T> input_data) {
 
     }
 
-    std::cout << "End batch in Linear transform 1 ...." << std::endl;
-
-    // this->output_data = *output_data; // cache data to Linear.
-
-    std::cout << "End batch in Linear transform 2 ...." << std::endl;
-
-    // delete output_data;
-
-    std::cout << "End batch in Linear transform 3 ...." << std::endl;
+    log_info( "End Linear transformation ...." );
 
     return output_data; // this becomes input to the next Node or next Layer. It returns a copy of the output.
 }
@@ -458,7 +446,7 @@ template <class T>
 const aimatrix<T> Linear<T>::gradient_Wrt_Input(const aimatrix<T>& new_gradients) { 
     int N = new_gradients.rows();
 
-    log_detail( "Computing Gradient with respect to weight:" );
+    log_detail( "Computing Gradient with respect to Input:" );
     log_detail( "The weight:" );
     log_matrix( aimatrix<T> (parameters.weights) );
     log_detail( "The gradient:" ) ;
@@ -472,8 +460,8 @@ const aimatrix<T> Linear<T>::gradient_Wrt_Input(const aimatrix<T>& new_gradients
     // Normalize the gradients by dividing by the number of samples (N)
     dInput /= N;  // dInput - gradients of input (NxM)
 
-    log_detail( "normalized dInput"  );
-    log_matrix( aimatrix<T> (dInput)  );
+    log_detail( "normalized dInput" );
+    log_matrix( aimatrix<T> (dInput) );
     return dInput;
 }
 
@@ -509,6 +497,8 @@ const aitensor<T> Linear<T>::backward(const aitensor<T>& gradients) {
         OperationParams<T> wbgradients = gradient_Wrt_Weight_Bias(gradient, input);
 
         log_detail( "Computing Delta Error now ..."  );
+        log_matrix(wbgradients.weights);
+
 
         gradient = gradient_Wrt_Input(gradient);
 
@@ -542,12 +532,12 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
         log_detail( "gbiases rows: {:d}, cols: {:d}", gbiases.rows() , gbiases.cols() );
 
         log_detail( "Gradient weights:" );
-        log_matrix( aimatrix<T> (gradients.weights)  );
+        log_matrix( aimatrix<T> (gradients.weights) );
         log_detail( "Gradient biases:" );
         log_rowvector( gradients.biases );
 
         log_detail( "Before Updated weights:" );
-        log_matrix( aimatrix<T> (parameters.weights)  );
+        log_matrix( aimatrix<T> (parameters.weights) );
         log_detail( "Before Updated biases:" );
         log_rowvector( parameters.biases );
 
@@ -666,10 +656,10 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> BatchNorm<T>::normalize(const 
     this->batchStdDev = (batchVariance + epsilonVector).array().sqrt();
 
     log_detail( "stdDev ..." );
-    log_vector( batchStdDev );
+    log_vector( this->batchStdDev );
 
     // Normalize the inputs along the N dimension (tranposed).
-    aimatrix<T> normalizedInput = Xmu.array().colwise()  / batchStdDev.array();
+    aimatrix<T> normalizedInput = Xmu.array().colwise()  / this->batchStdDev.array();
 
     log_detail( "normalizedInput along the N  ..." );
     log_matrix( normalizedInput );
@@ -685,7 +675,7 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> BatchNorm<T>::normalize(const 
 
     log_detail( "normalizedOutput scaled ..." );
     log_matrix( normalizedOutput );
-
+    
     return std::make_tuple(normalizedInput, normalizedOutput, Xmu);
 }
 
@@ -708,10 +698,19 @@ const aitensor<T> BatchNorm<T>::forward(const aitensor<T>& input_data) {
 
         input = input_data.at(i).transpose(); // matrix_view(chip(input_data, i, 1)); // batch_size x embedding_size
 
-        log_detail( "Size of input:", input.size() );
+        log_detail( "Size of input at iteration {0}: {1}", i, input.size() );
 
         // Perform Linear Transformation.
         std::tie(normInput, normOutput, Xmu) = normalize(input);
+
+        log_detail("normInput");
+        log_matrix(normInput);
+
+        log_detail("normOutput");
+        log_matrix(normOutput);
+
+        log_detail("Xmu");
+        log_matrix(Xmu);
 
         this->normalizedInput.push_back(normInput.transpose()); // normalizedInput.chip(i, 1) = tensor_view(normInput);
         this->minusMean.push_back(Xmu.transpose()); //  minusMean.chip(i, 1) = tensor_view(Xmu);
@@ -735,18 +734,40 @@ const aitensor<T> BatchNorm<T>::backward(const aitensor<T>& gradients) {
     log_info("==============================================");
     log_info("Entering Batch Normalization Backward pass ...");
 
-
     aitensor<T> dInput; // (this->batch_size, this->input_size, this->param_size);
 
     aimatrix<T> gradient, normInput, Xmu;
 
     for (int i = 0; i < this->batch_size; ++i) {
 
+        log_detail("Backward Iteration at {0} transpose prior", i);
+
+        log_detail("gradient");
+        log_matrix(gradients.at(i));
+
+        log_detail("normInput");
+        log_matrix(normalizedInput.at(i));
+
+        log_detail("Xmu");
+        log_matrix(minusMean.at(i));
+
+
         gradient = gradients.at(i).transpose(); // matrix_view(chip(gradients, i, 0));
 
         normInput = this->normalizedInput.at(i).transpose(); // matrix_view(chip(this->normalizedInput, i, 0));
 
         Xmu = this->minusMean.at(i).transpose(); // matrix_view(chip(this->minusMean, i, 0));
+
+        log_detail("Backward Iteration at {0} transpose after", i);
+
+        log_detail("gradient");
+        log_matrix(gradient);
+
+        log_detail("normInput");
+        log_matrix(normInput);
+
+        log_detail("Xmu");
+        log_matrix(Xmu);
 
         // Compute the gradient with respect to the scale parameter (Gamma)
         aivector<T> dScale = (gradient.array() * normInput.array()).rowwise().sum();
@@ -844,7 +865,7 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
     log_info("==================================================");
     log_info("Entering Batch Normalization Upgrade Parameters...");
 
-    for (int i = 0; i < this->input_size; ++i) {
+    for (int i = 0; i < this->batch_size; ++i) {
 
         // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Mx1
         aimatrix<T> pscale(this->M, 1);  // Column-Wise vector  Nx1
@@ -976,10 +997,10 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> LayerNorm<T>::normalize(const 
     this->layerStdDev = (layerVariance + epsilonVector).array().sqrt();
 
     log_detail( "stdDev ..." );
-    log_vector( layerStdDev );
+    log_vector( this->layerStdDev );
 
     // Normalize the inputs along the M dimension
-    aimatrix<T> normalizedInput = Xmu.array().colwise()  / layerStdDev.array();
+    aimatrix<T> normalizedInput = Xmu.array().colwise()  / this->layerStdDev.array();
 
     log_detail( "normalizedInput along the N  ..." );
     log_matrix( normalizedInput );

@@ -90,15 +90,13 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
 
     std::cout << "Setting Training Time ..." << std::endl;
 
-    int iter = 0;
-
     auto start_time = std::chrono::system_clock::now();
 
     std::cout << "Starting Iteration ..." << std::endl;
 
-    do {
+    for (int iter = 1; iter <= itermax; iter++) {
 
-        log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter + 1) );
+        log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
         this->graph->nextBatch();
 
         log_detail( "Entering Forward Propagation ..." );
@@ -133,11 +131,9 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         // Also, log the result if Logging INFO is enabled
         log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
 
-        iter ++;
+        if (abs(old_loss - this->loss) <= epsilon) break;
 
-        if (iter >= itermax) break;
-
-    } while (abs(old_loss - this->loss) > epsilon);
+    }
 
     log_detail( "Training done ..." );
 

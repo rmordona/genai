@@ -257,61 +257,71 @@ void Node<T>::forwardPass() {
         // if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
         if (Linear<T>* linear = dynamic_cast<Linear<T>*>(op)) {
             log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, size);
-            output = linear->forward(output);  
+            output = linear->forward(output); 
+            log_info("Returned Linear Forward pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
         if (BatchNorm<T>* batchnorm = dynamic_cast<BatchNorm<T>*>(op)) {
             log_detail("Node [{0}] Batch Normal Operation (Forward Pass)", name );
             output = batchnorm->forward(output);
+            log_info("Returned Batch Normal pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
         if (LayerNorm<T>* layernorm = dynamic_cast<LayerNorm<T>*>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Forward Pass)", name );
             output = layernorm->forward(output);
+            log_info("Returned Layer Normal pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto activate = std::dynamic_pointer_cast<Activation<T>>(op)) {
         if (Activation<T>* activate = dynamic_cast<Activation<T>*>(op)) {
             log_detail("Node [{0}] Activation Operation (Forward Pass)", name );
             output = activate->forward(output);
+            log_info("Returned Activation pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
             output = attention->forward(output);
+            log_info("Returned Attention pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
         if (FeedForward<T>* feedforward = dynamic_cast<FeedForward<T>*>(op)) {
             log_detail("Node [{0}] FeedForward Operation (Forward Pass)", name );
             output = feedforward->forward(output);
+            log_info("Returned FeedForward pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
         if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
             log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
             output = encoder->forward(output);
+            log_info("Returned Encoder pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
             output = rnn->forward(output);
+            log_info("Returned RNN pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
         if (LSTM<T>* lstm = dynamic_cast<LSTM<T>*>(op)) {
             log_detail("Node [{0}] LSTM Operation (Forward Pass)", name );
             output = lstm->forward(output);
+            log_info("Returned LSTM pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
         if (GRU<T>* gru = dynamic_cast<GRU<T>*>(op)) {
-            log_detail("Node [{0}] gru Operation (Forward Pass)", name );
+            log_detail("Node [{0}] GRU Operation (Forward Pass)", name );
             output = gru->forward(output);
+            log_info("Returned LSTM GRU with the below output ...");
             log_matrix( output );
         }
     }
@@ -435,7 +445,7 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
         } else
         //if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
         if (BatchNorm<T>* batchnorm = dynamic_cast<BatchNorm<T>*>(op)) {
-            log_detail("Node [{0}] Barch Normal Operation (Update Params)", name );
+            log_detail("Node [{0}] Batch Normal Operation (Update Params)", name );
             batchnorm->updateParameters(optimizertype, learningRate, iter);
         } else            
         //if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
@@ -752,7 +762,6 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
     for (const auto& node : nodes) {
         if (outdegree[node] == 0) {
             node->setGradients(gradients); // gradients with respect to loss function.
-
             q.push(node);
         }
     }
@@ -825,9 +834,16 @@ const aitensor<T> Graph<T>::computeGradients(const aitensor<T>& predicted, const
     log_info( "*****    Graph: Processing Gradient *********" );
     log_info( "*********************************************" );
 
+    log_detail("Predicted:");
+    log_matrix(predicted);
+
+    log_detail("Target:");
+    log_matrix(target);
+
     aitensor<T> gradients = this->lossobj->computeGradients(predicted, target);
 
     log_detail( "Loss Gradient calculated ..." );
+
     log_matrix( gradients );
 
     return gradients;

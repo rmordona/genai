@@ -529,12 +529,22 @@ class BaseOperator {
     static aimatrix<float> matmul(const aimatrix<float>& A, const aimatrix<float>& B) {
         float alpha = 1.0f;
         float beta = 0.0f;
+
+        // Use the list of variables if not using Eigen::RowMajor (meaning, default is Column Major)
+        //int M = A.rows();
+        //int N = B.cols();
+        //int K = A.cols();
+        //int lda = A.rows();  // leading dimension of A.
+        //int ldb = A.cols();  // leading dimension of B.
+        //int ldc = A.rows();  // leading dimension of C.
+
+        // Use the list of variables if using Eigen::RowMajor
         int M = A.rows();
         int N = B.cols();
         int K = A.cols();
-        int lda = M;  // leading dimension of A.
-        int ldb = K;  // leading dimension of B.
-        int ldc = M;  // leading dimension of C.
+        int lda = A.cols();  // leading dimension of A.
+        int ldb = B.cols();  // leading dimension of B.
+        int ldc = B.cols();  // leading dimension of C.
 
         std::cout << "matmul:" << std::endl;
         std::cout << "M:" << M << ", N:" << N << ", K:" << K << std::endl;
@@ -547,7 +557,10 @@ class BaseOperator {
         // Here we assume the following:
         //  A = MxK,  B = KxN,    C = MxN. 
         // Therefore for a Column Major (Vertical), lda = M, ldb = K, ldc = M. Those represent the length of rows per matrix.
-        cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+        // cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+
+        // For Eigen::RowMajor, use bellow instead:
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
 
         std::cout << "cblas sgemm done ..." << std::endl;
 
@@ -557,12 +570,22 @@ class BaseOperator {
     static aimatrix<double> matmul(const aimatrix<double>& A, const aimatrix<double>& B) {
         double alpha = 1.0;
         double beta = 0.0;
+
+        // Use the list of variables if not using Eigen::RowMajor (meaning, default is Column Major)
+        //int M = A.rows();
+        //int N = B.cols();
+        //int K = A.cols();
+        //int lda = A.rows();  // leading dimension of A.
+        //int ldb = A.cols();  // leading dimension of B.
+        //int ldc = A.rows();  // leading dimension of C.
+
+        // Use the list of variables if using Eigen::RowMajor
         int M = A.rows();
         int N = B.cols();
         int K = A.cols();
-        int lda = M;  // leading dimension of A.
-        int ldb = K;  // leading dimension of B.
-        int ldc = M;  // leading dimension of C.
+        int lda = A.cols();  // leading dimension of A.
+        int ldb = B.cols();  // leading dimension of B.
+        int ldc = B.cols();  // leading dimension of C.
 
         aimatrix<double> C(M, N);
 
@@ -570,7 +593,11 @@ class BaseOperator {
         // Here we assume the following:
         //  A = MxK,  B = KxN,    C = MxN. 
         // Therefore for a Column Major (Vertical), lda = M, ldb = K, ldc = M. Those represent the length of rows per matrix.
-        cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+        // cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+
+        // For Eigen::RowMajor, use bellow instead:
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
+
         return C;
     }
 
