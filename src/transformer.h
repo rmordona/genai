@@ -30,6 +30,50 @@
 #ifndef TRANSFORMER_H
 #define TRANSFORMER_H
 
+/**************************************************************************************************
+  Tensor Helper Functions
+**************************************************************************************************/
+
+// This function takes a sub-tensor slice of a tensor. 
+template <class T>
+static std::vector<aitensor<T>> head_split(const aitensor<T>& tensor, int splits) {
+    int dim0 = tensor.size();
+    int dim1 = tensor.at(0).rows();
+    int dim2 = tensor.at(0).cols();
+
+    std::vector<aitensor<T>> heads;
+    int splitSize =  dim2 / splits;
+
+    log_info("Splitting Features for Multi-Head Attention ...");
+    log_detail("Tensor: {0} x {1} x {2}", dim0, dim1, dim2);
+
+    for (int i = 0; i < splits; i++) {
+        aitensor<T> head;
+        int start = i * splitSize;
+        for (int j = 0; j < dim0; j++) {
+            aimatrix<T> input = tensor.at(j).block(0, start, dim1, splitSize);
+            head.push_back(input);
+            log_detail("Split matrix i={0} j={1}: {2} x {3}", i, j, input.rows(), input.cols());
+        }
+        heads.push_back(head);
+    }
+
+    // For Debugging
+    std::cout << "Splitting Heads ..." << std::endl;
+    for (int i = 0; i < splits; i++) {
+        std::cout << "head: " << i << std::endl;
+        aitensor<T> tensor_ = heads.at(i);
+        for (int j = 0; j < dim0; j++) {
+            std::cout << "batch: " << j << std::endl;
+            aimatrix<T> matrix = tensor_.at(j);
+            std::cout << "matrix:" << matrix << std::endl;
+        }
+    }
+
+    return heads;
+}
+
+
 template <class T>
 class Attention : public BaseOperator {
 private:
@@ -44,8 +88,8 @@ private:
     aitensor<T> Kout;
     aitensor<T> Vout;
 
-    aitensor<T> QKsoft;
-    aitensor<T> QKsoftV;
+    aitensor<T> QKweight;
+    aitensor<T> QKweightV;
 
     int B = 0;  // batch size
     int N = 0;  // input size

@@ -54,7 +54,7 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
     // dimension is BxNxW
     this->B = input_data.size();
     this->N = input_data.at(0).rows();
-    this->M = input_data.at(0).cols();
+    this->M = input_data.at(0).cols(); // M dimension from input will be the same dimension as output (Wo)
 
     this->Dk = this->M / this->H;
 
@@ -68,73 +68,75 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
     }
 
     // Perform Linear Transformation.
+    log_info( "Q Linear forward pass ..." );
     this->Qout = Q->forward(input_data);
-    this->Kout = K->forward(input_data);
-    this->Vout = V->forward(input_data);
-
     log_detail( "Q Linear output" );
     log_matrix( this->Qout );
 
+    log_info( "K Linear forward pass ..." );
+    this->Kout = K->forward(input_data);
     log_detail( "K Linear output" );
     log_matrix( this->Kout );
 
+    log_info( "V Linear forward pass ..." );
+    this->Vout = V->forward(input_data);
     log_detail( "V Linear output" );
     log_matrix( this->Vout );
 
     aitensor<T> voutputs; // (this->B, this->N, this->W); // Dimension: BxNxW
-    // QKsoft.resize(this->B, this->N, this->N); // Dimension: BxNxN
 
-    aimatrix<T> mQout, mKout, mVout, mQKsoft, mQKsoftV, QK;
+    aimatrix<T> mQout, mKout, mVout, QKscore, QKscale, mQKweight, mQKweightV, QKweightV;
 
     for (int i = 0; i < this->B; ++i) {
 
-        mQout = this->Qout.at(i); // matrix_view(chip(this->Qout, i, 0)); // NxW
-        mKout = this->Kout.at(i); //matrix_view(chip(this->Kout, i, 0)); // NxW
-        mVout = this->Vout.at(i); // matrix_view(chip(this->Vout, i, 0)); // NxW
+        mQout = this->Qout.at(i); // NxW
+        mKout = this->Kout.at(i); // NxW
+        mVout = this->Vout.at(i); // NxW
 
-        // MatMul (QK^T)
-        QK = BaseOperator::matmul(mQout, mKout.transpose()); // NxN
+        log_detail("dimension of mQout {0}x{1}", mQout.rows(), mQout.cols());
+
+        // Computing the Attention Score - MatMul (QK^T)
+        QKscore = BaseOperator::matmul(mQout, mKout.transpose()); // NxN
 
         log_detail( "QK matmul" );
-        log_matrix( QK );
+        log_matrix( QKscore );
 
         // Include some Masking (still to be implemented)
 
         // Scale sqrt(Dk)
-        QK = QK.array() / sqrt(this->Dk);
+        QKscale = QKscore.array() / sqrt(this->Dk);
 
-        log_detail( "Scaling -> QK / sqrt(Dk)" );
-        log_matrix( QK );
+        log_detail( "Scaling -> QKscore / sqrt(Dk)" );
+        log_matrix( QKscale );
 
-        // Mask if required (Decoder)
+        // Mask if required (for Decoder)
         // ...
 
-        // Perform Softmax
-        mQKsoft = BaseOperator::softmax(QK);
+        // Computing the Attention WeightPerform via Softmax
+        mQKweight = BaseOperator::softmax(QKscale);
 
-        log_detail( "Softmax QKsoft output" );
-        log_matrix(  mQKsoft );
-
-        log_detail( "Vout output" );
-        log_matrix(  mVout  );
+        log_detail( "Attention Weight mQKweight output" );
+        log_matrix(  mQKweight );
 
         // Cache to be used by Back propagation
-        QKsoft.push_back( mQKsoft );
-        // QKsoft.chip(i, 0) = tensor_view(mQKsoft);
+        this->QKweight.push_back( mQKweight );
 
         // Include dropout (still to be implemented)
 
         // Perform matmul with V
-        mQKsoftV = BaseOperator::matmul(mQKsoft, mVout);
+        QKweightV = BaseOperator::matmul(mQKweight, mVout);
 
-        voutputs.push_back(mQKsoftV); //   voutputs.chip(i, 0) = tensor_view(mQKsoftV);
+        log_detail( "Matmul of weight * V (QKweightV)" );
+        log_matrix(  QKweightV );
+
+        voutputs.push_back(QKweightV);
     
     }
 
     // Perform another transform to align dimension.
+    log_info( "Wo Linear forward pass ..." );
     aitensor<T> output = Wo->forward(voutputs);
-
-    log_detail( "Attention forward pass output ..." );
+    log_detail( "Wo Linear output" );
     log_matrix( output );
 
     return output; // this becomes input to the next Node or next Layer.
@@ -151,75 +153,75 @@ const aitensor<T> Attention<T>::backward(const aitensor<T>& gradients) {
     log_info("=====================================");
     log_info( "Entering Attention Backward Pass ..." );
 
-    // Gradient with Respect to W linear operations.
-    aitensor<T> WodInput = Wo->backward(gradients); 
-
-    aimatrix<T> mWodInput, mKout, mQout, mVout, mQKsoft;
-
+    aimatrix<T>  mdWo, mKout, mQout, mVout, mQKweight;
     aitensor<T>  QdInput, KdInput, VdInput, dInput;
-    // (this->B, this->N, this->M);
-    //aitensor<T>  KdInput(this->B, this->N, this->M);
-    // aitensor<T>  VdInput(this->B, this->N, this->M);
-    // aitensor<T> dInput(this->B, this->N, this->M);
+
+    // Gradient with Respect to W linear operations.
+    aitensor<T>  dWo = Wo->backward(gradients); 
+
+    log_detail( "Wo gradient" );
+    log_matrix(dWo);
 
     for (int i = 0; i < this->B; ++i) {
 
-        mWodInput = WodInput.at(i); // matrix_view( chip(WodInput, i, 0));
-        mKout     = Kout.at(i); //matrix_view( chip(Kout, i, 0));
-        mQout     = Qout.at(i); //matrix_view( chip(Qout, i, 0));
-        mVout     = Vout.at(i); //matrix_view( chip(Vout, i, 0));
-        mQKsoft   = QKsoft.at(i); //matrix_view( chip(QKsoft, i, 0));
+        mdWo      = dWo.at(i);
+        mKout     = Kout.at(i); 
+        mQout     = Qout.at(i); 
+        mVout     = Vout.at(i); 
+        mQKweight = QKweight.at(i); 
 
-        // Gradient with Respect to QKsoft (matmul operation)
-        aimatrix<T> dQKsoft = BaseOperator::matmul(mWodInput, mVout.transpose());
+        // Gradient with Respect to Result of softmax  
+        log_detail("Gradient with respect to QKweight");
+        aimatrix<T> dQKweight = BaseOperator::matmul(mdWo, mVout.transpose());
 
-        log_detail( "dQKsoft gradient" );
-        log_matrix( dQKsoft );
-
-        // Gradient with Respect to Vout (matmul operation)
-        aimatrix<T> VmInput = BaseOperator::matmul(mQKsoft.transpose(), mWodInput);
-
-        log_detail( "VmInput gradient" );
-        log_matrix( VmInput );
-
-        // Propagate Gradient to softmax operation.
-        aimatrix<T> dInput_m = BaseOperator::softmaxGradient(dQKsoft, mQKsoft);
-
-        log_detail( "dInput gradient" );
-        log_matrix( dInput_m );
-
-        // Propagate Gradient to scale operation.
-        aimatrix<T> dScale = -0.5 * dInput_m.array() * (1.0 / std::sqrt(this->Dk));
-
-        log_detail( "dScale gradient" );
-        log_matrix( dInput_m );
-
-        // Gradient with Respect to Q (matmul operation)
-        aimatrix<T> QdQK = BaseOperator::matmul(dScale, mKout); // Kout was already tranposed during forward.
-
-        log_detail( "QdQK gradient" );
-        log_matrix( QdQK );
+        log_detail( "dQKweight" );
+        log_matrix( dQKweight );
 
         // Gradient with Respect to V (matmul operation)
-        aimatrix<T> KdQK = BaseOperator::matmul(mQout.transpose(), dScale);
+        log_detail("Gradient with respect to vOut");
+        aimatrix<T> d_V = BaseOperator::matmul(mQKweight.transpose(), mdWo);
 
-        log_detail( "KdQK gradient" );
-        log_matrix( KdQK );
+        log_detail( "d_V gradient" );
+        log_matrix( d_V );
 
-        QdInput.push_back(QdQK); // QdInput.chip(i, 0) = tensor_view(QdQK);
-        KdInput.push_back(KdQK); // KdInput.chip(i, 0) = tensor_view(KdQK);
-        VdInput.push_back(VmInput); // VdInput.chip(i, 0) = tensor_view(VmInput);
+        // Propagate Gradient to softmax operation.
+        aimatrix<T> dQKscale = BaseOperator::softmaxGradient(dQKweight, mQKweight);
+
+        log_detail( "dQKscale gradient" );
+        log_matrix( dQKscale );
+
+        // Calculate the scale.
+        aimatrix<T> dScale = -0.5 * dQKscale.array() * (1.0 / std::sqrt(this->Dk));
+
+        log_detail( "dScale gradient" );
+        log_matrix( dScale );
+
+        // Gradient with Respect to Q (matmul operation)
+        aimatrix<T> d_Q = BaseOperator::matmul(dScale.transpose(), mKout);
+        log_detail( "d_Q gradient" );
+        log_matrix( d_Q );
+
+        // Gradient with Respect to K (matmul operation)
+        aimatrix<T> d_K = BaseOperator::matmul(mQout.transpose(), dScale).transpose();
+
+        log_detail( "d_K gradient" );
+        log_matrix( d_K );
+
+        QdInput.push_back(d_Q); 
+        KdInput.push_back(d_K); 
+        VdInput.push_back(d_V); 
 
     }
 
-    log_detail( " Done Backprop to Q, K, V ..." );
+    log_detail( " Perform Backprop for Q, K, V ..." );
 
     // Propagate Gradient to the Q,K,V linear operations.
+    log_detail( "Q Linear backward pass ..." );
     QdInput = Q->backward(QdInput);  // NxM
+    log_detail( "K Linear backward pass ..." );
     KdInput = K->backward(KdInput);  // NxM
+    log_detail( "V Linear backward pass ..." );
     VdInput = V->backward(VdInput);  // NxM
-
-    log_detail( " Done Backprop to Q, K, V ..." );
 
     log_detail( "VdInput gradient" );
     log_matrix( VdInput );
@@ -236,9 +238,6 @@ const aitensor<T> Attention<T>::backward(const aitensor<T>& gradients) {
         dInput.push_back(QdInput.at(i) +  KdInput.at(i) + VdInput.at(i));
     }
 
-    log_detail( "dInput gradient" );
-    log_matrix( dInput );
-
     return dInput;  
 }
 
@@ -248,9 +247,13 @@ void Attention<T>::updateParameters(std::string& optimizertype, T& learningRate,
     log_info("=========================================");
     log_info( "Entering Attention Update Parameter ..." );
 
+    log_detail("Q Linear parameter update");
     Q->updateParameters(optimizertype, learningRate, iter);
+    log_detail("K Linear parameter update");
     K->updateParameters(optimizertype, learningRate, iter);
+    log_detail("V Linear parameter update");
     V->updateParameters(optimizertype, learningRate, iter);
+    log_detail("Wo Linear parameter update");
     Wo->updateParameters(optimizertype, learningRate, iter);
 }
 
@@ -277,7 +280,6 @@ std::string Attention<T>::generateDotFormat() {
 template <class T> 
 const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) { 
 
-
     log_info("===============================================");
     log_info( "Entering Multi-Head Attention Forward Pass ..." );
 
@@ -296,7 +298,7 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     if (M1.empty()) {
         for (int i = 0; i < this->H; i++) {
-            Attention<T>* A1  = new Attention<T>(this->W);
+            Attention<T>* A1  = new Attention<T>(this->W); // specify weight size.
             M1.push_back(A1);
         }
     }
@@ -305,15 +307,20 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     aitensor<T> output; 
 
-    std::vector<aitensor<T>> heads = feature_slice(input_data, this->H);
+    std::vector<aitensor<T>> heads = head_split(input_data, this->H);
 
     for (int i = 0; i < this->H; i++) {
+        log_detail( "Multi Attention Forward at split ({0}) ...", i );
         aitensor<T> head = M1[i]->forward(heads[i]);
-        if (output.size() == 0) {
-                output = head;
+        if (i == 0) {
+            for (int j = 0; j < this->B; j++) {
+                output.push_back(head.at(j));
+            }
         } else {
             for (int j = 0; j < this->B; j++) {
-                output.at(j) << output.at(j), head.at(j);
+                aimatrix<T> C(output.at(j).rows(), output.at(j).cols() + head.at(j).cols());
+                C << output.at(j), head.at(j);
+                output.at(j) = C;
             }
         }
     }
@@ -337,17 +344,22 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
 
     log_detail( "Size of DK ...{:d}" , Dk );
 
-    aitensor<T> dInput;  
+    aitensor<T> dInput;
 
-    std::vector<aitensor<T>> heads = feature_slice(gradients, this->H);
+    std::vector<aitensor<T>> heads = head_split(gradients, this->H);
 
     for (int i = 0; i < this->H; i++) {
+        log_detail( "Multi Attention Backward at split ({0}) ...", i );
         aitensor<T> head = M1[i]->backward(heads[i]);
-        if (dInput.size() == 0) {
-                dInput = head;
+        if (i == 0) {
+            for (int j = 0; j < this->B; j++) {
+                dInput.push_back(head.at(j));
+            }
         } else {
             for (int j = 0; j < this->B; j++) {
-                dInput.at(j) << dInput.at(j), head.at(j);
+                aimatrix<T> C(dInput.at(j).rows(), dInput.at(j).cols() + head.at(j).cols());
+                C << dInput.at(j), head.at(j);
+                dInput.at(j) = C;
             }
         }
     }
@@ -361,7 +373,7 @@ void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& lear
     log_info("=====================================================");
     log_info( "Entering Multi-Head Attention Update Parameters ..." );
 
-    for (int i = 1; i < this->H; i++) {
+    for (int i = 0; i < this->H; i++) {
         M1[i]->updateParameters(optimizertype, learningRate, iter);
     }
 }
@@ -370,7 +382,7 @@ template <class T>
 std::string MultiHeadAttention<T>::generateDotFormat() {   
     std::string dot = "{* MultiHeadAttention *}|";  
     int cnt = 1;
-    for (int i = 1; i < this->H; i++) {
+    for (int i = 0; i < this->H; i++) {
         dot +=  M1[i]->generateDotFormat();
         if (++cnt < (int) this->H) { dot += "|"; }
     }
@@ -408,11 +420,19 @@ const aitensor<T> FeedForward<T>::forward(const aitensor<T>& input_data) {
     }
 
     // Perform Linear Transformation.
+    log_detail( "L1 Linear forward pass ..." );
     L1out = L1->forward(input_data);  // Cache output for use by backward activation later
-    aitensor<T> A1out = A1->forward(L1out);
-    aitensor<T> output = L2->forward(A1out);
+    log_detail( "L1 Linear output" );
+    log_matrix( L1out );
 
-    log_detail( "Output Result" );
+    log_detail( "A1 Activation forward pass ..." );
+    aitensor<T> A1out = A1->forward(L1out);
+    log_detail( "A1 Activation output" );
+    log_matrix( A1out );
+
+    log_detail( "L2 Linear forward pass ..." );
+    aitensor<T> output = L2->forward(A1out);
+    log_detail( "L2 Linear output" );
     log_matrix( output );
 
     return output;
@@ -429,12 +449,12 @@ const aitensor<T> FeedForward<T>::backward(const aitensor<T>& gradients) {
     log_info("=======================================");
     log_info( "Entering Feedforward Backward Pass ..." );
 
+    log_detail( "L2 Linear backward pass ..." );
     aitensor<T> L2gradients = L2->backward(gradients); 
+    log_detail( "A1 Activation backward pass ..." );
     aitensor<T> A1gradients = A1->backward(L2gradients);
+    log_detail( "L1 Linear backward pass ..." );
     aitensor<T> dInput = L1->backward(A1gradients);
-
-    log_detail( "dInput" );
-    log_matrix( dInput );
 
     return dInput;
 }
@@ -445,7 +465,9 @@ void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRat
     log_info("==========================================");
     log_info( "Entering Feedforward Update Paramter ..." );
 
+    log_detail("L1 Linear parameter update");
     L1->updateParameters(optimizertype, learningRate, iter);
+    log_detail("L2 Linear parameter update");
     L2->updateParameters(optimizertype, learningRate, iter);
 
 }
@@ -499,23 +521,25 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
     log_detail( "Input Data ...." );
     log_matrix( input_data  );
 
-    log_detail( "Encoder Attention forward output ..." );
+    log_detail( "Encoder Attention forward output (M1out)..." );
     log_matrix( M1out );
 
     aitensor<T> InputM1out;
     
     for (int i = 0; i < (int) this->B; i++) {
-        InputM1out.at(i) = M1out.at(i) + input_data.at(i);
+        InputM1out.push_back( M1out.at(i) + input_data.at(i) );
     }
 
-    log_detail( "Encoder Add 1 forward output ..." );
+    log_detail( "Encoder M1 forward output ..." );
     log_matrix( InputM1out  );
 
+    log_detail( "Encoder LN1 forward pass ..." );
     LN1out = LN1->forward(InputM1out);
 
     log_detail( "Encoder LN1 forward output ..." );
     log_matrix( LN1out  );
 
+    log_detail( "Encoder F1 forward pass ..." );
     F1out = F1->forward(LN1out);
 
     log_detail( "Encoder FeedForward forward output ..." );
@@ -524,16 +548,14 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
     aitensor<T> LN1F1out;
 
     for (int i = 0; i < (int) this->B; i++) {
-        LN1F1out.at(i) = F1out.at(i) + LN1out.at(i);
+        LN1F1out.push_back( F1out.at(i) + LN1out.at(i) );
     }
 
-    log_detail( "Encoder Add 2 forward output ..." );
+    log_detail( "Encoder F1 forward output ..." );
     log_matrix( LN1F1out  );
 
+    log_detail( "Encoder LN2 forward pass ..." );
     aitensor<T> output = LN2->forward(LN1F1out);
-
-    log_detail( "Encoder LN2 forward output ..." );
-    log_matrix( output  );
 
     return output;
 }
@@ -550,57 +572,54 @@ const aitensor<T> Encoder<T>::backward(const aitensor<T>& gradients) {
 
     log_detail( "Entering Encoder backpropagation ..." );
     // Propagate Gradient to Encoder.
-    aitensor<T>  LN2gradients = LN2->backward(gradients); 
+    aitensor<T>  dLN2 = LN2->backward(gradients);  // dLN2
 
-    log_detail( "Encoder LN2 backprop output ..." );
-    log_matrix( LN2gradients );
+    log_detail( "Encoder LN2 backprop output (dLN2) ..." );
+    log_matrix( dLN2 );
 
-    aitensor<T> F1LN2gradients = LN2gradients; // F1out.array() * LN2gradients.array();
+    // aitensor<T> F1LN2gradients = LN2gradients; // F1out.array() * LN2gradients.array();
 
-    aitensor<T> F1gradients = F1->backward(F1LN2gradients);
+    aitensor<T> dF1 = F1->backward(dLN2);  // (F1LN2gradients);  // dF1
 
-    log_detail( "Encoder F1 backprop output ..." );
-    log_matrix( F1gradients );
+    log_detail( "Encoder F1 backprop output (dF1) ..." );
+    log_matrix( dF1 );
 
-    aitensor<T> InputLN2gradients = LN2gradients; // LN1out.array() * LN2gradients.array();
+    // aitensor<T> InputLN2gradients = LN2gradients; // LN1out.array() * LN2gradients.array();
 
     log_detail( "Encoder input * F1 backprop output ..." );
-    log_matrix( InputLN2gradients );
+    // log_matrix( InputLN2gradients );
 
     for (int i = 0; i < (int) gradients.size(); i++) {
 
-        F1gradients.at(i) = InputLN2gradients.at(i) + F1gradients.at(i);
+        dF1.at(i) = dLN2.at(i) + dF1.at(i);
 
     }
 
-    log_detail( "Encoder (InputLN1gradients + F1gradients) backprop output ..." );
-    log_matrix( F1gradients );
+    log_detail( "Encoder (dLN2 + dF1) backprop output ..." );
+    log_matrix( dF1 );
 
-    aitensor<T>  LN1gradients = LN1->backward(F1gradients);
+    aitensor<T>  dLN1 = LN1->backward(dF1);
 
-    log_detail( "Encoder LN1 backprop output ..." );
-    log_matrix( LN1gradients );
+    log_detail( "Encoder LN1 backprop output (dLN1) ..." );
+    log_matrix( dLN1 );
 
-    aitensor<T> M1LN1gradients = LN1gradients; // A1out.array() * LN1gradients.array();
+    // aitensor<T> M1LN1gradients = LN1gradients; // A1out.array() * LN1gradients.array();
 
-    aitensor<T>  M1gradients =  M1->backward(M1LN1gradients);
+    aitensor<T>  dM1 =  M1->backward(dLN1);
 
-    log_detail( "Encoder A1 backprop output ..." );
-    log_matrix( M1gradients );
+    log_detail( "Encoder M1 backprop output (dM1) ..." );
+    log_matrix( dM1 );
 
-    aitensor<T> LN1outLN1gradients = LN1gradients; // input_data.array() * LN1gradients.array();
+    // aitensor<T> LN1outLN1gradients = LN1gradients; // input_data.array() * LN1gradients.array();
 
     aitensor<T> dInput;
     
     for (int i = 0; i < (int) gradients.size(); i++) {
 
-        dInput.push_back( LN1outLN1gradients.at(i) + M1gradients.at(i) );
+        dInput.push_back( dLN1.at(i) + dM1.at(i) );
 
     }
        
-    log_detail( "Encoder dInput ..." );
-    log_matrix( dInput );
-
     return dInput;
 }  
  
@@ -610,9 +629,13 @@ void Encoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     log_info("=====================================================");
     log_info( "Entering Encoder Update Parameter ..." );
 
+    log_detail("LN1 Linear parameter update");
     LN1->updateParameters(optimizertype, learningRate, iter);
+    log_detail("LN2 Linear parameter update");
     LN2->updateParameters(optimizertype, learningRate, iter);
+    log_detail("F1 Linear parameter update");
     F1->updateParameters(optimizertype, learningRate, iter);
+    log_detail("M1 Linear parameter update");
     M1->updateParameters(optimizertype, learningRate, iter);
 
 }

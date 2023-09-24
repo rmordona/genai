@@ -95,26 +95,25 @@ void Optimizer<T>::adam(aimatrix<T>& weights, const aimatrix<T>& gradients, int 
     log_info("============================");
     log_info("Entering Adam Optimation ...");
 
-    if (moments.cols() == 0 && moments.rows() == 0) {
-        moments = aimatrix<T>::Zero(weights.rows(), weights.cols());
-    }
-    if (velocity.cols() == 0 && velocity.rows() == 0) {
-        velocity = aimatrix<T>::Zero(weights.rows(), weights.cols());
-    }
-
     T beta1_t = std::pow(beta1, currentEpoch + 1);
     T beta2_t = std::pow(beta2, currentEpoch + 1);
-
-    // int doublePrecision = std::numeric_limits<T>::digits10;
-    // std::cout.precision(doublePrecision);
 
     log_detail( "Beta 1 Calculation: {:2.10f} based on beta1: {:2.10f}", beta1_t, beta1 );
     log_detail( "Beta 2 Calculation: {:2.10f} based on beta2: {:2.10f}", beta2_t, beta2 );
 
-    log_detail( "Calculating: beta1 * moments.array()" );
+    if (moments.cols() == 0 && moments.rows() == 0) {
+        log_info("Initializing moments to zeroes ...");
+        moments = aimatrix<T>::Zero(weights.rows(), weights.cols());
+    }
+    if (velocity.cols() == 0 && velocity.rows() == 0) {
+        log_info("Initializing velocity to zeroes ...");
+        velocity = aimatrix<T>::Zero(weights.rows(), weights.cols());
+    }
+
+    log_info( "Calculating: beta1 * moments.array() [ note: all zeroes initially ]" );
     log_matrix( (aimatrix<T>) (beta1 * moments.array()) );
 
-    log_detail( "Calculating: beta2 * velocity.array()" );
+    log_info( "Calculating: beta2 * velocity.array() [ note: all zeroes initially ]" );
     log_matrix( (aimatrix<T>) (beta2 * velocity.array()) );
 
 
@@ -283,17 +282,15 @@ void Linear<T>::setInitialWeights(int M) {
     parameters.weights.resize(M, this->W); // allocates memory
     parameters.biases.resize(this->W); // allocates memory
 
+        log_detail( "manual: input Dimension: {0}x{1}",  parameters.weights.rows(),  parameters.weights.cols());
+
     // Initialize Weights & Biases
     heInitMatrix(parameters.weights);
     // heInitialization(parameters.biases);
     parameters.biases.setConstant(T(0.01));
 
-    //gradients.weights.resize(M, W); // allocates memory
-    //gradients.biases.resize(W); // allocates memory
+    log_detail( "manual: input Dimension: {0}x{1}",  parameters.weights.rows(),  parameters.weights.cols());
 
-    // Initialize Gradients     
-    //gradients.weights.setZero();
-    //gradients.biases.setZero();
 
 }
 
@@ -333,12 +330,21 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
     log_matrix( aimatrix<T> (BaseOperator::matmul(input_data, parameters.weights)) );
     log_detail( "bias" );
     log_rowvector( parameters.biases );
- 
+
+    aimatrix<T> output1 = (input_data * parameters.weights);
+        log_detail( "manual: input Dimension: {0}x{1}", input_data.rows(), input_data.cols());
+        log_detail( "manual: weights Dimension: {0}x{1}", parameters.weights.rows(), parameters.weights.cols());
+         log_detail( "manual: Prior Bias: Linear output Dimension: {0}x{1}", output1.rows(), output1.cols());
+        log_matrix(output1);
+
     aimatrix<T> output = BaseOperator::matmul(input_data, parameters.weights);
-    
+        log_detail( "matmul: Prior Bias: Linear output Dimension: {0}x{1}", output.rows(), output.cols());
+        log_matrix(output);
     if (bias == true) {
         // rowwise() means, slice one row at a time and add to bias (which is 1 row horizontally).
         output = output.rowwise() + parameters.biases;// Ax + b = Wx + b; NxW dimension.
+        log_detail( "After Bias: Linear output Dimension: {0}x{1}", output.rows(), output.cols());
+        log_matrix(output);
     } 
     return output;
 }
@@ -378,14 +384,14 @@ const aitensor<T> Linear<T>::forward(aitensor<T> input_data) {
         // Perform Linear Transformation.
         aimatrix<T> output = linearTransform(input);
 
-        std::cout << "Row: " << output.rows() << " Col:" << output.cols() << std::endl;
+        log_detail( "Linear output Dimension: {0}x{1}", output.rows(), output.cols());
 
         // output_data->chip(i, 0) = tensor_view(output);
         output_data.push_back(output);
 
     }
 
-    log_info( "End Linear transformation ...." );
+    log_info( "End Linear transformation ....\n" );
 
     return output_data; // this becomes input to the next Node or next Layer. It returns a copy of the output.
 }
@@ -396,8 +402,6 @@ OperationParams<T> Linear<T>::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gr
 
     // initialize gradients for next iteration.
     OperationParams<T> gradients;
-    gradients.weights.setZero();
-    gradients.biases.setZero();
 
     log_detail("Computing Gradient with respect to bias:");
     
@@ -409,34 +413,33 @@ OperationParams<T> Linear<T>::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gr
     log_matrix( aimatrix<T>  (input_data)  );
     log_detail( "The gradient:"  );
     log_matrix( new_gradients );
-    log_detail( "The initial gradient:" );
-    log_matrix( aimatrix<T> (gradients.weights) );
-    
+
     log_info("Multiply input and gradient.");
     // Compute the gradient with respect to the weights (dW)
-    gradients.weights = (aimatrix<T>) (BaseOperator::matmul((aimatrix<T>)(new_gradients.transpose()), input_data).transpose());  // dL/W = (dL/DC.T * x).T
-    
+    // This is just only because, by standard we have Y = W * X, but in our forward, we have Y = X * W
+    gradients.weights = BaseOperator::matmul(new_gradients.transpose(), input_data).transpose();  // dL/W = (dL/DC.T * x).T
+
     log_detail( "Computing Gradient with respect to weight:");
     log_matrix( aimatrix<T> (gradients.weights) );
 
-    log_detail( "Add the bias." );
-
     // Compute the gradient with respect to the bias (db)
-    if (bias == true)  gradients.biases = new_gradients.colwise().sum();
+    if (bias == true) {
+        log_detail( "Add the bias." );
+        gradients.biases = new_gradients.colwise().sum();
+        log_detail(  "gradient biases rows: {:d}, cols: {:d}" , gradients.biases.rows(), gradients.biases.cols() );
+        log_rowvector( gradients.biases );
+    }
 
-    log_detail(  "gbiases rows: {:d}, cols: {:d}" , gradients.biases.rows(), gradients.biases.cols() );
-    log_rowvector( gradients.biases );
-    
-    log_detail( "Normalize the gradients." );
     // Normalize the gradients by dividing by the number of samples (N)
     gradients.weights /= N;  // dW - gradients of weights (MxW)
-    if (bias == true) gradients.biases /= N;   // db - gradients of bias (1xW)
-
-    log_detail( "Normalized gradients and biases:" );
-    log_detail( "Gradient weights" );
+    log_detail( "Normalized Gradient weights:" );
     log_matrix( aimatrix<T>  (gradients.weights) );
-    log_detail( "Gadient biases" );
-    log_rowvector( gradients.biases );
+
+    if (bias == true) {
+        gradients.biases /= N;   // db - gradients of bias (1xW)
+        log_detail( "Normalized Gradient biases:" );
+        log_rowvector( gradients.biases );
+    }
 
     // Return Gradients
     return gradients;
@@ -452,7 +455,8 @@ const aimatrix<T> Linear<T>::gradient_Wrt_Input(const aimatrix<T>& new_gradients
     log_detail( "The gradient:" ) ;
     log_matrix( aimatrix<T> (new_gradients) );
     // Compute the gradient with respect to the input (dInput)
-    aimatrix<T> dInput = (aimatrix<T>) (BaseOperator::matmul((aimatrix<T>) (parameters.weights), (aimatrix<T>) (new_gradients.transpose())).transpose());   // dL/x = (W * dL/DC.T)
+    // This is just only because, by standard we have Y = W * X, but in our forward, we have Y = X * W
+    aimatrix<T> dInput = BaseOperator::matmul(parameters.weights, new_gradients.transpose()).transpose();   // dL/x = (W * dL/DC.T)
 
     log_detail( "The computed gradient with respect to input:" );
     log_matrix( dInput );
@@ -696,7 +700,7 @@ const aitensor<T> BatchNorm<T>::forward(const aitensor<T>& input_data) {
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        input = input_data.at(i).transpose(); // matrix_view(chip(input_data, i, 1)); // batch_size x embedding_size
+        input = input_data.at(i).transpose(); // batch_size x embedding_size
 
         log_detail( "Size of input at iteration {0}: {1}", i, input.size() );
 
@@ -712,10 +716,9 @@ const aitensor<T> BatchNorm<T>::forward(const aitensor<T>& input_data) {
         log_detail("Xmu");
         log_matrix(Xmu);
 
-        this->normalizedInput.push_back(normInput.transpose()); // normalizedInput.chip(i, 1) = tensor_view(normInput);
-        this->minusMean.push_back(Xmu.transpose()); //  minusMean.chip(i, 1) = tensor_view(Xmu);
-
-        normalizedOutput.push_back(normOutput.transpose()); // normalizedOutput.chip(i, 1) = tensor_view(normOutput);
+        this->normalizedInput.push_back(normInput.transpose()); 
+        this->minusMean.push_back(Xmu.transpose()); 
+        normalizedOutput.push_back(normOutput.transpose()); 
 
     }
 
@@ -729,7 +732,7 @@ const aitensor<T> BatchNorm<T>::forward(const aitensor<T>& input_data) {
 template <class T>
 const aitensor<T> BatchNorm<T>::backward(const aitensor<T>& gradients) {
 
-    int W = this->input_data.at(0).rows();
+    int W = this->input_data.at(0).rows();  
 
     log_info("==============================================");
     log_info("Entering Batch Normalization Backward pass ...");
@@ -794,7 +797,7 @@ const aitensor<T> BatchNorm<T>::backward(const aitensor<T>& gradients) {
         log_detail( "dNormalizedInput * Xmu" );
         log_matrix( (aimatrix<T>) (dNormalizedInput.array() * Xmu.array()) );
 
-        log_detail( "dNormalizedInput * Xmu rowwise sum" );
+        log_detail( "dNormalizedInput * Xmu.rowwise.sum" );
         log_matrix( (aimatrix<T>) ((dNormalizedInput.array() * Xmu.array()).rowwise().sum()) );
 
         log_detail( "batchStdDev" );
@@ -830,7 +833,7 @@ const aitensor<T> BatchNorm<T>::backward(const aitensor<T>& gradients) {
         log_matrix( (aimatrix<T>) ((1.0/(this->batchStdDev.array() * this->batchStdDev.array())).replicate(1,W))  );
 
         log_detail( "dsq" );
-        log_matrix( (aimatrix<T>) (1.0/M * dbatchVariance.replicate(1, 2)) );
+        log_matrix( (aimatrix<T>) (1.0/W * dbatchVariance.replicate(1, 2)) );
 
         log_detail( "xmu" );
         log_matrix( (aimatrix<T>) (Xmu) );
@@ -868,10 +871,10 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
     for (int i = 0; i < this->batch_size; ++i) {
 
         // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Mx1
-        aimatrix<T> pscale(this->M, 1);  // Column-Wise vector  Nx1
-        aimatrix<T> gscale(this->M, 1);  // Column-Wise vector  Nx1 
-        aimatrix<T> pshift(this->M, 1);  // Column-Wise vector  Nx1
-        aimatrix<T> gshift(this->M, 1);  // Column-Wise vector  Nx1
+        aimatrix<T> pscale(this->M, 1);  // Column-Wise vector  Mx1
+        aimatrix<T> gscale(this->M, 1);  // Column-Wise vector  Mx1 
+        aimatrix<T> pshift(this->M, 1);  // Column-Wise vector  Mx1
+        aimatrix<T> gshift(this->M, 1);  // Column-Wise vector  Mx1
 
         pscale.col(0) = this->scale;
         gscale.col(0) = vgscale[i];
@@ -1074,11 +1077,22 @@ const aitensor<T> LayerNorm<T>::backward(const aitensor<T>& gradients) {
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        gradient = gradients.at(i); // matrix_view(chip(gradients, i, 0));
+        gradient = gradients.at(i); 
 
-        normInput = this->normalizedInput.at(i); // matrix_view(chip(this->normalizedInput, i, 0));
+        normInput = this->normalizedInput.at(i); 
 
-        Xmu = this->minusMean.at(i); // matrix_view(chip(this->minusMean, i, 0));
+        Xmu = this->minusMean.at(i); 
+
+        log_detail("Backward Iteration at {0}", i);
+
+        log_detail("gradient");
+        log_matrix(gradient);
+
+        log_detail("normInput");
+        log_matrix(normInput);
+
+        log_detail("Xmu");
+        log_matrix(Xmu);
 
         // Compute the gradient with respect to the scale parameter (Gamma)
         aivector<T> dScale = (gradient.array() * normInput.array()).rowwise().sum();
@@ -1105,7 +1119,7 @@ const aitensor<T> LayerNorm<T>::backward(const aitensor<T>& gradients) {
         log_detail( "dNormalizedInput * Xmu" );
         log_matrix( (aimatrix<T>) (dNormalizedInput.array() * Xmu.array()) );
 
-        log_detail( "dNormalizedInput * Xmu rowwise sum" );
+        log_detail( "dNormalizedInput * Xmu.rowwise.sum" );
         log_matrix( (aimatrix<T>) ((dNormalizedInput.array() * Xmu.array()).rowwise().sum()) );
 
         log_detail( "layerStdDev" );
@@ -1141,7 +1155,7 @@ const aitensor<T> LayerNorm<T>::backward(const aitensor<T>& gradients) {
         log_matrix( (aimatrix<T>) ((1.0/(this->layerStdDev.array() * this->layerStdDev.array())).replicate(1,W))  );
 
         log_detail( "dsq" );
-        log_matrix( (aimatrix<T>) (1.0/N * dLayerVariance.replicate(1, 2)) );
+        log_matrix( (aimatrix<T>) (1.0/W * dLayerVariance.replicate(1, 2)) );
 
         log_detail( "xmu" );
         log_matrix( (aimatrix<T>) (Xmu) );
@@ -1174,8 +1188,7 @@ template <class T>
 void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("==================================================");
-    log_info("Entering Batch Normalization Upgrade Parameters...");
-
+    log_info("Entering Layer Normalization Upgrade Parameters...");
 
     for (int i = 0; i < this->batch_size; ++i) {
 
@@ -1386,14 +1399,12 @@ const aitensor<T> Activation<T>::forward(const aitensor<T>& input_data) {
 
     std::cout << "Batch Size:" <<  this->batch_size  << " Row: " << this->input_size << " Col:" << this->param_size << std::endl;
 
-    // this->output_data//.resize(this->batch_size, this->input_size, this->param_size); // BxNxW
-
     for (int i = 0; i < this->batch_size; ++i) {
 
-        aimatrix<T> input = this->input_data.at(i); // matrix_view((aitensor2<T>) (chip(this->input_data, i, 0)));
+        aimatrix<T> input = this->input_data.at(i); 
 
         // Perform Activation
-        this->output_data.push_back(computeActivation(input)); // this->output_data.chip(i, 0) = tensor_view(computeActivation(input));
+        this->output_data.push_back(computeActivation(input)); 
     }
 
     log_detail("Activation Result" );
@@ -1407,27 +1418,25 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
     log_info("=====================================");
     log_info( "Entering Activation Backward Pass ..." );
 
-    // this->dInput.resize(this->batch_size, this->input_size, this->param_size);
-
     aitensor<T> dInput;
 
     aimatrix<T> input, output, gradient;
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        output   = this->output_data.at(i); // matrix_view(chip(this->output_data, i, 0));
+        output   = this->output_data.at(i);
         
-        input    = this->input_data.at(i); // matrix_view(chip(this->input_data, i, 0));
+        input    = this->input_data.at(i); 
 
-        gradient = gradients.at(i); // matrix_view(chip(gradients, i, 0)); // matrix_view((aitensor2<T>) (gradients.chip(i, 0)));
+        gradient = gradients.at(i); 
 
         // Perform Gradient
-        dInput.push_back(computeGradient(gradient, output, input)); // this->dInput.chip(i, 0) = tensor_view(computeGradient(gradient, output, input));
+        dInput.push_back(computeGradient(gradient, output, input)); 
 
     }
 
     log_detail("Activation Gradient Result" );
-    log_matrix(dInput.at(0)); // log_matrix( matrix_view(chip(dInput, 0, 0) )  );
+    log_matrix(dInput.at(0)); 
 
     // To support generateDotFormat()
     this->max_dInput = dInput.at(0).maxCoeff();
@@ -1442,8 +1451,8 @@ std::string Activation<T>::generateDotFormat() {
     T min_input = 0.0, max_input = 0.0;
     if (this->N != 0 || this->M != 0) 
     try {
-       max_input = this->max_dInput; // matrix_view(chip(this->dInput, 0, 0)).maxCoeff(); // just show the first matrix
-       min_input = this->min_dInput; // matrix_view(chip(this->dInput, 0, 0)).minCoeff(); // just show the first matrix
+       max_input = this->max_dInput; 
+       min_input = this->min_dInput; 
     } catch (...) {};
     dot += "{dInput|min=" + scalar_to_string(min_input) + "|max=" + scalar_to_string(max_input) + "}";  
     return dot;
@@ -1571,8 +1580,8 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        batch_predicted = predicted.at(i); // matrix_view(chip(predicted, i, 0));
-        batch_target    = target.at(i); // matrix_view(chip(target, i, 0));
+        batch_predicted = predicted.at(i); 
+        batch_target    = target.at(i); 
 
         if (losstype == "mse") {
             output = mse(batch_predicted, batch_target);
@@ -1610,24 +1619,20 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        batch_predicted = predicted.at(i); // matrix_view(chip(predicted, i, 0));
-        batch_target    = target.at(i); // matrix_view(chip(target, i, 0));
+        batch_predicted = predicted.at(i); 
+        batch_target    = target.at(i); 
 
         if (losstype == "mse") {
             dInput.push_back(mseGradient(batch_predicted, batch_target));
-            //dInput.chip(i,0) = tensor_view(mseGradient(batch_predicted, batch_target));
         } else
         if (losstype == "bce") {
             dInput.push_back(bceGradient(batch_predicted, batch_target));
-            //dInput.chip(i,0)  = tensor_view(bceGradient(batch_predicted, batch_target));
         } else
         if (losstype == "cce") {
             dInput.push_back(cceGradient(batch_predicted, batch_target));
-            //dInput.chip(i,0)  = tensor_view(cceGradient(batch_predicted, batch_target));
         } else
         if (losstype == "hingeLoss") {
             dInput.push_back(hingeLossGradient(batch_predicted, batch_target));
-            //dInput.chip(i,0)  = tensor_view(hingeLossGradient(batch_predicted, batch_target));
         } 
     }
 

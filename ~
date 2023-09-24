@@ -14,7 +14,7 @@ model = ai.Model(learningRate=0.02, datatype=dtype);
 
 node1  = model.addNode("node1", ai.NodeType.Input);
 #node1.setOperations([ ai.Linear(size=5), ai.Activation(type="leakyrelu", alpha=0.01) ]);
-node1.setOperations([ai.Encoder(heads=2, size=5, bias=True, type="leakyrelu", alpha=0.01)]);
+node1.setOperations([ai.Encoder(heads=1, size=5, bias=True, type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.FeedForward(size=2, bias=True, type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.Attention(size=5, bias=False), ai.Activation(type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.Linear(size=2, bias=True), ai.LayerNorm(), ai.Activation(type="leakyrelu", alpha=0.01)]);

@@ -600,7 +600,6 @@ PYBIND11_MODULE(genai, m) {
         .value("MUL", ReductionType::MUL)
         .export_values();
 
-
       py::enum_<ActivationType>(m, "ActivationType")
         .value("SIGMOID", ActivationType::SIGMOID)
         .value("TANH", ActivationType::TANH)
@@ -608,7 +607,7 @@ PYBIND11_MODULE(genai, m) {
         .value("GELU", ActivationType::GELU)
         .value("SOFTMAX", ActivationType::SOFTMAX)
         .export_values();
-
+  
 /*
     py::class_<Node<double>>(m, "Node")
         .def("setData", &Node<double>::setData)
@@ -697,8 +696,7 @@ PYBIND11_MODULE(genai, m) {
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
         .def("setData", (void (ModelNode::*)(const py::array_t<float>&)) &ModelNode::setDataFloat, "Function with float argument")
         .def("setData", (void (ModelNode::*)(const py::array_t<double>&)) &ModelNode::setDataDouble, "Function with double argument");
-
-
+      
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
     py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Linear")
         .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);

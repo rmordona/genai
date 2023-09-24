@@ -52,7 +52,7 @@ public:
         log_detail( "Format: {0}", buffer_info.format );
         log_detail( "Item size: {0}", buffer_info.itemsize );
         log_detail( "Size: {0}", buffer_info.size );
-        log_detail("dimension: {0}", ndim );
+        log_detail( "Dimension: {0}", ndim );
 
         std::vector<ssize_t> shape = buffer_info.shape;
         // extract data and shape of input array
@@ -120,12 +120,7 @@ private:
 public:
 
     Node(std::string name, NodeType ntype) : name(name), ntype(ntype)  {
-
-        //input_data.setZero();  
-        //output_data.setZero();
-        //gradients.setZero();
-
-        log_info( "**** Node instance created ****" );
+        log_detail( "**** Node [{0}] instance created ****", name );
     }
 
     ~Node() {

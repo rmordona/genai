@@ -67,11 +67,9 @@ void Node<T>::setData(const py::array_t<T>& input_data) {
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
 void Node<T>::setData(const py::array_t<T>& data) {
-
+    log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
     this->tensor = true;
-
     this->input_data = ConvertData::totensor(data);
-
 }
  
 template <class T>
@@ -113,6 +111,7 @@ std::unordered_set<Node<T>*> Node<T>::getInputs() {
 
 template <class T>
 Node<T>* Node<T>::setOperations(std::vector<BaseOperator*>& operations) {
+    log_detail("Node: [{0}] Setting Operation of Size: {1}", this->getName(), operations.size());
     this->operations = operations;
     return (Node<T>*) this;
 }

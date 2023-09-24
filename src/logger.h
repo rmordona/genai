@@ -55,7 +55,7 @@ public:
             std::cerr << "Error: Unable to get the current directory." << std::endl;
         }
 
-        auto maxSize = 1048576 * 20; // 20 megabytes 
+        auto maxSize = 1048576 * 50; // 50 megabytes 
         auto maxRotate = 5; // 5 rotation files only
         log = spd::rotating_logger_mt("LOGGER", filename, maxSize, maxRotate );
 
@@ -159,22 +159,13 @@ public:
     template <class T>
     void eigen_matrix(const aitensor<T>& mat) {
         ssize_t batches = mat.size();
-        std::string msg;
+        std::string msg = "";
         for (int i = 0; i < batches; i++) {
             aimatrix<T> tmp_mat = mat.at(i);  
             msg = msg + fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
         }
         log->info(msg);
     }
-
-/*
-    template <class T>
-    void eigen_matrix(const aitensor3<T>& mat) {
-        aimatrix<T> tmp_mat = matrix_view(chip(mat, 0,0));
-        std::string msg = fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
-        log->info(msg);
-    }
-*/
 
     template <class T>
     void eigen_vector(const aivector<T>& vec) {

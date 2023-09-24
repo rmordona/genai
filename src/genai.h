@@ -342,33 +342,6 @@ using aiscalar = T; // Eigen::Tensor<T, 0>; // (scalar)
 template <class T>
 using aitensor = std::vector<aimatrix<T>>;
 
-/**************************************************************************************************
-  Tensor Helper Functions
-**************************************************************************************************/
-
-// This function takes a sub-tensor slice of a tensor. 
-template <class T>
-static const std::vector<aitensor<T>> feature_slice(const aitensor<T>& tensor, int splits) {
-    int dim0 = tensor.size();
-    int dim1 = tensor.at(0).rows();
-    int dim2 = tensor.at(0).cols();
-
-    std::vector<aitensor<T>> heads;
-    int splitSize =  dim2 / splits;
-
-    for (int i = 0; i < splits; i++) {
-        aitensor<T> head;
-        int start = i * splitSize;
-        for (int j = 0; j < dim0; j++) {
-            aimatrix<T> input = tensor.at(j).block(0, start, dim1, splitSize);
-            head.push_back(input);
-        }
-        heads.push_back(head);
-    }
-
-    return heads;
-}
-
 /*************************************************************************************************
 // Helper class for Exceptions
 **************************************************************************************************/
@@ -580,6 +553,7 @@ class BaseOperator {
         //int ldc = A.rows();  // leading dimension of C.
 
         // Use the list of variables if using Eigen::RowMajor
+
         int M = A.rows();
         int N = B.cols();
         int K = A.cols();
@@ -639,15 +613,31 @@ class BaseOperator {
         return dInput;
     }
 
+    // Define softmax function
     template <class T>
-    static aimatrix<T> softmax(const aimatrix<T>& output) {
+    static aimatrix<T> softmax(const aimatrix<T>& X) {
+        aimatrix<T> S(X.rows(), X.cols());
+
+        for (int row = 0; row < X.rows(); ++row) {
+            aivector<T>  row_vector = X.row(row);
+            double row_max = row_vector.maxCoeff();
+            aivector<T> exp_values = (row_vector - row_max * aivector<T> ::Ones(row_vector.size())).array().exp();
+            double sum_exp_values = exp_values.sum();
+            S.row(row) = exp_values / sum_exp_values;
+        }
+
+        return S;
+    }
+
+    template <class T>
+    static aimatrix<T> softmax1(const aimatrix<T>& output) {
 
         // Find the maximum value in each column of x
         // Required to handle large numbers.
         aivector<T> maxVal = output.rowwise().maxCoeff();
 
         // Subtract the maximum value from each element in each column of x and compute the exponential
-        aimatrix<T> expmat =  ( - (output.colwise() - maxVal)).array().exp();
+        aimatrix<T> expmat =  ((output.colwise() - maxVal)).array().exp();
 
         // Compute the sum of exponential values for each row
         aivector<T> sumexp =  expmat.rowwise().sum();
@@ -668,25 +658,46 @@ class BaseOperator {
      * dy_i/dz_j = propagated_gradient * (y_i * (1 - y_j)) for i = j
      * dy_i/dz_j = propagated_gradient * (-y_i * y_j) for i != j
      ****************************************************************************************************/
+
+    // Calculate gradient with respect to X (dS/dX)
     template <class T>
     static aimatrix<T> softmaxGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
+        aimatrix<T> J(output_data.rows(), output_data.cols());
+
+        for (int row = 0; row < output_data.rows(); ++row) {
+            for (int col = 0; col < output_data.cols(); ++col) {
+                T S_i = output_data(row, col);
+                J(row, col) = S_i * (gradients(row, col) - output_data(row, col) * gradients.row(row).sum());
+            }
+        }
+
+        return J;
+    }
+
+    template <class T>
+    static aimatrix<T> softmaxGradient1(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
         int N = gradients.rows();  // Number of samples
         int M = gradients.cols();  // Number of classes
 
-        aimatrix<T> dInput(N, M);
-        dInput.setZero();
+        aimatrix<T> J(N, M);
+        J.setZero();
 
-        for (int i = 0; i < N; ++i) {
+            for (int i = 0; i < N; ++i) {
             for (int j = 0; j < M; ++j) {
                 for (int k = 0; k < M; ++k) {
                     if (k == j) {
-                        dInput(i, j) += gradients(i, k) * output_data(i, j) * (1 - output_data(i, j));
+                      //  dInput(i, j) += gradients(i, j) * output_data(i, j) * (1 - output_data(i, j));
+                        J(i, j) +=  output_data(i, j) * (1 - output_data(i, j));
                     } else {
-                        dInput(i, j) -= gradients(i, k) * output_data(i, j) * output_data(i, k);
+                      // dInput(i, j) -= gradients(i, j) * output_data(i, j) * output_data(i, k);
+                       J(i, j) -=  output_data(i, j) * output_data(i, k);
                     }
                 }
             }
         }
+
+        aimatrix<T> dInput = J * gradients;
+
         return dInput;
     }
 

@@ -241,7 +241,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             if (datatype == "double") {
                 LayerNorm<double>* newop = new LayerNorm<double>();
                 this->operations.push_back(newop);
-            }
+            } 
         } else
         if (auto activate = std::dynamic_pointer_cast<ModelActivation>(op)) {
                 std::cout << "Entering activation operation set 1 ..." << std::endl;
