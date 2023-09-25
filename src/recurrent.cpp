@@ -49,10 +49,7 @@
 *********** IMPLEMENTING RNNCell
 ****************************************************************************************************************************/
 template <class T>
-RNNCell<T>::RNNCell(int hidden_size, T learning_rate) 
-    : hidden_size(hidden_size), learning_rate(learning_rate) {
-    learning_rate = 0.01;
-}
+RNNCell<T>::RNNCell(int hidden_size)  : hidden_size(hidden_size) {}
 
 template <class T>
 const aimatrix<T>& RNNCell<T>::getHiddenState() {
@@ -75,11 +72,14 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
 
     bh = airowvector<T>::Zero(hidden_size);
 
-    H    = aimatrix<T>::Zero(input_size, hidden_size);
+    H  = aimatrix<T>::Zero(input_size, hidden_size);
 }
 
 template <class T>
 const aimatrix<T>& RNNCell<T>::forward(const aimatrix<T>& input_data) {
+
+    log_info("===============================================");
+    log_info("RNNCell Forward Pass ...");
 
     // Store input for backward pass.
     // this can be the prev_hidden_state
@@ -90,7 +90,10 @@ const aimatrix<T>& RNNCell<T>::forward(const aimatrix<T>& input_data) {
 
     // Compute hidden state.
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
-    H = BaseOperator::tanh((aimatrix<T>) (X * W + H * U + bh) );
+    H = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U) + bh) );
+
+    log_info("===============================================");
+    log_info("RNNCell Forward Pass end ...");
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
@@ -110,27 +113,27 @@ const aimatrix<T>& RNNCell<T>::backward(const aimatrix<T>& input_data, const aim
     aimatrix<T> dtanh = (1.0 - H.array().square()).array() * dnext_h.array();
 
     // Compute gradient with respect to hidden-to-hidden weights Whh.
-    aimatrix<T> dU = H.transpose() * dtanh;
+    this->dU = BaseOperator::matmul(H.transpose(), dtanh);
 
     // Compute gradient with respect to input-to-hidden weights Wxh.
-    aimatrix<T> dW = X.transpose() * dtanh;
+    this->dW = BaseOperator::matmul(X.transpose(), dtanh);
 
     // Compute gradient with respect to hidden-state.
-    dH = dtanh * U.transpose();
+    this->dH = BaseOperator::matmul(dtanh, U.transpose());
 
     // Compute gradient with respect to input (dInput).
-    dX = dtanh * W.transpose();
+    this->dX = BaseOperator::matmul(dtanh, W.transpose());
 
     // Compute gradient with respect to hidden bias bh.
-    airowvector<T> dbh = dtanh.colwise().sum(); 
+    this->dbh = dtanh.colwise().sum(); 
 
     // Compute gradient with respect to output bias bo.
     //airowvector<T> dbo = Y.colwise().sum();
 
     // Update weights and biases.
-    W -= learning_rate * dW;
-    U -= learning_rate * dU;
-    bh -= learning_rate * dbh;
+    //this->W -= learning_rate * dW;
+    //this->U -= learning_rate * dU;
+    //this->bh -= learning_rate * dbh;
     // bo -= learning_rate * dbo;
 
     // Return gradient with respect to input.
@@ -138,15 +141,26 @@ const aimatrix<T>& RNNCell<T>::backward(const aimatrix<T>& input_data, const aim
     // for the gradient wrt H, we just cache it for time step propagation, but layer propagation.
     return dX;
 }
+
+template <class T>
+void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+    // Update parameters
+    if (opt_W == nullptr) {
+        opt_W  = new Optimizer<T>(optimizertype, learningRate);
+        opt_U  = new Optimizer<T>(optimizertype, learningRate);
+        opt_bh = new Optimizer<T>(optimizertype, learningRate);
+    }
+    opt_W->adam(this->W, this->dW, iter);
+    opt_U->adam(this->U, this->dU, iter);
+    opt_bh->adam(this->bh, this->dbh, iter);
+
+}
  
 /***************************************************************************************************************************
 *********** IMPLEMENTING LSTMCell
 ****************************************************************************************************************************/
 template <class T>
-LSTMCell<T>::LSTMCell(int hidden_size, T learning_rate) 
-    : hidden_size(hidden_size), learning_rate(learning_rate) {
-    learning_rate = 0.01;
-}
+LSTMCell<T>::LSTMCell(int hidden_size)  : hidden_size(hidden_size) {}
 
 template <class T>
 const aimatrix<T>& LSTMCell<T>::getHiddenState() {
@@ -170,18 +184,18 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     // Note: Initialize these parameters according to your initialization strategy
     Wf.resize(param_size + hidden_size, hidden_size);
     Wi.resize(param_size + hidden_size, hidden_size);
-    Wo.resize(param_size + hidden_size, hidden_size);
     Wg.resize(param_size + hidden_size, hidden_size);
+    Wo.resize(param_size + hidden_size, hidden_size);
 
     BaseOperator::heInitMatrix(Wf);
     BaseOperator::heInitMatrix(Wi);
-    BaseOperator::heInitMatrix(Wo);
     BaseOperator::heInitMatrix(Wg);
+    BaseOperator::heInitMatrix(Wo);
 
     bf = airowvector<T>::Zero(hidden_size);
     bi = airowvector<T>::Zero(hidden_size);
-    bo = airowvector<T>::Zero(hidden_size);
     bg = airowvector<T>::Zero(hidden_size);
+    bo = airowvector<T>::Zero(hidden_size);
 
     H    = aimatrix<T>::Zero(input_size, hidden_size);
     C    = aimatrix<T>::Zero(input_size, hidden_size);
@@ -203,16 +217,16 @@ const aimatrix<T>& LSTMCell<T>::forward(const aimatrix<T>& input_data) {
     XH << X, H;  // In terms of dimension, we have: (NxP) + (NxH) = Nx(P+H)
 
     // Calculate the forget gate values
-    Ft = BaseOperator::sigmoid((aimatrix<T>) (XH * Wf + bf));
+    this->Ft = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wf) + bf));
 
     // Calculate the input gate values
-    It = BaseOperator::sigmoid((aimatrix<T>) (XH * Wi + bi));
+    this->It = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wi) + bi));
 
     // Calculate the output gate values
-    Ot = BaseOperator::sigmoid((aimatrix<T>) (XH * Wo + bo));
+    this->Ot = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wo) + bo));
 
     // Calculate the candidate state values
-    Gt = BaseOperator::tanh((aimatrix<T>) (XH * Wg + bg));
+    this->Gt = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(XH, Wg) + bg));
 
     // Calculate the new cell state by updating based on the gates
     C = Ft.array() * C.array() + It.array() * Gt.array();
@@ -246,18 +260,18 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
     XH << X, H;
 
     // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
-    aimatrix<T> dWf = XH.transpose() * dFt;
-    aimatrix<T> dWi = XH.transpose() * dIt;
-    aimatrix<T> dWg = XH.transpose() * dGt;
-    aimatrix<T> dWo = XH.transpose() * dOt;
+    this->dWf = XH.transpose() * dFt;
+    this->dWi = XH.transpose() * dIt;
+    this->dWg = XH.transpose() * dGt;
+    this->dWo = XH.transpose() * dOt;
 
 
     // Compute gradients with respect to hidden biases bf, bi, bo, bc
 
-    airowvector<T> dbf = dFt.colwise().sum();
-    airowvector<T> dbi = dIt.colwise().sum();
-    airowvector<T> dbo = dOt.colwise().sum();
-    airowvector<T> dbg = dGt.colwise().sum();
+    this->dbf = dFt.colwise().sum();
+    this->dbi = dIt.colwise().sum();
+    this->dbg = dGt.colwise().sum();
+    this->dbo = dOt.colwise().sum();
 
     // Compute gradient with respect to the cell state C (dC)
     dC = dC.array() * Ft.array();
@@ -273,34 +287,34 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
     std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
 
     // Compute gradient with respect to hidden state.
-    dH  = dFt * Wfx + dIt * Wix + dOt * Wox + dGt * Wgx;
+    this->dH  = BaseOperator::matmul(dFt, Wfx) + BaseOperator::matmul(dIt, Wix) + BaseOperator::matmul(dOt, Wox) + BaseOperator::matmul(dGt, Wgx);
 
     // Compute gradient with respect to input (dInput).
-    dX  = dFt * Wfh + dIt * Wih + dOt * Woh + dGt * Wgh;
+    this->dX  = BaseOperator::matmul(dFt, Wfh) + BaseOperator::matmul(dIt, Wih) + BaseOperator::matmul(dOt, Woh) + BaseOperator::matmul(dGt, Wgh);
 
     // Compute gradient with respect to output bias bo.
     // airowvector<T> dby = Y.colwise().sum();
 
     // Update parameters and stored states
-    this->Wf -= learning_rate * dWf;
-    this->Wi -= learning_rate * dWi;
-    this->Wo -= learning_rate * dWo;
-    this->Wg -= learning_rate * dWg;
-    this->bf -= learning_rate * dbf;
-    this->bi -= learning_rate * dbi;
-    this->bo -= learning_rate * dbo;
-    this->bg -= learning_rate * dbg;
+    //this->Wf -= learning_rate * dWf;
+    //this->Wi -= learning_rate * dWi;
+    //this->Wo -= learning_rate * dWo;
+    //this->Wg -= learning_rate * dWg;
+    //this->bf -= learning_rate * dbf;
+    //this->bi -= learning_rate * dbi;
+    //this->bo -= learning_rate * dbo;
+    //this->bg -= learning_rate * dbg;
     // by -= learning_rate * dby;
 
     // Update hidden state  and cell state
-    H -= learning_rate * dH;
-    C -= learning_rate * dC;
+    //this->H -= learning_rate * dH;
+    //this->C -= learning_rate * dC;
 
     // Update stored states and gates
-    Ft -= learning_rate * dFt;
-    It -= learning_rate * dIt;
-    Ot -= learning_rate * dOt;
-    Gt -= learning_rate * dGt;
+    //this->Ft -= learning_rate * dFt;
+    //this->It -= learning_rate * dIt;
+    //this->Ot -= learning_rate * dOt;
+    //this->Gt -= learning_rate * dGt;
 
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H & C for each time step.
@@ -308,14 +322,35 @@ const aimatrix<T>& LSTMCell<T>::backward(const aimatrix<T>& input_data, const ai
     return dX;
 }
 
+template <class T>
+void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+    // Update parameters
+    if (opt_Ft == nullptr) {
+        opt_Ft = new Optimizer<T>(optimizertype, learningRate);
+        opt_It = new Optimizer<T>(optimizertype, learningRate);
+        opt_Gt = new Optimizer<T>(optimizertype, learningRate);
+        opt_Ot = new Optimizer<T>(optimizertype, learningRate);
+        opt_bf = new Optimizer<T>(optimizertype, learningRate);
+        opt_bi = new Optimizer<T>(optimizertype, learningRate);
+        opt_bg = new Optimizer<T>(optimizertype, learningRate);
+        opt_bo = new Optimizer<T>(optimizertype, learningRate);
+    }
+    opt_Ft->adam(this->Ft, this->dWf, iter);
+    opt_It->adam(this->It, this->dWi, iter);
+    opt_Gt->adam(this->Gt, this->dWg, iter);
+    opt_Ot->adam(this->Ot, this->dWo, iter);
+    opt_bf->adam(this->bf, this->dbf, iter);
+    opt_bi->adam(this->bi, this->dbi, iter);
+    opt_bg->adam(this->bg, this->dbg, iter);
+    opt_bo->adam(this->bo, this->dbo, iter);
+
+}
+
 /***************************************************************************************************************************
  *********** IMPLEMENTING GRUCell
 ****************************************************************************************************************************/
 template <class T>
-GRUCell<T>::GRUCell(int hidden_size, T learning_rate) 
-    : hidden_size(hidden_size), learning_rate(learning_rate) {
-    learning_rate = 0.01;
-}
+GRUCell<T>::GRUCell(int hidden_size) : hidden_size(hidden_size) {}
 
 template <class T>
 const aimatrix<T>& GRUCell<T>::getHiddenState() {
@@ -364,10 +399,10 @@ const aimatrix<T>& GRUCell<T>::forward(const aimatrix<T>& input_data) {
     XH << X, H;
 
     // Calculate the update gate using input, hidden state, and biases
-    Zt =  BaseOperator::sigmoid((aimatrix<T>)(XH * Wz + bz));
+    Zt =  BaseOperator::sigmoid((aimatrix<T>)(BaseOperator::matmul(XH, Wz) + bz));
 
     // Calculate the reset gate using input, hidden state, and biases
-    Rt =  BaseOperator::sigmoid((aimatrix<T>)(XH * Wr + br));
+    Rt =  BaseOperator::sigmoid((aimatrix<T>)(BaseOperator::matmul(XH,Wr) + br));
 
     // Calculate the candidate hidden state using input, reset gate, hidden state, and biases
     aimatrix<T> RH = Rt.array() * H.array();
@@ -413,45 +448,64 @@ const aimatrix<T>& GRUCell<T>::backward(const aimatrix<T>& input_data, const aim
     XH << X, H;
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
-    aimatrix<T> dWz = XH.transpose() * dZt;
-    aimatrix<T> dWr = XH.transpose() * dRt;
-    aimatrix<T> dWg = XH.transpose() * dGt;
+    this->dWz = BaseOperator::matmul(XH.transpose(), dZt);
+    this->dWr = BaseOperator::matmul(XH.transpose(), dRt);
+    this->dWg = BaseOperator::matmul(XH.transpose(), dGt);
 
     // Compute gradients with respect to hidden biases bz, br, bg
-    airowvector<T> dbz = dZt.colwise().sum();
-    airowvector<T> dbr = dGt.colwise().sum();
-    airowvector<T> dbg = dRt.colwise().sum();
+    this->dbz = dZt.colwise().sum();
+    this->dbr = dGt.colwise().sum();
+    this->dbg = dRt.colwise().sum();
 
     // Compute gradient with respect to hidden state H (dH)
-    dH = dZt * Wzx + dRt * Wrx + dGt * Wgx;
+    this->dH = BaseOperator::matmul(dZt, Wzx) + BaseOperator::matmul(dRt, Wrx) + BaseOperator::matmul(dGt, Wgx);
 
     // Compute gradient with respect to input (dInput)
-    dH = dZt * Wzh + dRt * Wrh + dGt * Wgh;
+    this->dX = BaseOperator::matmul(dZt, Wzh) + BaseOperator::matmul(dRt, Wrh) + BaseOperator::matmul(dGt, Wgh);
 
     // Compute gradient with respect to output bias bo.
     // airowvector<T> dbo = Y.colwise().sum();
 
     // Update parameters
-    Wz -= learning_rate * dWz;
-    Wr -= learning_rate * dWr;
-    Wg -= learning_rate * dWg;
-    bz -= learning_rate * dbz;
-    br -= learning_rate * dbr;
-    bg -= learning_rate * dbg;
+    //this->Wz -= learning_rate * dWz;
+    //this->Wr -= learning_rate * dWr;
+    //this->Wg -= learning_rate * dWg;
+    //this->bz -= learning_rate * dbz;
+    //this->br -= learning_rate * dbr;
+    //this->bg -= learning_rate * dbg;
     // bo -= learning_rate * dbo;
 
     // Update hidden state  
-    H -= learning_rate * dH;
+    //this->H -= learning_rate * dH;
 
     // Update stored states and gates
-    Zt -= learning_rate * dZt;
-    Rt -= learning_rate * dRt;
-    Gt -= learning_rate * dGt;
+    //this->Zt -= learning_rate * dZt;
+    //this->Rt -= learning_rate * dRt;
+    //this->Gt -= learning_rate * dGt;
 
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H & C for each time step.
     // for the gradient wrt H & C, we just cache it for time step propagation, but layer propagation.
     return dX;
+}
+
+template <class T>
+void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+    // Update parameters
+    if (opt_Wz == nullptr) {
+        opt_Wz = new Optimizer<T>(optimizertype, learningRate);
+        opt_Wr = new Optimizer<T>(optimizertype, learningRate);
+        opt_Wg = new Optimizer<T>(optimizertype, learningRate);
+        opt_bz = new Optimizer<T>(optimizertype, learningRate);
+        opt_br = new Optimizer<T>(optimizertype, learningRate);
+        opt_bg = new Optimizer<T>(optimizertype, learningRate);
+    }
+    opt_Wz->adam(this->Wz, this->dWz, iter);
+    opt_Wr->adam(this->Wr, this->dWr, iter);
+    opt_Wg->adam(this->Wg, this->dWg, iter);
+    opt_bz->adam(this->bz, this->dbz, iter);
+    opt_br->adam(this->br, this->dbr, iter);
+    opt_bg->adam(this->bg, this->dbg, iter);
 }
 
 
@@ -474,7 +528,10 @@ const aimatrix<T>& GRUCell<T>::backward(const aimatrix<T>& input_data, const aim
 
 template <class T>
 const aitensor<T> RNN<T>::forward(const aitensor<T>& input_data) {
+    log_info("===============================================");
+    log_info("RNN Forward Pass ...");
     const aitensor<T> Yhat = this->forwarding(input_data);
+    log_detail("End RNN Forward ... ");
     this->setPrediction(Yhat);
     return Yhat;
 }
@@ -488,7 +545,10 @@ const aitensor<T>  RNN<T>::backward(const aitensor<T>& gradients) {
 
 template <class T>
 const aitensor<T> LSTM<T>::forward(const aitensor<T>& input_data) {
+    log_info("===============================================");
+    log_info("LSTM Forward Pass ...");
     const aitensor<T> Yhat = this->forwarding(input_data);
+    log_detail("End LSTM Forward ... ");
     this->setPrediction(Yhat);
     return Yhat;
 }
@@ -502,7 +562,10 @@ const aitensor<T> LSTM<T>::backward(const aitensor<T>& gradients) {
 
 template <class T>
 const aitensor<T> GRU<T>::forward(const aitensor<T>& input_data) {
+    log_info("===============================================");
+    log_info("GRU Forward Pass ...");
     const aitensor<T> Yhat = this->forwarding(input_data);
+    log_detail("End GRU Forward ... ");
     this->setPrediction(Yhat);
     return Yhat;
 }
@@ -517,16 +580,19 @@ const aitensor<T>  GRU<T>::backward(const aitensor<T>& gradients) {
 template <class T>
 void RNN<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the RNN cells
+    this->updatingParameters(optimizertype, learningRate, iter);
 }
 
 template <class T>
 void LSTM<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the LSTM cells
+    this->updatingParameters(optimizertype, learningRate, iter);
 }
 
 template <class T>
 void GRU<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Learnable parameters already learnt inside the GRU cells
+    this->updatingParameters(optimizertype, learningRate, iter);
 }
 
 
@@ -546,7 +612,8 @@ std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::setInitialWeights(int 
 
 template <class T>
 const aitensor<T> RecurrentBase<T>::processOutputs() {
-
+    log_info("===============================================");
+    log_info("Recurrent Base Processing Output ...");
     aimatrix<T> out, v, yhat;
     airowvector<T> bo;
 
@@ -595,6 +662,8 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
         }
     }
 
+   log_info("Recurrent Base Processing Output End ...");
+
     // this->setOutput(prediction);
     this->setPrediction(prediction);
     return prediction; // Cache output for backward pass while also pass it to next operations.
@@ -642,6 +711,9 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 template <class T>
 const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
 
+    log_info("===============================================");
+    log_info("RecurrentBase Forward Pass ...");
+
     this->setData(input_data);
     this->setOType(ActivationType::SOFTMAX);
     this->setRType(ReductionType::AVG);
@@ -650,9 +722,13 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
     int input_size     = input_data.at(0).rows();
     int embedding_size = input_data.at(0).cols();
 
+    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", batch_size, input_size, embedding_size );
+
     this->setSequenceLength(batch_size);
     this->setInputSize(input_size);
     this->setEmbeddingSize(embedding_size);
+
+    log_detail("Batch Size, Input Size, Embedding Size all set ...");
 
     // CellType celltype = this->getCellType();
 
@@ -661,13 +737,22 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
 
         // Forward pass: Run from first to last time step
         for (int step = 0; step < this->getSequenceLength(); ++step) {
-            aimatrix<T> input_batch = input_data.at(step); // matrix_view(chip(input_data, step, 0));
 
+            log_detail("Direction {0} Step {1}: ", direction, step);
+
+            aimatrix<T> input_batch = input_data.at(step);
+
+            log_detail("Input Batch:");
+            log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
+            log_matrix(input_batch);
 
             // Forward pass through each layer of the RNN
             for (int layer = 0; layer < this->getNumLayers(); ++layer) {
-                auto cell = this->getCells(); // std::dynamic_pointer_cast<RNNCell<T>>(this->getCells());
+                log_detail("Layer {0}:", layer);
+                auto cell = this->getCells(); 
+                log_detail("Entering Cell Forward pass ...");
                 input_batch = cell[layer]->forward(input_batch); // This is the Hidden State
+                log_detail("Cell Forward pass exited ...");
             }
 
             if (direction == 0) {
@@ -678,7 +763,11 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
         }
     }
 
+    log_info("Processing Output ...");
+
     aitensor<T> Yhat = processOutputs();
+
+    log_info("RecurrentBase Forward Pass end ...");
 
     // marker to indicate the weights are all initialized, as they depend on these sizes.
     this->setInitialized();
@@ -755,6 +844,23 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
         }
     }
     return input_gradients;
+}
+
+template <class T>
+void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learningRate, int& iter) {
+    for (int direction = 0; direction < this->getNumDirections(); ++direction) {
+        this->setCells(direction);
+
+        // Backward pass: Run from last to first time step
+        for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
+
+            // Backward pass through each layer of the RNN
+            for (int layer = this->getNumLayers() - 1; layer >= 0; --layer) {
+                auto cells = this->getCells();
+                cells[layer]->updateParameters(optimizertype, learningRate, iter);
+            }
+        }
+    }
 }
 
 /**********  Recurrent Network initialize templates *****************/

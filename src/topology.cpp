@@ -320,7 +320,7 @@ void Node<T>::forwardPass() {
         if (GRU<T>* gru = dynamic_cast<GRU<T>*>(op)) {
             log_detail("Node [{0}] GRU Operation (Forward Pass)", name );
             output = gru->forward(output);
-            log_info("Returned LSTM GRU with the below output ...");
+            log_info("Returned GRU with the below output ...");
             log_matrix( output );
         }
     }

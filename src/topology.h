@@ -23,9 +23,9 @@
  *
  */
 
-#include "logger.h"
 #include "operators.h"
 #include "transformer.h"
+#include "recurrent.h"
 
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H

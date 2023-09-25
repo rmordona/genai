@@ -52,7 +52,10 @@ std::string Reduction::getType() {
 /*****************************************************************************************************
 * Base Optimizer Functions
 *****************************************************************************************************/
-// SGD optimizer with optional step decay
+
+/*****************************************************************************************************
+* Stochastic Gradient Descent
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::sgd(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
                 bool useStepDecay, T decayRateStep, int decayStep) {
@@ -64,11 +67,36 @@ void Optimizer<T>::sgd(aimatrix<T>& weights, const aimatrix<T>& gradients, int c
     }
 }
 
-// Momentum optimizer with optional step decay
+template <class T>
+void Optimizer<T>::sgd(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch ,
+                bool useStepDecay, T decayRateStep, int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(weights.rows(), 1);  // Column-Wise vector  Nx1
+        aimatrix<T> gradients_(gradients.rows(), 1);  // Column-Wise vector  Nx1
+        weights_.col(0) = weights;
+        gradients_.col(0) = gradients;
+        sgd(weights_, gradients_, currentEpoch);
+        weights.col(0) = weights_.col(0);
+}
+
+template <class T>
+void Optimizer<T>::sgd(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch ,
+                bool useStepDecay, T decayRateStep, int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(1, weights.cols());  // Row-Wise vector  1xM
+        aimatrix<T> gradients_(1, gradients.cols());  // Row-Wise vector  1xM
+        weights_.row(0) = weights;
+        gradients_.row(0) = gradients;
+        sgd(weights_, gradients_, currentEpoch);
+        weights = weights_.row(0);
+}
+
+/*****************************************************************************************************
+* Momentum optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::momentum(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
-                T momentumRate,
-                bool useStepDecay, T decayRateStep,  int decayStep) {
+                T momentumRate, bool useStepDecay, T decayRateStep,  int decayStep) {
     // Initialize Momentum optimizer variables
     //static Eigen::MatrixXd velocity = Eigen::MatrixXd::Zero(weights.rows(), weights.cols());
     if (velocity.cols() == 0 && velocity.rows() == 0) {
@@ -86,11 +114,36 @@ void Optimizer<T>::momentum(aimatrix<T>& weights, const aimatrix<T>& gradients, 
     }
 }
 
-// Adam optimizer with optional step decay
+template <class T>
+void Optimizer<T>::momentum(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch,
+                T momentumRate, bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(weights.rows(), 1);  // Column-Wise vector  Nx1
+        aimatrix<T> gradients_(gradients.rows(), 1);  // Column-Wise vector  Nx1
+        weights_.col(0) = weights;
+        gradients_.col(0) = gradients;
+        momentum(weights_, gradients_, currentEpoch);
+        weights = weights_.col(0);
+}
+
+template <class T>
+void Optimizer<T>::momentum(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch ,
+                T momentumRate, bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(1, weights.cols());  // Row-Wise vector  1xM
+        aimatrix<T> gradients_(1, gradients.cols());  // Row-Wise vector  1xM
+        weights_.row(0) = weights;
+        gradients_.row(0) = gradients;
+        momentum(weights_, gradients_, currentEpoch);
+        weights = weights_.row(0);
+}
+
+/*****************************************************************************************************
+*  Adam optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::adam(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
-                T beta1, T beta2, T epsilon,
-                bool useStepDecay, T decayRateStep,  int decayStep) {
+                T beta1, T beta2, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
 
     log_info("============================");
     log_info("Entering Adam Optimation ...");
@@ -150,11 +203,36 @@ void Optimizer<T>::adam(aimatrix<T>& weights, const aimatrix<T>& gradients, int 
     }
 }
 
-// RMSprop optimizer with optional step decay
+template <class T>
+void Optimizer<T>::adam(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch ,
+                T beta1, T beta2, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(weights.rows(), 1);  // Column-Wise vector  Nx1
+        aimatrix<T> gradients_(gradients.rows(), 1);  // Column-Wise vector  Nx1
+        weights_.col(0) = weights;
+        gradients_.col(0) = gradients;
+        adam(weights_, gradients_, currentEpoch);
+        weights = weights_.col(0);
+}
+
+template <class T>
+void Optimizer<T>::adam(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch ,
+                T beta1, T beta2, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(1, weights.cols());  // Row-Wise vector  1xM
+        aimatrix<T> gradients_(1, gradients.cols());  // Row-Wise vector  1xM
+        weights_.row(0) = weights;
+        gradients_.row(0) = gradients;
+        adam(weights_, gradients_, currentEpoch);
+        weights = weights_.row(0);
+}
+
+/*****************************************************************************************************
+*  RMSprop optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::rmsprop(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
-                T rho, T epsilon,
-                bool useStepDecay, T decayRateStep,  int decayStep) {
+                T rho, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
     // Initialize RMSprop optimizer variables
     if (rms.cols() == 0 && rms.rows() == 0) {
         rms = aimatrix<T>::Zero(weights.rows(), weights.cols());
@@ -171,7 +249,33 @@ void Optimizer<T>::rmsprop(aimatrix<T>& weights, const aimatrix<T>& gradients, i
     }
 }
 
-// Adagrad optimizer with optional step decay
+template <class T>
+void Optimizer<T>::rmsprop(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch ,
+                T rho, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(weights.rows(), 1);  // Column-Wise vector  Nx1
+        aimatrix<T> gradients_(gradients.rows(), 1);  // Column-Wise vector  Nx1
+        weights_.col(0) = weights;
+        gradients_.col(0) = gradients;
+        rmsprop(weights_, gradients_, currentEpoch);
+        weights = weights_.col(0);
+}
+
+template <class T>
+void Optimizer<T>::rmsprop(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch ,
+                T rho, T epsilon,  bool useStepDecay, T decayRateStep,  int decayStep) {
+        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
+        aimatrix<T> weights_(1, weights.cols());  // Row-Wise vector  1xM
+        aimatrix<T> gradients_(1, gradients.cols());  // Row-Wise vector  1xM
+        weights_.row(0) = weights;
+        gradients_.row(0) = gradients;
+        rmsprop(weights_, gradients_, currentEpoch);
+        weights = weights_.row(0);
+}
+
+/*****************************************************************************************************
+*  Adagrad optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::adagrad(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
                 T epsilon,
@@ -193,7 +297,9 @@ void Optimizer<T>::adagrad(aimatrix<T>& weights, const aimatrix<T>& gradients, i
     }
 }
 
-// Adamax optimizer with optional step decay
+/*****************************************************************************************************
+*  Adamax optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::adamax(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
                 T beta1, T beta2, T epsilon,
@@ -222,7 +328,9 @@ void Optimizer<T>::adamax(aimatrix<T>& weights, const aimatrix<T>& gradients, in
     
 }
 
-// Nadam optimizer with optional step decay
+/*****************************************************************************************************
+*  Nadam optimizer with optional step decay
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::nadam(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
                 T beta1, T beta2, T epsilon,
@@ -256,7 +364,9 @@ void Optimizer<T>::nadam(aimatrix<T>& weights, const aimatrix<T>& gradients, int
     }
 }
 
-// Step decay for learning rate
+/*****************************************************************************************************
+*  Step decay for learning rate
+*****************************************************************************************************/
 template <class T>
 void Optimizer<T>::stepDecay(T& learningRate, T decayRate, int currentEpoch, int decayStep) {
     if (currentEpoch != 0 && currentEpoch % decayStep == 0) {
@@ -351,7 +461,7 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
 
 
 template <class T>
-const aitensor<T> Linear<T>::forward(aitensor<T> input_data) { 
+const aitensor<T> Linear<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("===============================================");
     log_info("Linear Transformation Forward Pass ...");
@@ -371,7 +481,7 @@ const aitensor<T> Linear<T>::forward(aitensor<T> input_data) {
     // this->output_data.resize(this->batch_size, this->input_size, this->W);
     aimatrix<T> input(this->input_size, this->W);
 
-    std::cout << "Batch Size:" << this->batch_size << " Row: " << this->input_size << " Col:" << this->W << std::endl;
+    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", this->batch_size, this->input_size, this->W );
 
     aitensor<T> output_data;
 
@@ -527,13 +637,10 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
 
         OperationParams<T>  gradients = vgradients[i];
 
-        aimatrix<T> pbiases = parameters.biases.matrix(); // convert vector to a 1xW matrix
-        aimatrix<T> gbiases = gradients.biases.matrix();  // convert vector to a 1xW matrix
-
         log_detail( "Assigning ..." );
 
-        log_detail( "pbiases rows: {:d}, cols: {:d}" ,  pbiases.rows() , pbiases.cols() );
-        log_detail( "gbiases rows: {:d}, cols: {:d}", gbiases.rows() , gbiases.cols() );
+        log_detail( "pbiases rows: {:d}, cols: {:d}" ,  parameters.biases.rows() , parameters.biases.cols() );
+        log_detail( "gbiases rows: {:d}, cols: {:d}", gradients.biases.rows() , gradients.biases.cols() );
 
         log_detail( "Gradient weights:" );
         log_matrix( aimatrix<T> (gradients.weights) );
@@ -558,8 +665,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
         log_detail( "Updating Linear biases" );
 
         if (bias == true) {
-            opt_biases->adam(pbiases, gbiases, iter);
-            parameters.biases = pbiases.row(0);
+            opt_biases->adam(parameters.biases, gradients.biases, iter);
         }
 
         log_detail( "Updated weights:" );
@@ -870,41 +976,19 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Mx1
-        aimatrix<T> pscale(this->M, 1);  // Column-Wise vector  Mx1
-        aimatrix<T> gscale(this->M, 1);  // Column-Wise vector  Mx1 
-        aimatrix<T> pshift(this->M, 1);  // Column-Wise vector  Mx1
-        aimatrix<T> gshift(this->M, 1);  // Column-Wise vector  Mx1
-
-        pscale.col(0) = this->scale;
-        gscale.col(0) = vgscale[i];
-
-        pshift.col(0) = this->shift;
-        gshift.col(0) = vgshift[i];
-
         if (opt_scale == nullptr) {
             opt_scale = new Optimizer<T>(optimizertype, learningRate);
-        }
-
-        if (opt_shift == nullptr) {
             opt_shift = new Optimizer<T>(optimizertype, learningRate);
         }
 
         log_detail( "Updating Scale" );
 
-        opt_scale->adam(pscale, gscale, iter);
+        opt_scale->adam(this->scale, vgscale[i], iter);
 
         log_detail( "Updating Shift" );
 
-        opt_shift->adam(pshift, gshift, iter);
+        opt_shift->adam(this->shift, vgshift[i], iter);
 
-        this->scale = pscale.col(0);
-        this->shift = pshift.col(0);
-
-        log_detail( "Updated scale" );
-        log_vector( this->scale );
-        log_detail( "Updated shift" );
-        log_vector( this->shift );
 
     }
     
@@ -1192,41 +1276,18 @@ void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Nx1
-        aimatrix<T> pscale(this->N, 1);  // Column-Wise vector  Nx1
-        aimatrix<T> gscale(this->N, 1);  // Column-Wise vector  Nx1 
-        aimatrix<T> pshift(this->N, 1);  // Column-Wise vector  Nx1
-        aimatrix<T> gshift(this->N, 1);  // Column-Wise vector  Nx1
-
-        pscale.col(0) = this->scale;
-        gscale.col(0) = vgscale[i];
-
-        pshift.col(0) = this->shift;
-        gshift.col(0) = vgshift[i];
-
         if (opt_scale == nullptr) {
             opt_scale = new Optimizer<T>(optimizertype, learningRate);
-        }
-
-        if (opt_shift == nullptr) {
             opt_shift = new Optimizer<T>(optimizertype, learningRate);
         }
 
         log_detail( "Updating Scale" );
 
-        opt_scale->adam(pscale, gscale, iter);
+        opt_scale->adam(this->scale, vgscale[i], iter);
 
         log_detail( "Updating Shift" );
 
-        opt_shift->adam(pshift, gshift, iter);
-
-        this->scale = pscale.col(0);
-        this->shift = pshift.col(0);
-
-        log_detail( "Updated scale" );
-        log_vector( this->scale );
-        log_detail( "Updated shift" );
-        log_vector( this->shift );
+        opt_shift->adam(this->shift, vgshift[i], iter);
 
     }
     

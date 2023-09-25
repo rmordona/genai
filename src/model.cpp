@@ -261,7 +261,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        }  else
+        }  else  // Transformer Component
         if (auto attention = std::dynamic_pointer_cast<ModelAttention>(op)) {
             if (datatype == "float") {
                 Attention<float>* newop = new Attention<float>(
@@ -277,7 +277,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        } else
+        } else  // Transformer Component 
         if (auto feedforward = std::dynamic_pointer_cast<ModelFeedForward>(op)) {
             if (datatype == "float") {
                 FeedForward<float>* newop = new FeedForward<float>(
@@ -297,7 +297,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        } else
+        } else   // Transformer Component
         if (auto encoder = std::dynamic_pointer_cast<ModelEncoder>(op)) {
             if (datatype == "float") {
                 Encoder<float>* newop = new Encoder<float>(
@@ -319,7 +319,29 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
-        }  
+        }  else   // Recurrent Network Component
+        if (auto rnn = std::dynamic_pointer_cast<ModelRNN>(op)) {
+            if (datatype == "float") {
+                RNN<float>* newop = new RNN<float>(
+                                                            rnn->getHiddenSize(),
+                                                            rnn->getOuputSize(),
+                                                            rnn->getNumLayers(),
+                                                            rnn->getBiDirection(),
+                                                            rnn->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                RNN<double>* newop = new RNN<double>(
+                                                            rnn->getHiddenSize(),
+                                                            rnn->getOuputSize(),
+                                                            rnn->getNumLayers(),
+                                                            rnn->getBiDirection(),
+                                                            rnn->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } 
     }
 }
 

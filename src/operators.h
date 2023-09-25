@@ -27,6 +27,7 @@
 #define OPERATORS_H
 
 #include <any>
+#include "logger.h"
 
 class SampleClass {
 private:
@@ -69,19 +70,46 @@ public:
     // SGD optimizer with optional step decay
     void sgd(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
                     bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                
+    void sgd(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
+                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                
+    void sgd(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
+                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
 
     // Momentum optimizer with optional step decay
     void momentum(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    T momentumRate = 0.9,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+
+    void momentum(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
+                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                
+    void momentum(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
+                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
     // Adam optimizer with optional step decay
     void adam(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
                     T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
                     bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
+    void adam(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                
+    void adam(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+
     // RMSprop optimizer with optional step decay
     void rmsprop(aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
+                    T rho = 0.9, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+
+    void rmsprop(aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
+                    T rho = 0.9, T epsilon = 1e-8,
+                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                
+    void rmsprop(airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
                     T rho = 0.9, T epsilon = 1e-8,
                     bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
 
@@ -152,7 +180,7 @@ public:
 
     // const aitensor<T> forward(const aitensor<T>& input_data);
 
-    const aitensor<T> forward(aitensor<T> input_data);
+    const aitensor<T> forward(const aitensor<T>& input_data);
 
     // aitensor<T> getOutput() { return this->output_data; }
 

@@ -183,7 +183,7 @@ const aitensor<T> Attention<T>::backward(const aitensor<T>& gradients) {
 
         log_detail( "d_V gradient" );
         log_matrix( d_V );
-
+ 
         // Propagate Gradient to softmax operation.
         aimatrix<T> dQKscale = BaseOperator::softmaxGradient(dQKweight, mQKweight);
 

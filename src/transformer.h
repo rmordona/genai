@@ -58,18 +58,6 @@ static std::vector<aitensor<T>> head_split(const aitensor<T>& tensor, int splits
         heads.push_back(head);
     }
 
-    // For Debugging
-    std::cout << "Splitting Heads ..." << std::endl;
-    for (int i = 0; i < splits; i++) {
-        std::cout << "head: " << i << std::endl;
-        aitensor<T> tensor_ = heads.at(i);
-        for (int j = 0; j < dim0; j++) {
-            std::cout << "batch: " << j << std::endl;
-            aimatrix<T> matrix = tensor_.at(j);
-            std::cout << "matrix:" << matrix << std::endl;
-        }
-    }
-
     return heads;
 }
 

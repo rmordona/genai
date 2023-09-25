@@ -589,6 +589,12 @@ PYBIND11_MODULE(genai, m) {
         .value("Output", NodeType::Output)
         .export_values();
 
+    py::enum_<RNNType>(m, "RNNtype")
+        .value("MANY_TO_ONE", RNNType::MANY_TO_ONE)
+        .value("ONE_TO_MANY", RNNType::ONE_TO_MANY)
+        .value("MANY_TO_MANY", RNNType::MANY_TO_MANY)
+        .export_values();
+
     py::enum_<ReductionType>(m, "ReductionType")
         .value("SUM", ReductionType::SUM)
         .value("AVG", ReductionType::AVG)
@@ -696,7 +702,7 @@ PYBIND11_MODULE(genai, m) {
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
         .def("setData", (void (ModelNode::*)(const py::array_t<float>&)) &ModelNode::setDataFloat, "Function with float argument")
         .def("setData", (void (ModelNode::*)(const py::array_t<double>&)) &ModelNode::setDataDouble, "Function with double argument");
-      
+    
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
     py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Linear")
         .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
@@ -717,8 +723,17 @@ PYBIND11_MODULE(genai, m) {
     py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
         .def(py::init<int, int, bool, const std::string&, const float>(), 
                 py::arg("heads") = 1,
-                py::arg("size") = 3, py::arg("bias") = true,
-                py::arg("type") = "relu", py::arg("alpha") = 0.01);
+                py::arg("size") = 3, 
+                py::arg("bias") = true,
+                py::arg("type") = "relu", 
+                py::arg("alpha") = 0.01);
+    py::class_<ModelRNN, BaseOperator, std::shared_ptr<ModelRNN>>(m, "RNN")
+        .def(py::init<int, int, int, bool, RNNType>(), 
+                py::arg("hidden_size") = 1,
+                py::arg("output_size") = 1, 
+                py::arg("num_layers") = 1, 
+                py::arg("bidirectional") = true,
+                py::arg("rnntype") = RNNType::MANY_TO_MANY);
 
     py::class_<Model>(m, "Model")
         .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
