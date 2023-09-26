@@ -441,15 +441,9 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
     log_detail( "bias" );
     log_rowvector( parameters.biases );
 
-    aimatrix<T> output1 = (input_data * parameters.weights);
-        log_detail( "manual: input Dimension: {0}x{1}", input_data.rows(), input_data.cols());
-        log_detail( "manual: weights Dimension: {0}x{1}", parameters.weights.rows(), parameters.weights.cols());
-         log_detail( "manual: Prior Bias: Linear output Dimension: {0}x{1}", output1.rows(), output1.cols());
-        log_matrix(output1);
-
     aimatrix<T> output = BaseOperator::matmul(input_data, parameters.weights);
-        log_detail( "matmul: Prior Bias: Linear output Dimension: {0}x{1}", output.rows(), output.cols());
-        log_matrix(output);
+    log_detail( "matmul: Prior Bias: Linear output Dimension: {0}x{1}", output.rows(), output.cols());
+    log_matrix(output);
     if (bias == true) {
         // rowwise() means, slice one row at a time and add to bias (which is 1 row horizontally).
         output = output.rowwise() + parameters.biases;// Ax + b = Wx + b; NxW dimension.

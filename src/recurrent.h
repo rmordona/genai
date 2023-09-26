@@ -58,10 +58,10 @@ public:
         return std::make_tuple(A.transpose(), B.transpose());
     }
 
-    virtual const aimatrix<T>& forward(const aimatrix<T>& input_data) = 0; 
-    virtual const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h) = 0;  
-    virtual void updateParameters(std::string& optimizertype, T& learningRate, int& iter) = 0;
     virtual const aimatrix<T>& getHiddenState() = 0;
+    virtual const aimatrix<T> forward(const aimatrix<T>& input_data) = 0; 
+    virtual const std::tuple<aimatrix<T>, aimatrix<T>> backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h, const aimatrix<T>& doutput) = 0;  
+    virtual void updateParameters(std::string& optimizertype, T& learningRate, int& iter) = 0;
 
 };
 
@@ -87,42 +87,46 @@ private:
    // Parameters (weights and biases)
     aimatrix<T> W;  // Weight for the Input   (p x h)
     aimatrix<T> U;  // Weight for the Hidden State  (h x h)  (rows x columns)
-    // aimatrix<T> V;  // Weight for the predicted output  (h x o)
+    aimatrix<T> V;  // Weight for the predicted output  (h x o)
+
     airowvector<T> bh; // Hidden bias
-    // airowvector<T> bo; // Bias for the predicted output
+    airowvector<T> by; // Bias for the predicted output
 
     aimatrix<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
 
     aimatrix<T> dX; // Gradient with respect to Input
     aimatrix<T> dH; // Gradient with respect to Hidden state
     aimatrix<T> X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
+    aimatrix<T> Y; // (n x o)
 
    // Caching Gradients with respect to hidden-to-hidden weights  W, U
     aimatrix<T> dW;
     aimatrix<T> dU;
+    aimatrix<T> dV;
 
     // Caching Gradients with respect to hidden biases bh
     airowvector<T> dbh;
+    airowvector<T> dby;
 
    // Caching optimizer parameters
-    Optimizer<T>* opt_W = nullptr; // for optimizer
-    Optimizer<T>* opt_U = nullptr; // for optimizer
+    Optimizer<T>* opt_W  = nullptr; // for optimizer
+    Optimizer<T>* opt_U  = nullptr; // for optimizer
+    Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bh = nullptr; // for optimizer
-
-    // Y.hat, target
-    // aimatrix<T> Yhat, Y; // (n x o)
+    Optimizer<T>* opt_by = nullptr; // for optimizer
 
     int input_size = 0;
     int param_size = 0;
     int hidden_size;
+    bool last_layer = false;
     // int output_size;
 
 public:
-    RNNCell(int hidden_size);
+    RNNCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
     const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
-    const aimatrix<T>& forward(const aimatrix<T>& input_data);
-    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
+    const aimatrix<T> forward(const aimatrix<T>& input_data);
+    const std::tuple<aimatrix<T>, aimatrix<T>> backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h, const aimatrix<T>& doutput);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 };
 
@@ -134,13 +138,13 @@ private:
     aimatrix<T> Wi;      // Weight matrix for input gate from input x         (p + h) x h
     aimatrix<T> Wo;      // Weight matrix for output gate from input x        (p + h) x h
     aimatrix<T> Wg;      // Weight matrix for candidate state from input x    (p + h) x h
-    // aimatrix<T> V;       // Weight for Output (h x o)
+    aimatrix<T> V;       // Weight for Output (h x o)
 
     airowvector<T> bf;   // Bias vector for input gate        (1xh)
     airowvector<T> bi;   // Bias vector for input gate        (1xh)
-    airowvector<T> bo;   // Bias vector for output gate       (1xh)
     airowvector<T> bg;   // Bias vector for candidate state   (1xh)
-    // airowvector<T> by;   // Bias for the predicted output
+    airowvector<T> bo;   // Bias vector for output gate       (1xh)
+    airowvector<T> by;   // Bias for the predicted output
 
     aimatrix<T> Ft;      // Forget Gate       (nxh)
     aimatrix<T> It;      // Input Gate        (nxh)
@@ -150,49 +154,53 @@ private:
     aimatrix<T> H;       // Hidden state (n x h)
     aimatrix<T> C;       // Cell state   (n x h)
     aimatrix<T> X;       // (n x p)
-    // aimatrix<T> Yhat, Y; // (n x o)
+    aimatrix<T> Y;       // (n x o)
 
     // Caching Gradients with respect to hidden-to-hidden weights  Ft, It, Gt, Ot
     aimatrix<T> dWf;
     aimatrix<T> dWi;
     aimatrix<T> dWg;
     aimatrix<T> dWo;
+    aimatrix<T> dV;
 
     // Caching Gradients with respect to hidden biases bf, bi, bg, bo
     airowvector<T> dbf;
     airowvector<T> dbi;
     airowvector<T> dbg;
     airowvector<T> dbo;
+    airowvector<T> dby;
 
     // Caching optimizer parameters
     Optimizer<T>* opt_Ft = nullptr; // for optimizer
     Optimizer<T>* opt_It = nullptr; // for optimizer
     Optimizer<T>* opt_Gt = nullptr; // for optimizer
     Optimizer<T>* opt_Ot = nullptr; // for optimizer
+    Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bf = nullptr; // for optimizer
     Optimizer<T>* opt_bi = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
     Optimizer<T>* opt_bo = nullptr; // for optimizer
+    Optimizer<T>* opt_by = nullptr; // for optimizer
 
     aimatrix<T> XH;      // Concatenate X and H
     aimatrix<T> dX;      // Gradient with respect to Input
     aimatrix<T> dH;      // Gradient with respect to Hidden state
     aimatrix<T> dC;      // Gradient with respect to Cell state
 
+
     int input_size;
     int param_size;
     int hidden_size;
+    bool last_layer = false;
     // int output_size;
 
-    T learning_rate;    // Learning rate for parameter updates
-
 public:
-    LSTMCell(int hidden_size);
+    LSTMCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
     const aimatrix<T>& getHiddenState();
     const aimatrix<T>& getCellState();
     void setInitialWeights(int N, int P);
-    const aimatrix<T>& forward(const aimatrix<T>& input_data);
-    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
+    const aimatrix<T> forward(const aimatrix<T>& input_data);
+    const std::tuple<aimatrix<T>, aimatrix<T>> backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h, const aimatrix<T>& doutput);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 };
 
@@ -203,24 +211,22 @@ private:
     aimatrix<T> Wz;      // Weight matrix for the update gate               (p + h) x h
     aimatrix<T> Wr;      // Weight matrix for the reset gate                (p + h) x h
     aimatrix<T> Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
-    // aimatrix<T> V;       // Weight for Output (h x o)
+    aimatrix<T> V;       // Weight for Output (h x o)
 
     // Biases for the hidden units
     airowvector<T> bz;   // Bias vector for the update gate              (1xh)
     airowvector<T> br;   // Bias vector for the reset gate               (1xh)
     airowvector<T> bg;   // Bias vector for the candidate hidden state   (1xh)
-    // airowvector<T> bo;   // Bias for the predicted output
+    airowvector<T> by;   // Bias for the predicted output
 
     aimatrix<T> Zt;      // Forget Gate       (nxh)
     aimatrix<T> Rt;      // Input Gate        (nxh)
     aimatrix<T> Gt;      // Candidate State   (nxh)
 
     // aimatrix<T> input_data;
-
-    aimatrix<T> X;       // (n x p)
     aimatrix<T> H;         // Hidden state (n x h)
-
-    // aimatrix<T> Yhat, Y; // (n x o)
+    aimatrix<T> X;       // (n x p)
+    aimatrix<T> Y;       // (n x o)
 
     aimatrix<T> XH;      // Concatenate X and H
 
@@ -228,20 +234,23 @@ private:
     aimatrix<T> dWz;
     aimatrix<T> dWr;
     aimatrix<T> dWg;
-
+    aimatrix<T> dV;
 
     // Caching Gradients with respect to hidden biases bf, bi, bo, bc
     airowvector<T> dbz;
     airowvector<T> dbr;
     airowvector<T> dbg;
+    airowvector<T> dby;
 
     // Caching optimizer parameters
     Optimizer<T>* opt_Wz = nullptr; // for optimizer
     Optimizer<T>* opt_Wr = nullptr; // for optimizer
     Optimizer<T>* opt_Wg = nullptr; // for optimizer
+    Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bz = nullptr; // for optimizer
     Optimizer<T>* opt_br = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
+    Optimizer<T>* opt_by = nullptr; // for optimizer
 
     aimatrix<T> dX;     // Gradient with respect to Input
     aimatrix<T> dH;     // Gradient with respect to Hidden state
@@ -249,32 +258,31 @@ private:
     int input_size;
     int param_size;
     int hidden_size;
+    bool last_layer = false;
     // int output_size;
 
-    T learning_rate;    // Learning rate for parameter updates
-
 public:
-    GRUCell(int hidden_size);
+    GRUCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
     const aimatrix<T>& getHiddenState();
     void setInitialWeights(int N, int P);
-    const aimatrix<T>& forward(const aimatrix<T>& input_data);
-    const aimatrix<T>& backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h);
+    const aimatrix<T> forward(const aimatrix<T>& input_data);
+    const std::tuple<aimatrix<T>, aimatrix<T>> backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h, const aimatrix<T>& doutput);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 };
 
 template <class T>
 class RecurrentBase {
 private:
-    std::vector<std::shared_ptr<CellBase<T>>> fcells;
-    std::vector<std::shared_ptr<CellBase<T>>> bcells;
-    std::vector<std::shared_ptr<CellBase<T>>> cells;
+    std::vector<CellBase<T>*> fcells;
+    std::vector<CellBase<T>*> bcells;
+    std::vector<CellBase<T>*> cells;
 
     aitensor<T> input_data;
 
-    int num_directions = 2;
     int sequence_length = 0;
     int input_size = 0;
     int embedding_size = 0;
+    int num_directions = 2;
 
     ActivationType otype;
     ReductionType rtype;
@@ -296,18 +304,20 @@ private:
     int num_layers;
     bool bidirectional;
     RNNType rnntype;
+
+    int direction = 0;
     CellType celltype;
 
         // Factory function to create cell objects based on an option
-    std::shared_ptr<CellBase<T>> createCell(CellType celltype, int hidden_size) {
+    CellBase<T>* createCell(CellType celltype, int hidden_size, bool last_layer) {
         if (celltype == CellType::RNN_VANILLA) {
-            return std::make_unique<RNNCell<T>>(hidden_size);
+            return new RNNCell<T>(hidden_size, last_layer);
         } else
         if (celltype == CellType::RNN_LSTM) {
-            return std::make_unique<LSTMCell<T>>(hidden_size);
+            return new LSTMCell<T>(hidden_size, last_layer);
         } else
         if (celltype == CellType::RNN_GRU) {
-            return std::make_unique<GRUCell<T>>(hidden_size);
+            return new GRUCell<T>(hidden_size, last_layer);
         } else {
             return nullptr; // Invalid option
         }
@@ -317,9 +327,9 @@ public:
     RecurrentBase(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype, CellType celltype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype), celltype(celltype) {
 
-        for (int i = 0; i < num_layers; ++i) {
-            std::shared_ptr<CellBase<T>> rnn_ptr1 = createCell(celltype, hidden_size);
-            std::shared_ptr<CellBase<T>> rnn_ptr2 = createCell(celltype, hidden_size);
+        for (int layer = 0; layer < num_layers; ++layer) {
+            CellBase<T>* rnn_ptr1 = createCell(celltype, hidden_size, layer + 1 == num_layers);
+            CellBase<T>* rnn_ptr2 = createCell(celltype, hidden_size, layer + 1 == num_layers);
             this->fcells.push_back( std::move(rnn_ptr1)); 
             this->bcells.push_back( std::move(rnn_ptr2));
         }
@@ -350,7 +360,6 @@ public:
     void setGradients(const aitensor<T>& gradients) { this->gradients = gradients; }
     const aitensor<T>& getGradients() { return this->gradients; }
 
-    void setData(const aitensor<T>& input_data) { this->input_data = input_data; }
     void setRNNType(RNNType rnntype) {  this->rnntype = rnntype; }
     void setOType(ActivationType otype) {  this->otype = otype; }
     void setRType(ReductionType rtype) {  this->rtype = rtype; }
@@ -368,30 +377,33 @@ public:
 
     CellType getCellType() { return this->celltype; }
 
-    void setCells(int direction) {
-        this->cells = (direction == 0) ? this->fcells : this->bcells;
+    std::vector<CellBase<T>*> getCells(int direction)  {
+        this->direction = direction;
+        if (direction == 0) {
+            return this->fcells;
+        } else {
+            return this->bcells;
+        }
     }
 
-    std::vector<std::shared_ptr<CellBase<T>>> getCells() const { return this->cells; }
-
     void setOutputSize(int output_size) { this->output_size = output_size; }
-
     int getOutputSize() { return this->output_size;  }
     int getHiddenSize() { return this->hidden_size;  }
 
+    /* Cache output weights and biases: V and bo */
     const std::vector<aimatrix<T>>& get_V() { return this->V; }     
     const std::vector<airowvector<T>>& get_bo() { return this->bo; }  
 
-    void set_V(int step, const aimatrix<T>& V) { this->V[step] = V; }     
-    void set_bo(int step, const airowvector<T>& bo ) { this->bo[step] = bo; }  
+    /* Cache gradients with respect to V and bo */
+    void set_dV(const aimatrix<T>& dV) {  this->dV.push_back(dV); }     
+    void set_dbo(const airowvector<T>& dbo ) { this->dbo.push_back(dbo); }  
 
     const std::vector<aimatrix<T>>& get_dV() { return this->dV; }     
     const std::vector<airowvector<T>>& get_dbo() { return this->dbo; }  
 
-    void addV(aimatrix<T> V) { this->V.push_back( V ); }
-    void addbo(airowvector<T> bo) { this->bo.push_back( bo ); }
+    void add_V(aimatrix<T> V) { this->V.push_back( V ); }
+    void add_bo(airowvector<T> bo) { this->bo.push_back( bo ); }
 
-    const aitensor<T>& getData() { return this->input_data; }
     std::vector<aimatrix<T>> getFoutput() { return this->foutput; }
     std::vector<aimatrix<T>> getBoutput() { return this->boutput; }
     std::vector<aimatrix<T>> getOutput() { return this->output; }
@@ -399,10 +411,13 @@ public:
 };
 
 template <class T>
-class RNN : public BaseOperator, public RecurrentBase<T> {
+class RNN : public BaseOperator {
+private:
+    RecurrentBase<T>* rnnbase;
 public:
-    RNN(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype) 
-        : RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA) {}
+    RNN(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype) {
+            this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+    }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
@@ -414,10 +429,13 @@ public:
 };
 
 template <class T>
-class LSTM : public BaseOperator, public RecurrentBase<T> {
+class LSTM : public BaseOperator {
+private:
+    RecurrentBase<T>* rnnbase;
 public:
-    LSTM(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype) 
-        : RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_LSTM) {}
+    LSTM(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype)  {
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+    }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
@@ -428,11 +446,13 @@ public:
 };
 
 template <class T>
-class GRU : public BaseOperator, public RecurrentBase<T> {
+class GRU : public BaseOperator {
+private:
+    RecurrentBase<T>* rnnbase;
 public:
-    GRU(int hidden_size, int output_size,  int num_layers, bool bidirectional, RNNType rnntype) 
-        : RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_GRU) {}
-
+    GRU(int hidden_size, int output_size,  int num_layers, bool bidirectional, RNNType rnntype) {
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+    }
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);

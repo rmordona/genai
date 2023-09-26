@@ -734,7 +734,7 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
-
+ 
     py::class_<Model>(m, "Model")
         .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
                 py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",

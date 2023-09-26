@@ -305,7 +305,7 @@ void Node<T>::forwardPass() {
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
-            output = rnn->forward(output);
+            // output = rnn->forward(output);
             log_info("Returned RNN pass with the below output ...");
             log_matrix( output );
         } else
@@ -397,19 +397,19 @@ void Node<T>::backwardPass() {
         } else       
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
+            log_detail("Node [{0}] RNN Operation (Backward Pass)", name );
             dInput = rnn->backward(dInput);
             log_matrix( dInput );
         } else           
         //if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
         if (LSTM<T>* lstm = dynamic_cast<LSTM<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
+            log_detail("Node [{0}] LSTM Operation (Backward Pass)", name );
             dInput = lstm->backward(dInput);
             log_matrix( dInput );
         } else           
         //if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
         if (GRU<T>* gru = dynamic_cast<GRU<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
+            log_detail("Node [{0}] GRU Operation (Backward Pass)", name );
             dInput = gru->backward(dInput);
             log_matrix( dInput );
         } 
@@ -469,17 +469,17 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
         }  else         
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Update Params)", name );
+            log_detail("Node [{0}] RNN Operation (Update Params)", name );
             rnn->updateParameters(optimizertype, learningRate, iter);
         }  else            
         //if (auto lstm = std::dynamic_pointer_cast<LSTM<T>>(op)) {
         if (LSTM<T>* lstm = dynamic_cast<LSTM<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Update Params)", name );
+            log_detail("Node [{0}] LSTM Operation (Update Params)", name );
             lstm->updateParameters(optimizertype, learningRate, iter);
         }  else            
         //if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
         if (GRU<T>* gru = dynamic_cast<GRU<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Update Params)", name );
+            log_detail("Node [{0}] GRU Operation (Update Params)", name );
             gru->updateParameters(optimizertype, learningRate, iter);
         } 
     }
