@@ -95,30 +95,8 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& input_data) {
 
     // Compute hidden state.
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
-    // H = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U) + bh) );
     // H = BaseOperator::tanh((aimatrix<T>) (X * W + H * U + bh) );
-
-    log_detail("X");
-    log_matrix(X);
-
-    log_detail("W");
-    log_matrix(W);
-
-    log_detail("H");
-    log_matrix(H);
-
-    log_detail("U");
-    log_matrix(U);
-
-    log_detail("V");
-    log_matrix(V);
-
-    log_detail("bh:");
-    log_rowvector(bh);
-
-    H = (aimatrix<T>)   BaseOperator::tanh((aimatrix<T>) ((BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U)).rowwise() + bh ));
-    log_detail("tan H:")
-    log_matrix(H);
+    H = (aimatrix<T>)  BaseOperator::tanh((aimatrix<T>) ((BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U)).rowwise() + bh ));
 
     // Compute Yhat.
     //     (nxo) =  (nxh) * (hxo) + h
@@ -733,7 +711,6 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
     log_info("===============================================");
     log_info("RecurrentBase Forward Pass ...");
 
-    // Cache for later back propagation.
     this->input_data = input_data;
 
     this->setOType(ActivationType::SOFTMAX);
