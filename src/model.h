@@ -410,5 +410,66 @@ public:
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelLSTM class as a meta model only for use  as entry point for python API.
+* The actual model is the RNN  class.
+*************************************************************************************************/
+class ModelLSTM : public BaseOperator {
+private:
+   int hidden_size;
+   int output_size;
+   int num_layers;
+   bool bidirectional;
+   RNNType rnntype;
+public: 
+    ModelLSTM(int hidden_size = 1, int output_size = 3, int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
+        this->hidden_size = hidden_size;
+        this->output_size = output_size;
+        this->num_layers = num_layers;
+        this->bidirectional = bidirectional;
+        this->rnntype = rnntype;
+    }
+
+    int getHiddenSize() { return this->hidden_size; }
+    int getOuputSize() { return this->output_size; }
+    int getNumLayers() { return this->num_layers; }
+    bool getBiDirection() { return this->bidirectional; }
+    RNNType getRNNType() { return this->rnntype; }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+/************************************************************************************************
+* We use ModelGRU class as a meta model only for use  as entry point for python API.
+* The actual model is the RNN  class.
+*************************************************************************************************/
+class ModelGRU : public BaseOperator {
+private:
+   int hidden_size;
+   int output_size;
+   int num_layers;
+   bool bidirectional;
+   RNNType rnntype;
+public: 
+    ModelGRU(int hidden_size = 1, int output_size = 3, int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
+        this->hidden_size = hidden_size;
+        this->output_size = output_size;
+        this->num_layers = num_layers;
+        this->bidirectional = bidirectional;
+        this->rnntype = rnntype;
+    }
+
+    int getHiddenSize() { return this->hidden_size; }
+    int getOuputSize() { return this->output_size; }
+    int getNumLayers() { return this->num_layers; }
+    bool getBiDirection() { return this->bidirectional; }
+    RNNType getRNNType() { return this->rnntype; }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+
 
 #endif

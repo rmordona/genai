@@ -341,6 +341,50 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
+        } else   // Recurrent Network Component
+        if (auto lstm = std::dynamic_pointer_cast<ModelLSTM>(op)) {
+            if (datatype == "float") {
+                LSTM<float>* newop = new LSTM<float>(
+                                                            lstm->getHiddenSize(),
+                                                            lstm->getOuputSize(),
+                                                            lstm->getNumLayers(),
+                                                            lstm->getBiDirection(),
+                                                            lstm->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                LSTM<double>* newop = new LSTM<double>(
+                                                            lstm->getHiddenSize(),
+                                                            lstm->getOuputSize(),
+                                                            lstm->getNumLayers(),
+                                                            lstm->getBiDirection(),
+                                                            lstm->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } else   // Recurrent Network Component
+        if (auto gru = std::dynamic_pointer_cast<ModelGRU>(op)) {
+            if (datatype == "float") {
+                GRU<float>* newop = new GRU<float>(
+                                                            gru->getHiddenSize(),
+                                                            gru->getOuputSize(),
+                                                            gru->getNumLayers(),
+                                                            gru->getBiDirection(),
+                                                            gru->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                GRU<double>* newop = new GRU<double>(
+                                                            gru->getHiddenSize(),
+                                                            gru->getOuputSize(),
+                                                            gru->getNumLayers(),
+                                                            gru->getBiDirection(),
+                                                            gru->getRNNType()
+                                                        );
+                this->operations.push_back(newop);
+            }
         } 
     }
 }

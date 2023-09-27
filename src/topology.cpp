@@ -242,8 +242,8 @@ void Node<T>::forwardPass() {
     log_info( "**************************************" );
     log_info( "***      Node Forward Pass  **********" );
     log_info( "**************************************" );
-    std::cout << " Node forward ... " << name << std::endl;
-    log_detail("Node: {0} Operation Size: {1}", name, size);
+    
+    log_detail("Node forward: ({0}) Operation Size: {1}", name, size);
 
     // See if we can perform reduction.
     aitensor<T> output = aggregateData(this->input_data); // see Node.setData
@@ -305,7 +305,7 @@ void Node<T>::forwardPass() {
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
-            // output = rnn->forward(output);
+            output = rnn->forward(output);
             log_info("Returned RNN pass with the below output ...");
             log_matrix( output );
         } else

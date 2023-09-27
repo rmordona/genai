@@ -734,6 +734,22 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
+
+    py::class_<ModelLSTM, BaseOperator, std::shared_ptr<ModelLSTM>>(m, "LSTM")
+        .def(py::init<int, int, int, bool, RNNType>(), 
+                py::arg("hidden_size") = 1,
+                py::arg("output_size") = 1, 
+                py::arg("num_layers") = 1, 
+                py::arg("bidirectional") = true,
+                py::arg("rnntype") = RNNType::MANY_TO_MANY);
+
+    py::class_<ModelGRU, BaseOperator, std::shared_ptr<ModelGRU>>(m, "GRU")
+        .def(py::init<int, int, int, bool, RNNType>(), 
+                py::arg("hidden_size") = 1,
+                py::arg("output_size") = 1, 
+                py::arg("num_layers") = 1, 
+                py::arg("bidirectional") = true,
+                py::arg("rnntype") = RNNType::MANY_TO_MANY);
  
     py::class_<Model>(m, "Model")
         .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
