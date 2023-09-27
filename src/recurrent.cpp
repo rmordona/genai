@@ -56,21 +56,14 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
     this->input_size = N;  
     this->param_size = P;  
 
-    // H.resize(this->input_size, this->hidden_size);
     W.resize(this->param_size, this->hidden_size);
     U.resize(this->hidden_size, this->hidden_size);
-    // V.resize(this->hidden_size, this->param_size);
-    // Y.resize(this->input_size, this->param_size);
     bh.resize(this->hidden_size);
-    // by.resize(this->param_size);
 
     BaseOperator::heInitMatrix(W);
     BaseOperator::heInitMatrix(U);
-    // BaseOperator::heInitMatrix(V);
 
     bh.setConstant(T(0.00));
-    //bh =  airowvector<T>::Constant(0.01, 0.02, 0.03);
-    // by.setConstant(T(0.01));
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
@@ -81,11 +74,6 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 
     log_detail("===============================================");
     log_detail("RNNCell Forward Pass ...");
-
-    // Store input for backward pass. This can be the prev_hidden_state
-    // this->X = input_data
-    // const aimatrix<T>& X = input_data;
-    // this->X = input_data;
 
     log_detail("Size: {0}", X.size());
 
@@ -104,23 +92,13 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 
     log_detail("Computing for H 2 ...");
 
-    // Compute Yhat.
-    //     (nxo) =  (nxh) * (hxo) + h
-    // aimatrix<T> Y_ = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H_, this->V).rowwise() + by));
-
-    // log_detail("Output from Cell:");
-    // log_matrix(Y_);
-
-    // this->Y.push_back(Y_);
-
     log_info("RNNCell Forward Pass end ...");
 
     // We return Output next layer;
-    return new_H; // this->Y; 
+    return new_H;
 }
 
 template <class T>
-// const std::tuple<aimatrix<T>, aimatrix<T>> RNNCell<T>::backward(const aimatrix<T>& input_data, const aimatrix<T>& dnext_h, const aimatrix<T>& gradients) {
 const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for RNN
 
@@ -142,24 +120,6 @@ const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     log_matrix(U);
     log_detail("Dimension of W: {0}x{1}", W.rows(), W.cols());
     log_matrix(W);
-
-    // Compute gradient with respect to softmax output.
-    //log_detail("Calculating Softmax Gradient ...");
-    //aimatrix<T> dSoft = BaseOperator::softmaxGradient(gradients, this->Y);
-    //log_matrix(dSoft); 
-
-    // Compute gradient with respect to V and bias by.
-    //log_detail("Calculating gradient with respect to V (dV) ...");
-    //this->dV  = BaseOperator::matmul(H.transpose(), dSoft);
-    //log_matrix(this->dV);
-
-    //log_detail("Calculating gradient with respect to bias (dby) ...");
-    //this->dby = this->Y.colwise().sum();
-    //log_rowvector(this->dby);
-
-    // Gradient with respect to H from (softmax H*V + by)
-    // log_detail("Calculating gradient with respect to H (dH) ...");
-    // aimatrix<T> dH_ = BaseOperator::matmul(dSoft, this->V.transpose()) + this->dH.at(step);
 
     // Compute gradient with respect to tanh output
     aimatrix<T> dtanh = BaseOperator::tanhGradient(dnext_h, H); // (1.0 - H.array().square()).array() * dnext_h.array();
@@ -210,15 +170,11 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     if (opt_W == nullptr) {
         opt_W  = new Optimizer<T>(optimizertype, learningRate);
         opt_U  = new Optimizer<T>(optimizertype, learningRate);
-        //opt_V  = new Optimizer<T>(optimizertype, learningRate);
         opt_bh = new Optimizer<T>(optimizertype, learningRate);
-        //opt_by = new Optimizer<T>(optimizertype, learningRate);
     }
     opt_W->adam(this->W, this->dW, iter);
     opt_U->adam(this->U, this->dU, iter);
-    //opt_V->adam(this->V, this->dV, iter);
     opt_bh->adam(this->bh, this->dbh, iter);
-    //opt_by->adam(this->by, this->dby, iter);
 }
  
 /***************************************************************************************************************************
@@ -234,29 +190,24 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
 
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
-    //H.resize(this->input_size, this->hidden_size);
     Wf.resize(this->param_size + this->hidden_size, this->hidden_size);
     Wi.resize(this->param_size + this->hidden_size, this->hidden_size);
     Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
     Wo.resize(this->param_size + this->hidden_size, this->hidden_size);
-    //V.resize(this->hidden_size, this->param_size);
     bf.resize(this->hidden_size);
     bi.resize(this->hidden_size);
     bg.resize(this->hidden_size);
     bo.resize(this->hidden_size);
-    //by.resize(this->param_size);
 
     BaseOperator::heInitMatrix(Wf);
     BaseOperator::heInitMatrix(Wi);
     BaseOperator::heInitMatrix(Wg);
     BaseOperator::heInitMatrix(Wo);
-    //BaseOperator::heInitMatrix(V);
 
     bf.setConstant(T(0.01));
     bi.setConstant(T(0.01));
     bg.setConstant(T(0.01));
     bo.setConstant(T(0.01));
-    //by.setConstant(T(0.01));
 
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
@@ -273,10 +224,6 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
 
     log_detail("===============================================");
     log_detail("LSTMCell Forward Pass ...");
-
-    // Store input for backward pass.
-    // this->X = input_data;
-    //const aimatrix<T>& X = input_data;
 
     setInitialWeights(X.rows(), X.cols());
     aimatrix<T> H = this->H.back();
@@ -305,11 +252,7 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     aimatrix<T> new_H = BaseOperator::tanh(new_C).array() * Ot.array();
     this->H.push_back(new_H);
 
-    // Compute Yhat.
-    //     (nxo) =  (nxh) * (hxo) + h
-    //this->Y = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-
-    //log_info("LSTMCell Forward Pass end ...");
+    log_info("LSTMCell Forward Pass end ...");
 
     // We return Output next layer;
     return new_H; 
@@ -322,17 +265,6 @@ const std::tuple<aimatrix<T>, aimatrix<T>> LSTMCell<T>::backward(int step, const
 
     log_detail("===============================================");
     log_detail("LSTMCell Backward Pass ...");
-
-/*
-    const aimatrix<T>& X = input_data;
-
-    log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
-    log_matrix(dnext_h);
-
-    log_detail("Dimension of dOutput: {0}x{1}", gradients.rows(), gradients.cols());
-    log_matrix(gradients);
-
-*/
 
     log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
     log_matrix(dnext_h);
@@ -357,27 +289,6 @@ const std::tuple<aimatrix<T>, aimatrix<T>> LSTMCell<T>::backward(int step, const
     log_matrix(Gt); 
     log_detail("Dimension of Ft: {0}x{1}", Ot.rows(), Ot.cols());
     log_matrix(Ot); 
-
-/*
-    // Compute gradient with respect to softmax output.
-    log_detail("Calculating Softmax Gradient ...");
-    aimatrix<T> dSoft = BaseOperator::softmaxGradient(gradients, this->Y);
-    log_matrix(dSoft); 
-
-   // Compute gradient with respect to V and bias by.
-    log_detail("Calculating gradient with respect to V (dV) ...");
-    this->dV  = BaseOperator::matmul(H.transpose(), dSoft);
-    log_matrix(this->dV);
-
-    log_detail("Calculating gradient with respect to bias (dby) ...");
-    this->dby = this->Y.colwise().sum();
-    log_rowvector(this->dby);
-
-    // Gradient with respect to H from (softmax H*V + by)
-    log_detail("Calculating gradient with respect to H (dH) ...");
-    this->dH = BaseOperator::matmul(dSoft, this->V.transpose()) + dnext_h;
-
-*/
 
     // Gradient with respect to C
     aimatrix<T> tanh  = BaseOperator::tanh(C);
@@ -452,23 +363,19 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
         opt_It = new Optimizer<T>(optimizertype, learningRate);
         opt_Gt = new Optimizer<T>(optimizertype, learningRate);
         opt_Ot = new Optimizer<T>(optimizertype, learningRate);
-        //opt_V  = new Optimizer<T>(optimizertype, learningRate);
         opt_bf = new Optimizer<T>(optimizertype, learningRate);
         opt_bi = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
         opt_bo = new Optimizer<T>(optimizertype, learningRate);
-        //opt_by = new Optimizer<T>(optimizertype, learningRate);
     }
     opt_Ft->adam(this->Ft, this->dWf, iter);
     opt_It->adam(this->It, this->dWi, iter);
     opt_Gt->adam(this->Gt, this->dWg, iter);
     opt_Ot->adam(this->Ot, this->dWo, iter);
-    //opt_V->adam(this->V, this->dV, iter);
     opt_bf->adam(this->bf, this->dbf, iter);
     opt_bi->adam(this->bi, this->dbi, iter);
     opt_bg->adam(this->bg, this->dbg, iter);
     opt_bo->adam(this->bo, this->dbo, iter);
-    //opt_by->adam(this->by, this->dby, iter);  
 }
 
 /***************************************************************************************************************************
@@ -484,25 +391,19 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
 
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
-    //H.resize(this->input_size, this->hidden_size);
     Wz.resize(this->param_size + this->hidden_size, this->hidden_size);
     Wr.resize(this->param_size + this->hidden_size, this->hidden_size);
     Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
-    //V.resize(this->hidden_size, this->param_size);
     bz.resize(this->hidden_size);
     br.resize(this->hidden_size);
     bg.resize(this->hidden_size);
-    //by.resize(this->param_size);
-
     BaseOperator::heInitMatrix(Wz);
     BaseOperator::heInitMatrix(Wr);
     BaseOperator::heInitMatrix(Wg);
-    //BaseOperator::heInitMatrix(V);
 
     bz.setConstant(T(0.01));
     br.setConstant(T(0.01));
     bg.setConstant(T(0.01));
-    //by.setConstant(T(0.01));
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
@@ -516,11 +417,6 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
 
     log_detail("===============================================");
     log_detail("GRUCell Forward Pass ...");
-
-    // Store input for backward pass.
-    // this can be the prev_hidden_state
-    // X = input_data;
-    //const aimatrix<T>& X = input_data;
 
     setInitialWeights(X.rows(), X.cols());
 
@@ -546,11 +442,7 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
     aimatrix<T> new_H = (1 - Zt.array()).array() * Gt.array() + Zt.array() * H.array(); 
     this->H.push_back(new_H);
 
-    // Compute Yhat.
-    //     (nxo) =  (nxh) * (hxo) + h
-    // this->Y = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-
-    // log_info("GRUCell Forward Pass end ...");
+    log_info("GRUCell Forward Pass end ...");
 
     // We return Output next layer;
     return new_H; 
@@ -562,44 +454,6 @@ const aimatrix<T> GRUCell<T>:: backward(int step, const aimatrix<T>& dnext_h) {
 
     log_detail("===============================================");
     log_detail("GRUCell Backward Pass ...");
-
-/*
-    const aimatrix<T>& X = input_data;
-
-    log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
-    log_matrix(dnext_h);
-
-    log_detail("Dimension of dOutput: {0}x{1}", gradients.rows(), gradients.cols());
-    log_matrix(gradients);
-
-    log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
-    log_matrix(H);
-    log_detail("Dimension of U: {0}x{1}", Zt.rows(), Zt.cols());
-    log_matrix(Zt); 
-    log_detail("Dimension of U: {0}x{1}", Gt.rows(), Gt.cols());
-    log_matrix(Gt); 
-    log_detail("Dimension of U: {0}x{1}", Rt.rows(), Rt.cols());
-    log_matrix(Rt); 
-
-    // Compute gradient with respect to softmax output.
-    log_detail("Calculating Softmax Gradient ...");
-    aimatrix<T> dSoft = BaseOperator::softmaxGradient(gradients, this->Y);
-    log_matrix(dSoft); 
-
-   // Compute gradient with respect to V and bias by.
-    log_detail("Calculating gradient with respect to V (dV) ...");
-    this->dV  = BaseOperator::matmul(H.transpose(), dSoft);
-    log_matrix(this->dV);
-
-    log_detail("Calculating gradient with respect to bias (dby) ...");
-    this->dby = this->Y.colwise().sum();
-    log_rowvector(this->dby);
-
-    // Gradient with respect to H from (softmax H*V + by)
-    log_detail("Calculating gradient with respect to H (dH) ...");
-    this->dH = BaseOperator::matmul(dSoft, this->V.transpose()) + dnext_h;
-*/
-    // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
 
     aimatrix<T> H = this->H.at(step);
     aimatrix<T> X = this->X.at(step);
@@ -653,20 +507,16 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_Wz = new Optimizer<T>(optimizertype, learningRate);
         opt_Wr = new Optimizer<T>(optimizertype, learningRate);
         opt_Wg = new Optimizer<T>(optimizertype, learningRate);
-        //opt_V  = new Optimizer<T>(optimizertype, learningRate);
         opt_bz = new Optimizer<T>(optimizertype, learningRate);
         opt_br = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
-        //opt_by = new Optimizer<T>(optimizertype, learningRate);
     }
     opt_Wz->adam(this->Wz, this->dWz, iter);
     opt_Wr->adam(this->Wr, this->dWr, iter);
     opt_Wg->adam(this->Wg, this->dWg, iter);
-    //opt_V->adam(this->V, this->dV, iter);
     opt_bz->adam(this->bz, this->dbz, iter);
     opt_br->adam(this->br, this->dbr, iter);
     opt_bg->adam(this->bg, this->dbg, iter);
-    //opt_by->adam(this->by, this->dby, iter);
 
 }
 
@@ -816,14 +666,11 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
             yhat = out; // no activation, pure Hidden State output
         }
 
-        // rnn->outputs.chip(step, 0) = tensor_view(out);
-        prediction.push_back(yhat); // prediction.chip(step, 0) = tensor_view(yhat);
+        prediction.push_back(yhat);
 
         if (!this->isInitialized()) {
             this->V.push_back(v);
             this->bo.push_back(bo);
-            // this->add_V( v );
-            // this->add_bo( bo );
         }
     }
 
@@ -886,12 +733,10 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
                 log_detail("Add Forward Direction output ...");
                 this->foutput.push_back(input_batch);
                 log_detail("Forward Direction output size: {0}", this->foutput.size());
-                //(this->getFoutput()).push_back(input_batch);
             } else {
                 log_detail("Add Backward Direction output ...");
                 this->boutput.push_back(input_batch);
                 log_detail("Backward Direction output size: {0}", this->boutput.size());
-                //(this->getBoutput()).push_back(input_batch);
             }
         }
     }
@@ -924,9 +769,8 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     for (int step = 0; step < this->getSequenceLength(); ++step) {
 
         // Process gradient for the activation operation
-        dOut = gradients.at(step); // matrix_view(chip(gradients, step, 0));  
-        // out  = this->getOutput()[step];
-        yhat = prediction.at(step); // matrix_view(chip(prediction, step, 0));
+        dOut = gradients.at(step); 
+        yhat = prediction.at(step); 
         if (otype == ActivationType::SOFTMAX) {
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
             aimatrix<T> doutput = BaseOperator::matmul(dOut, yhat.transpose());
@@ -1028,9 +872,6 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
         for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
 
             log_detail("Sequence forward: Direction {0} Step {1}: ", direction, step);
-
-            // aimatrix<T> input_batch = this->input_data.at(step);
-
             log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
 
             if (direction == 0) {
@@ -1055,7 +896,6 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
                 log_detail("Cell Backward pass output");
                 log_detail("dOuts output:");
                 log_matrix(dnextH);
-                // input_batch = cells[layer]->getHiddenState();
             }
 
             log_detail("Layer forward done ...");

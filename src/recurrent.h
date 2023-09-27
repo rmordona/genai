@@ -92,37 +92,25 @@ private:
    // Parameters (weights and biases)
     aimatrix<T> W;  // Weight for the Input   (p x h)
     aimatrix<T> U;  // Weight for the Hidden State  (h x h)  (rows x columns)
-    // aimatrix<T> V;  // Weight for the predicted output  (h x o)
 
     airowvector<T> bh; // Hidden bias
-    // airowvector<T> by; // Bias for the predicted output
 
     std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     std::vector<aimatrix<T>> X;
     std::vector<aimatrix<T>> dH; // Gradient with respect to Hidden state
     std::vector<aimatrix<T>> dX; // Gradient with respect to Input
 
-
-    // aimatrix<T> dX; // Gradient with respect to Input
-    // aimatrix<T> X; // Input dimension (n x p) where n = number of words, p = embedding size (features)
-    // aimatrix<T> Y; // (n x o)
-
    // Caching Gradients with respect to hidden-to-hidden weights  W, U
     aimatrix<T> dW;
     aimatrix<T> dU;
-    // aimatrix<T> dV;
-
 
     // Caching Gradients with respect to hidden biases bh
     airowvector<T> dbh;
-    // airowvector<T> dby;
 
    // Caching optimizer parameters
     Optimizer<T>* opt_W  = nullptr; // for optimizer
     Optimizer<T>* opt_U  = nullptr; // for optimizer
-    // Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bh = nullptr; // for optimizer
-    // Optimizer<T>* opt_by = nullptr; // for optimizer
 
     int input_size = 0;
     int param_size = 0;
@@ -153,23 +141,16 @@ private:
     aimatrix<T> Wi;      // Weight matrix for input gate from input x         (p + h) x h
     aimatrix<T> Wo;      // Weight matrix for output gate from input x        (p + h) x h
     aimatrix<T> Wg;      // Weight matrix for candidate state from input x    (p + h) x h
-    //aimatrix<T> V;       // Weight for Output (h x o)
 
     airowvector<T> bf;   // Bias vector for input gate        (1xh)
     airowvector<T> bi;   // Bias vector for input gate        (1xh)
     airowvector<T> bg;   // Bias vector for candidate state   (1xh)
     airowvector<T> bo;   // Bias vector for output gate       (1xh)
-    //airowvector<T> by;   // Bias for the predicted output
 
     aimatrix<T> Ft;      // Forget Gate       (nxh)
     aimatrix<T> It;      // Input Gate        (nxh)
     aimatrix<T> Ot;      // Output Gate       (nxh)
     aimatrix<T> Gt;      // Candidate State   (nxh)
-
-    //std::vector<aimatrix<T>>> H;       // Hidden state (n x h)
-    //aimatrix<T> C;       // Cell state   (n x h)
-    //aimatrix<T> X;       // (n x p)
-    //aimatrix<T> Y;       // (n x o)
 
     std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     std::vector<aimatrix<T>> C;  // Cell state  (n x h) where n = number of words, h = hidden size
@@ -183,31 +164,24 @@ private:
     aimatrix<T> dWi;
     aimatrix<T> dWg;
     aimatrix<T> dWo;
-    //aimatrix<T> dV;
 
     // Caching Gradients with respect to hidden biases bf, bi, bg, bo
     airowvector<T> dbf;
     airowvector<T> dbi;
     airowvector<T> dbg;
     airowvector<T> dbo;
-    //airowvector<T> dby;
 
     // Caching optimizer parameters
     Optimizer<T>* opt_Ft = nullptr; // for optimizer
     Optimizer<T>* opt_It = nullptr; // for optimizer
     Optimizer<T>* opt_Gt = nullptr; // for optimizer
     Optimizer<T>* opt_Ot = nullptr; // for optimizer
-    //Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bf = nullptr; // for optimizer
     Optimizer<T>* opt_bi = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
     Optimizer<T>* opt_bo = nullptr; // for optimizer
-    //Optimizer<T>* opt_by = nullptr; // for optimizer
 
     aimatrix<T> XH;      // Concatenate X and H
-    //aimatrix<T> dX;      // Gradient with respect to Input
-    //aimatrix<T> dH;      // Gradient with respect to Hidden state
-    //aimatrix<T> dC;      // Gradient with respect to Cell state
 
 
     int input_size;
@@ -238,22 +212,15 @@ private:
     aimatrix<T> Wz;      // Weight matrix for the update gate               (p + h) x h
     aimatrix<T> Wr;      // Weight matrix for the reset gate                (p + h) x h
     aimatrix<T> Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
-    //aimatrix<T> V;       // Weight for Output (h x o)
 
     // Biases for the hidden units
     airowvector<T> bz;   // Bias vector for the update gate              (1xh)
     airowvector<T> br;   // Bias vector for the reset gate               (1xh)
     airowvector<T> bg;   // Bias vector for the candidate hidden state   (1xh)
-    //airowvector<T> by;   // Bias for the predicted output
 
     aimatrix<T> Zt;      // Forget Gate       (nxh)
     aimatrix<T> Rt;      // Input Gate        (nxh)
     aimatrix<T> Gt;      // Candidate State   (nxh)
-
-    // aimatrix<T> input_data;
-    //std::vector<aimatrix<T>> H;         // Hidden state (n x h)
-    //aimatrix<T> X;       // (n x p)
-    ////aimatrix<T> Y;       // (n x o)
 
     std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     std::vector<aimatrix<T>> X;  // (n x p)
@@ -266,28 +233,19 @@ private:
     aimatrix<T> dWz;
     aimatrix<T> dWr;
     aimatrix<T> dWg;
-    //aimatrix<T> dV;
-    //std::vector<aimatrix<T>> dH;
-    //std::vector<aimatrix<T>> dX;
 
     // Caching Gradients with respect to hidden biases bf, bi, bo, bc
     airowvector<T> dbz;
     airowvector<T> dbr;
     airowvector<T> dbg;
-    //airowvector<T> dby;
 
     // Caching optimizer parameters
     Optimizer<T>* opt_Wz = nullptr; // for optimizer
     Optimizer<T>* opt_Wr = nullptr; // for optimizer
     Optimizer<T>* opt_Wg = nullptr; // for optimizer
-    //Optimizer<T>* opt_V  = nullptr; // for optimizer
     Optimizer<T>* opt_bz = nullptr; // for optimizer
     Optimizer<T>* opt_br = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
-    //Optimizer<T>* opt_by = nullptr; // for optimizer
-
-    //aimatrix<T> dX;     // Gradient with respect to Input
-    //aimatrix<T> dH;     // Gradient with respect to Hidden state
 
     int input_size;
     int param_size;
