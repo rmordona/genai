@@ -153,6 +153,7 @@ public:
     void eigen_matrix(const aimatrix<T>& mat) {
         aimatrix<T> tmp_mat = mat;
         std::string msg = fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
+        // std::cout << "matrix(xyz): " << msg << std::endl;
         log->info(msg);
     }
 

@@ -285,9 +285,11 @@ private:
     ActivationType otype;
     ReductionType rtype;
 
+    // Consider a vector of outputs specially in a MANY-TO-MANY scenario
+    // where each time-step produces an output.
     std::vector<aimatrix<T>> foutput, boutput, output;
-    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> bo;  // Bias for the predicted output
+    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o) 
+    std::vector<airowvector<T>> bo;  // Bias for the predicted output  
 
     std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
     std::vector<airowvector<T>> dbo;  // Bias for the predicted output
@@ -295,7 +297,11 @@ private:
     aitensor<T> gradients;
     aitensor<T> Yhat;
 
-    bool initialized = false;
+    // Caching optimizer parameters, vector of optimization parameters per time-step
+    std::vector<Optimizer<T>*> opt_V; // for optimizer
+    std::vector<Optimizer<T>*> opt_bo; // for optimizer
+
+    bool initialized = false; // used to ensure V and bo are not initialized multiple times during training.
 
     int hidden_size;
     int output_size;
@@ -328,12 +334,13 @@ public:
         for (int layer = 0; layer < num_layers; ++layer) {
             CellBase<T>* rnn_ptr1 = createCell(celltype, hidden_size, layer + 1 == num_layers);
             CellBase<T>* rnn_ptr2 = createCell(celltype, hidden_size, layer + 1 == num_layers);
-            this->fcells.push_back( std::move(rnn_ptr1)); 
-            this->bcells.push_back( std::move(rnn_ptr2));
+            this->fcells.push_back(std::move(rnn_ptr1)); 
+            this->bcells.push_back(std::move(rnn_ptr2));
         }
+
     }
 
-    std::tuple<aimatrix<T>, airowvector<T>> setInitialWeights(int step, aimatrix<T> out);
+    std::tuple<aimatrix<T>, airowvector<T>> getWeights(int step, aimatrix<T> out);
 
     const aitensor<T> processOutputs();
 
@@ -414,7 +421,7 @@ private:
     RecurrentBase<T>* rnnbase;
 public:
     LSTM(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype)  {
-        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_LSTM);
     }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
@@ -431,7 +438,7 @@ private:
     RecurrentBase<T>* rnnbase;
 public:
     GRU(int hidden_size, int output_size,  int num_layers, bool bidirectional, RNNType rnntype) {
-        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_GRU);
     }
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
