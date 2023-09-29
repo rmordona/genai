@@ -992,12 +992,13 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
 
     // We need to send back the same structure of input_gradients as the input to the forward pass
     aitensor<T> dInput; // (batch_size, input_size, embedding_size);
+
     aimatrix<T> dnextH, dnextC;
 
-    dnextH = aimatrix<T>::Zero(input_size, hidden_size);
-    dnextC = aimatrix<T>::Zero(input_size, hidden_size);
-
     for (int direction = 0; direction < this->getNumDirections(); ++direction) {
+
+        dnextH = aimatrix<T>::Zero(input_size, hidden_size);
+        dnextC = aimatrix<T>::Zero(input_size, hidden_size);
 
         std::vector<CellBase<T>*> cells = this->getCells(direction);
 
