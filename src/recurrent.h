@@ -287,11 +287,11 @@ private:
 
     // Consider a vector of outputs specially in a MANY-TO-MANY scenario
     // where each time-step produces an output.
-    std::vector<aimatrix<T>> foutput, boutput, output;
-    std::vector<aimatrix<T>> V;      // Weight for the predicted output  (h x o) 
+    aitensor<T> foutput, boutput, output;
+    aitensor<T> V;      // Weight for the predicted output  (h x o) 
     std::vector<airowvector<T>> bo;  // Bias for the predicted output  
 
-    std::vector<aimatrix<T>> dV;      // Weight for the predicted output  (h x o)
+    aitensor<T> dV;      // Weight for the predicted output  (h x o)
     std::vector<airowvector<T>> dbo;  // Bias for the predicted output
 
     aitensor<T> gradients;
@@ -331,6 +331,10 @@ public:
     RecurrentBase(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype, CellType celltype) 
         : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype), celltype(celltype) {
 
+        if (bidirectional != true) {
+            this->num_directions = 1;
+        }
+
         for (int layer = 0; layer < num_layers; ++layer) {
             CellBase<T>* rnn_ptr1 = createCell(celltype, hidden_size, layer + 1 == num_layers);
             CellBase<T>* rnn_ptr2 = createCell(celltype, hidden_size, layer + 1 == num_layers);
@@ -346,15 +350,16 @@ public:
 
     void processGradients(aitensor<T>& gradients);
 
-    const aitensor<T> forwarding(const aitensor<T>& input_data);
+    const aitensor<T> forwardpass(const aitensor<T>& input_data);
 
-    const aitensor<T> backprop(const aitensor<T>& gradients);
+    const aitensor<T> backwardpass(const aitensor<T>& gradients);
 
     void updatingParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     RNNType getRNNType() { return this->rnntype; }
     ActivationType getOType() { return this->otype; }
     ReductionType getRType() { return this->rtype; }
+    
     int getNumDirections() { return this->num_directions;}
     int getNumLayers() { return this->num_layers; }
 
@@ -410,8 +415,8 @@ public:
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    void forwardPass() {}
-    void backwardPass() {}
+    void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
+    void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
 
 };
 
@@ -428,8 +433,8 @@ public:
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    void forwardPass() {}
-    void backwardPass() {}
+    void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
+    void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
 };
 
 template <class T>
@@ -444,8 +449,8 @@ public:
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    void forwardPass() {}
-    void backwardPass() {}
+    void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
+    void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
 };
 
 

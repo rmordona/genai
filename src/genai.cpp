@@ -613,26 +613,6 @@ PYBIND11_MODULE(genai, m) {
         .value("GELU", ActivationType::GELU)
         .value("SOFTMAX", ActivationType::SOFTMAX)
         .export_values();
-  
-/*
-    py::class_<Node<double>>(m, "Node")
-        .def("setData", &Node<double>::setData)
-      //  .def("sequential", &Node<double>::sequential, py::arg("repeat") = 1)
-      //  .def("parallel", &Node<double>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
-        .def("setOperations", (Node<double>& (Node<double>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<double>::setOperations);
-      //  .def("setReduction", &Node<double>::setReduction, py::arg("type") = "add" );
-      //  .def("forwardPass", &Node<double>::forwardPass)
-      //  .def("backwardPass", &Node<double>::backwardPass);
-
-    py::class_<Node<float>>(m, "Node")
-        .def("setData", &Node<float>::setData)
-     //   .def("sequential", &Node<float>::sequential, py::arg("repeat") = 1)
-      //  .def("parallel", &Node<float>::parallel, py::arg("repeat") = 1, py::arg("reduce") = "add" )
-        .def("setOperations", (Node<float>& (Node<float>::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &Node<float>::setOperations);
-     //   .def("setReduction", &Node<float>::setReduction, py::arg("type") = "add" );
-     //   .def("forwardPass", &Node<float>::forwardPass)
-     //   .def("backwardPass", &Node<float>::backwardPass);
-*/
 
 /*
     py::class_<Graph<double>>(m, "Graph")
@@ -668,31 +648,6 @@ PYBIND11_MODULE(genai, m) {
         .def("generateDotFormat", &Graph<float>::generateDotFormat);
     */
 
-/*
-    py::class_<BaseModel<double>>(m, "BaseModel")
-        .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
-                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-                py::arg("learningRate") = 0.01, py::arg("itermax") = 1)
-        .def("setGraph", [](BaseModel<double>& model, Graph<double>* graph)  {
-             model.setGraph(graph);
-        })
-        .def("train", &BaseModel<double>::train, py::arg("loss") = "mse",  
-                py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
-                py::arg("iter")=1, "Training a model")
-        .def("setTarget", &BaseModel<double>::setTarget, "set Target of a model");
-
-    py::class_<BaseModel<float>>(m, "BaseModel")
-        .def(py::init<const std::string&, const std::string&, const float, const int, const std::string&>(), 
-                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-                py::arg("learningRate") = 0.01, py::arg("itermax") = 1)
-        .def("setGraph", [](BaseModel<float>& model, Graph<float>* graph)  {
-             model.setGraph(graph);
-        })
-        .def("train", &BaseModel<float>::train, py::arg("loss") = "mse",  
-                py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
-                py::arg("iter")=1, "Training a model")
-        .def("setTarget", &BaseModel<float>::setTarget, "set Target of a model");
-*/
    
     py::class_<SampleClass, std::shared_ptr<SampleClass>>(m, "SampleClass")
         .def(py::init<float>())
@@ -700,11 +655,13 @@ PYBIND11_MODULE(genai, m) {
 
     py::class_<ModelNode, std::shared_ptr<ModelNode>>(m, "Node")
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
-        .def("setData", (void (ModelNode::*)(const py::array_t<float>&)) &ModelNode::setDataFloat, "Function with float argument")
-        .def("setData", (void (ModelNode::*)(const py::array_t<double>&)) &ModelNode::setDataDouble, "Function with double argument");
+        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, "Function with float argument")
+        .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, "Function with double argument");
     
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
-    py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Linear")
+    py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Dense")
         .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
     py::class_<ModelBatchNorm, BaseOperator, std::shared_ptr<ModelBatchNorm>>(m, "BatchNorm")
         .def(py::init<>());
@@ -765,47 +722,6 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
                 py::arg("iter")=1, "Training a model");
      
-    /*
-        // Definitions for BaseOperator APIs
-    py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
-    py::class_<Linear<float>, BaseOperator, std::shared_ptr<Linear<float>>>(m, "Linear")
-        .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
-    py::class_<BatchNorm<float>, BaseOperator, std::shared_ptr<BatchNorm<float>>>(m, "BatchNorm")
-        .def(py::init<int>(), py::arg("size") = 0);
-    py::class_<LayerNorm<float>, BaseOperator, std::shared_ptr<LayerNorm<float>>>(m, "LayerNorm")
-        .def(py::init<int>(), py::arg("size") = 0); 
-    py::class_<Reduction, BaseOperator, std::shared_ptr<Reduction>>(m, "Reduction")
-        .def(py::init<const std::string&>(), py::arg("type") = "sum");  
-    py::class_<Activation<float>, BaseOperator, std::shared_ptr<Activation<float>>>(m, "Activation")
-        .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
-    py::class_<Loss<float>, BaseOperator, std::shared_ptr<Loss<float>>>(m, "Loss")
-        .def(py::init<const std::string&>(), py::arg("type") = "mse");
-    py::class_<Dropout, BaseOperator, std::shared_ptr<Dropout>>(m, "Dropout")
-        .def(py::init<int>(), py::arg("size") = 0); 
-    py::class_<Attention<float>, BaseOperator, std::shared_ptr<Attention<float>>>(m, "Attention")
-        .def(py::init<int,int, bool>(), py::arg("heads") = 1, py::arg("size") = 3, py::arg("bias") = false); 
-    py::class_<FeedForward<float>, BaseOperator, std::shared_ptr<FeedForward<float>>>(m, "FeedForward")
-        .def(py::init<int, bool, const std::string&, const float>(), 
-                py::arg("size") = 3, py::arg("bias") = true,
-                py::arg("type") = "relu", py::arg("alpha") = 0.01);
-    py::class_<Encoder<float>, BaseOperator, std::shared_ptr<Encoder<float>>>(m, "Encoder")
-        .def(py::init<int, int, bool, const std::string&, const float>(), 
-                py::arg("heads") = 1,
-                py::arg("size") = 3, py::arg("bias") = true,
-                py::arg("type") = "relu", py::arg("alpha") = 0.01);
-    py::class_<RNN<float>, BaseOperator, std::shared_ptr<RNN<float>>>(m, "RNN")
-        .def(py::init<int, int, float, int, bool, RNNType>(), 
-                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
-                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
-    py::class_<LSTM<float>, BaseOperator, std::shared_ptr<LSTM<float>>>(m, "LSTM")
-        .def(py::init<int, int, float, int, bool, RNNType>(), 
-                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
-                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
-    py::class_<GRU<float>, BaseOperator, std::shared_ptr<GRU<float>>>(m, "GRU")
-        .def(py::init<int, int, float,  int, bool, RNNType>(), 
-                py::arg("hidden_size") = 3, py::arg("output_size") = 3, py::arg("learning_rate") = 0.01,
-                py::arg("num_layers"), py::arg("bidirection"), py::arg("rnntype"));
-   */
 
     // Definitions for TokenModel APIs
     /*

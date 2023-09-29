@@ -38,43 +38,42 @@ using namespace py::literals;
 * NodeFactory
 ********************************************************************************************/
 
-// The input is assumed to have NxM where N=number of samples, M=embedding vector size
-// This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-/*
+// Standardize the input
 template <class T>
-void Node<T>::setData(const py::array_t<T>& input_data) {
+aimatrix<T> standardize(const aimatrix<T>& input_data) {
+    // Calculate the mean and standard deviation along each column
+    aivector<T> mean = input_data.colwise().mean();
+    aivector<T> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
 
-    log_info("=================");
-    log_info( "Setting Data ..." );
+    // Standardize the matrix by subtracting the mean and dividing by the standard deviation
+    aimatrix<T> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
 
-    // request a buffer descriptor from Python
-    py::buffer_info buffer_info = input_data.request();
-
-    // extract data an shape of input array
-    T* data = static_cast<T*>(buffer_info.ptr);
-
-    int dim0 = buffer_info.shape[0]; // N
-    int dim1 = buffer_info.shape[1]; // M
-    // Convert a py::array_t row-major order to an Eigen::MatrixXd column-major order.
-    this->input_data = Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(data, dim0, dim1);
-
-    log_detail( "Input Data For Node Name: {0}", this->name );
-    log_matrix( this->input_data );
+    return standard;
 }
-*/
- 
+
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void Node<T>::setData(const py::array_t<T>& data) {
+void Node<T>::setData(const py::array_t<T>& data, const bool normalize) {
     log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
-    this->tensor = true;
     this->input_data = ConvertData::totensor(data);
+    if (normalize == true) {
+        int input_size = this->input_data.size();
+        for (int i=0; i < input_size; i++) {
+            this->input_data.at(i).array() = standardize(this->input_data.at(i));
+        }   
+    }
 }
  
 template <class T>
-void Node<T>::setData(const aitensor<T> data) {
+void Node<T>::setData(const aitensor<T> data, const bool normalize) {
     this->input_data =  data;
+    if (normalize == true) {
+        int input_size = this->input_data.size();
+        for (int i=0; i < input_size; i++) {
+            this->input_data.at(i).array() = standardize(this->input_data.at(i));
+        }   
+    }
 }
 
 template <class T>
@@ -242,7 +241,7 @@ void Node<T>::forwardPass() {
     log_info( "**************************************" );
     log_info( "***      Node Forward Pass  **********" );
     log_info( "**************************************" );
-    
+
     log_detail("Node forward: ({0}) Operation Size: {1}", name, size);
 
     // See if we can perform reduction.
@@ -592,18 +591,18 @@ Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& input_data) {
+void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& input_data, const bool normalize) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setData(input_data);
+        node->setData(input_data, normalize);
     }
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const aitensor<T>& input_data) {
+void Graph<T>::setData(const std::string& nodename, const aitensor<T>& input_data, const bool normalize) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setData(input_data);
+        node->setData(input_data, normalize);
     }
 }
 

@@ -120,10 +120,8 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 template <class T>
 const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for RNN
-
     log_detail("===============================================");
     log_detail("RNNCell Backward Pass ...");
-
 
     log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
     log_matrix(dnext_h);
@@ -191,9 +189,12 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_U  = new Optimizer<T>(optimizertype, learningRate);
         opt_bh = new Optimizer<T>(optimizertype, learningRate);
     }
-    opt_W->adam(this->W, this->dW, iter);
-    opt_U->adam(this->U, this->dU, iter);
-    opt_bh->adam(this->bh, this->dbh, iter);
+    log_detail("Updating W in RNN Cell ...");
+    opt_W->update(optimizertype, this->W, this->dW, iter);
+    log_detail("Updating U in RNN Cell ...");
+    opt_U->update(optimizertype, this->U, this->dU, iter);
+    log_detail("Updating bh in RNN Cell ...");
+    opt_bh->update(optimizertype, this->bh, this->dbh, iter);
     this->H.clear();
     this->X.clear();
     this->dH.clear();
@@ -399,14 +400,22 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
         opt_bo = new Optimizer<T>(optimizertype, learningRate);
     }
-    opt_Ft->adam(this->Ft, this->dWf, iter);
-    opt_It->adam(this->It, this->dWi, iter);
-    opt_Gt->adam(this->Gt, this->dWg, iter);
-    opt_Ot->adam(this->Ot, this->dWo, iter);
-    opt_bf->adam(this->bf, this->dbf, iter);
-    opt_bi->adam(this->bi, this->dbi, iter);
-    opt_bg->adam(this->bg, this->dbg, iter);
-    opt_bo->adam(this->bo, this->dbo, iter);
+    log_detail("Updating Ft in LSTM Cell ...");
+    opt_Ft->update(optimizertype, this->Ft, this->dWf, iter);
+    log_detail("Updating It in LSTM Cell ...");
+    opt_It->update(optimizertype, this->It, this->dWi, iter);
+    log_detail("Updating Gt in LSTM Cell ...");
+    opt_Gt->update(optimizertype, this->Gt, this->dWg, iter);
+    log_detail("Updating Ot in LSTM Cell ...");
+    opt_Ot->update(optimizertype, this->Ot, this->dWo, iter);
+    log_detail("Updating bf in LSTM Cell ...");
+    opt_bf->update(optimizertype, this->bf, this->dbf, iter);
+    log_detail("Updating bi in LSTM Cell ...");
+    opt_bi->update(optimizertype, this->bi, this->dbi, iter);
+    log_detail("Updating bg in LSTM Cell ...");
+    opt_bg->update(optimizertype, this->bg, this->dbg, iter);
+    log_detail("Updating bo in LSTM Cell ...");
+    opt_bo->update(optimizertype, this->bo, this->dbo, iter);
     this->H.clear();
     this->C.clear();
     this->X.clear();
@@ -416,7 +425,7 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
     this->input_size = 0;
     this->param_size = 0;
 }
-
+ 
 /***************************************************************************************************************************
  *********** IMPLEMENTING GRUCell
 ****************************************************************************************************************************/
@@ -424,7 +433,7 @@ template <class T>
 void GRUCell<T>::setInitialWeights(int N, int P) {
     // Initialize parameters, gates, states, etc.
     if (this->input_size !=0 || this->param_size != 0) return;
-
+ 
     this->input_size = N;  
     this->param_size = P;  
 
@@ -565,12 +574,18 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_br = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
     }
-    opt_Wz->adam(this->Wz, this->dWz, iter);
-    opt_Wr->adam(this->Wr, this->dWr, iter);
-    opt_Wg->adam(this->Wg, this->dWg, iter);
-    opt_bz->adam(this->bz, this->dbz, iter);
-    opt_br->adam(this->br, this->dbr, iter);
-    opt_bg->adam(this->bg, this->dbg, iter);
+    log_detail("Updating Wz in GRU Cell ...");
+    opt_Wz->update(optimizertype, this->Wz, this->dWz, iter);
+    log_detail("Updating Wr in GRU Cell ...");
+    opt_Wr->update(optimizertype, this->Wr, this->dWr, iter);
+    log_detail("Updating Wg in GRU Cell ...");
+    opt_Wg->update(optimizertype, this->Wg, this->dWg, iter);
+    log_detail("Updating bz in GRU Cell ...");
+    opt_bz->update(optimizertype, this->bz, this->dbz, iter);
+    log_detail("Updating br in GRU Cell ...");
+    opt_br->update(optimizertype, this->br, this->dbr, iter);
+    log_detail("Updating bg in GRU Cell ...");
+    opt_bg->update(optimizertype, this->bg, this->dbg, iter);
     this->H.clear();
     this->X.clear();
     this->dH.clear();
@@ -601,7 +616,7 @@ template <class T>
 const aitensor<T> RNN<T>::forward(const aitensor<T>& input_data) {
     log_info("===============================================");
     log_info("RNN Forward Pass ...");
-    const aitensor<T> Yhat = this->rnnbase->forwarding(input_data);
+    const aitensor<T> Yhat = this->rnnbase->forwardpass(input_data);
     log_detail("End RNN Forward ... ");
     this->rnnbase->setPrediction(Yhat);
     return Yhat;
@@ -609,7 +624,7 @@ const aitensor<T> RNN<T>::forward(const aitensor<T>& input_data) {
 
 template <class T>
 const aitensor<T>  RNN<T>::backward(const aitensor<T>& gradients) {
-    const aitensor<T> dInput = this->rnnbase->backprop(gradients);
+    const aitensor<T> dInput = this->rnnbase->backwardpass(gradients);
     this->rnnbase->setGradients(dInput);
     return dInput;
 }
@@ -624,7 +639,7 @@ template <class T>
 const aitensor<T> LSTM<T>::forward(const aitensor<T>& input_data) {
     log_info("===============================================");
     log_info("LSTM Forward Pass ...");
-    const aitensor<T> Yhat = this->rnnbase->forwarding(input_data);
+    const aitensor<T> Yhat = this->rnnbase->forwardpass(input_data);
     log_detail("End LSTM Forward ... ");
     this->rnnbase->setPrediction(Yhat);
     return Yhat;
@@ -632,7 +647,7 @@ const aitensor<T> LSTM<T>::forward(const aitensor<T>& input_data) {
 
 template <class T>
 const aitensor<T> LSTM<T>::backward(const aitensor<T>& gradients) {
-    const aitensor<T> dInput = this->rnnbase->backprop(gradients);
+    const aitensor<T> dInput = this->rnnbase->backwardpass(gradients);
     this->rnnbase->setGradients(dInput);
     return dInput;
 }
@@ -648,7 +663,7 @@ template <class T>
 const aitensor<T> GRU<T>::forward(const aitensor<T>& input_data) {
     log_info("===============================================");
     log_info("GRU Forward Pass ...");
-    const aitensor<T> Yhat = this->rnnbase->forwarding(input_data);
+    const aitensor<T> Yhat = this->rnnbase->forwardpass(input_data);
     log_detail("End GRU Forward ... ");
     this->rnnbase->setPrediction(Yhat);
     return Yhat;
@@ -656,7 +671,7 @@ const aitensor<T> GRU<T>::forward(const aitensor<T>& input_data) {
 
 template <class T>
 const aitensor<T>  GRU<T>::backward(const aitensor<T>& gradients) {
-    const aitensor<T> dInput = this->rnnbase->backprop(gradients);
+    const aitensor<T> dInput = this->rnnbase->backwardpass(gradients);
     this->rnnbase->setGradients(dInput);
     return dInput;
 }
@@ -672,7 +687,12 @@ template <class T>
 std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, aimatrix<T> out) {
 
     if (this->isInitialized()) {
-        return std::make_tuple(this->V.at(step), this->bo.at(step));
+        RNNType       rnntype  = this->getRNNType();
+        if (rnntype == RNNType::MANY_TO_ONE) {
+            return std::make_tuple(this->V.at(0), this->bo.at(0));
+        } else {
+            return std::make_tuple(this->V.at(step), this->bo.at(step));
+        }
     }
 
     aimatrix<T> v(out.rows(), out.cols());
@@ -693,23 +713,40 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
     aimatrix<T> out, v, yhat;
     airowvector<T> bo;
 
-    int sequence_length           = this->getSequenceLength();
-
-    ReductionType rnntype         = this->getRType();
+    int sequence_length    = this->getSequenceLength();
+    ReductionType rtype    = this->getRType();
+    RNNType       rnntype  = this->getRNNType();
     aitensor<T> prediction;
 
-    for (int step = 0; step < sequence_length; ++step) {
+    log_detail("Entering Processing of Output");
+
+    int start_step = 0; // Default for MANY_TO_MANY or ONE_TO_MANY scenario
+
+    if (rnntype == RNNType::MANY_TO_ONE) {
+        start_step = sequence_length - 1; // consider only the last sequence for MANY_TO_ONE
+    }
+
+    for (int step = start_step; step < sequence_length; ++step) {
+
+        log_detail("Process Direction Step {0} with output size {1}", step, this->foutput.size());
 
         // merge bidirectional outputs
-        if (rnntype == ReductionType::SUM) {
-            out = this->foutput.at(step).array() + this->boutput.at(step).array();
-        } else 
-        if (rnntype == ReductionType::AVG) {
-            out = ( this->foutput.at(step).array() + this->boutput.at(step).array() ) / 2;
-        } else 
-        if (rnntype == ReductionType::CONCAT) {
-            out << this->foutput.at(step), this->boutput.at(step);
+        if (this->bidirectional == true) {
+            if (rtype == ReductionType::SUM) {
+                out = this->foutput.at(step).array() + this->boutput.at(step).array();
+            } else 
+            if (rtype == ReductionType::AVG) {
+                out = ( this->foutput.at(step).array() + this->boutput.at(step).array() ) / 2;
+            } else 
+            if (rtype == ReductionType::CONCAT) {
+                out << this->foutput.at(step), this->boutput.at(step);
+            }
+        } else {
+            out = this->foutput.at(step);
         }
+
+        log_detail("Reduction Result at step {0}:", step);
+        log_matrix(out);
 
         //  Get weights for the output;
         std::tie(v, bo) = getWeights(step, out);
@@ -724,8 +761,11 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
             yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(out, v).rowwise() + bo));
         } else {
             this->setOutputSize( this->getHiddenSize());
-            yhat = out; // no activation, pure Hidden State output
+            yhat = out; // no non-linearity operations to logit, raw Hidden State output
         }
+
+        log_detail("Non-Linearity result at step {0}:", step);
+        log_matrix(yhat);
 
         prediction.push_back(yhat);
 
@@ -734,7 +774,7 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
     // marker to indicate the weights are all initialized, as they depend on these sizes.
     this->setInitialized();
 
-    log_info("Recurrent Base Processing Output End ...");
+    log_info("Recurrent Base Processing Output End with output size {0} ...", prediction.size());
 
     // this->setOutput(prediction);
     this->setPrediction(prediction);
@@ -742,7 +782,7 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
 }
 
 template <class T>
-const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
+const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_info("===============================================");
     log_info("RecurrentBase Forward Pass ...");
@@ -752,28 +792,34 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
     this->setOType(ActivationType::SOFTMAX);
     this->setRType(ReductionType::AVG);
 
-    int batch_size     = input_data.size(); // sequence
-    int input_size     = input_data.at(0).rows();
-    int embedding_size = input_data.at(0).cols();
-    int num_directions = this->getNumDirections();
+    int sequence_length = this->input_data.size(); // sequence
+    int input_size      = this->input_data.at(0).rows();
+    int embedding_size  = this->input_data.at(0).cols();
+    int num_directions  = this->getNumDirections();
 
-    this->setSequenceLength(batch_size);
+    this->setSequenceLength(sequence_length);
     this->setInputSize(input_size);
     this->setEmbeddingSize(embedding_size);
 
-    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", batch_size, input_size, embedding_size );
-    log_detail( "Directions: {0}", num_directions );
+    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", sequence_length, input_size, embedding_size );
+    log_detail( "Number of Directions: {0}", num_directions );
 
     for (int direction = 0; direction < num_directions; ++direction) {
+
+        log_detail("-------------------------------");
+        log_detail("Next Direction: {0}", direction);
 
         std::vector<CellBase<T>*> cells = this->getCells(direction);
 
         // Forward pass: Run from first to last time step
-        for (int step = 0; step < batch_size; ++step) {
- 
+        for (int step = 0; step < sequence_length; ++step) {
+
             log_detail("Direction {0} Step {1}: ", direction, step);
 
-            aimatrix<T> input_batch = input_data.at(step);
+            // Reverse the order of data if backward direction (e.g. direction == 1);
+            int idx_ = (direction == 0) ? step : ( sequence_length - step - 1);
+
+            aimatrix<T> input_batch = input_data.at(idx_);
 
             log_detail("Input Batch:");
             log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
@@ -782,21 +828,21 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
             for (int layer = 0; layer < this->getNumLayers(); ++layer) {
                 log_detail("Entering Cell Forward pass at Layer {0} ...", layer);
                 if (celltype == CellType::RNN_VANILLA) {
-                    log_detail("Casting to RNN Cell ...");
+                    log_detail("Casting to RNN Cell at layer {0} step {1}...", layer, step);
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
                     input_batch = cell->forward(input_batch); // This is the Hidden State
                 } else
                 if (celltype == CellType::RNN_LSTM) {
                     LSTMCell<T>* cell = dynamic_cast<LSTMCell<T>*>(cells[layer]);
-                    log_detail("Casting to LSTM Cell ...");
+                    log_detail("Casting to LSTM Cell at layer {0} step {1}...", layer, step);
                     input_batch = cell->forward(input_batch); // This is the Hidden State
                 } else
                 if (celltype == CellType::RNN_GRU) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
-                    log_detail("Casting to GRU Cell ...");
+                    log_detail("Casting to GRU Cell at layer {0} step {1}...", layer, step);
                     input_batch = cell->forward(input_batch); // This is the Hidden State
                 } 
-                log_detail("Cell Forward pass output");
+                log_detail("Cell Forward pass output ...");
                 log_matrix(input_batch);
                 log_detail("Cell Forward pass exited ...");
             }
@@ -815,11 +861,11 @@ const aitensor<T> RecurrentBase<T>::forwarding(const aitensor<T>& input_data) {
         }
     }
 
-    log_info("Processing Output ...");
+    log_detail("Processing Output ...");
 
     aitensor<T> Yhat = processOutputs();
 
-    log_info("RecurrentBase Forward Pass end ...");
+    log_detail("RecurrentBase Forward Pass end ...");
 
     return Yhat;
 }
@@ -837,7 +883,15 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     ActivationType       otype        = this->getOType();
     const aitensor<T>&   prediction   = this->getPrediction();
 
-    for (int step = 0; step < this->getSequenceLength(); ++step) {
+    int last_sequence = this->getSequenceLength(); // Default for MANY_TO_MANY or ONE_TO_MANY scenario
+
+    if (rnntype == RNNType::MANY_TO_ONE) {
+        last_sequence = 1; // consider only the first sequence, given we only have 1 matrix in the vector
+    }
+
+    for (int step = 0; step < last_sequence; ++step) {
+
+        log_detail("Sequence step {0} for gradient processing", step);
 
         // Process gradient for the activation operation
         dOut = gradients.at(step); 
@@ -847,7 +901,6 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
             doutput = BaseOperator::matmul(dOut, yhat.transpose());
             this->dV.push_back(doutput);
             this->dbo.push_back(dOut.colwise().sum());
-
         } else 
         if (otype == ActivationType::TANH) {
             dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
@@ -877,24 +930,18 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 }
 
 template <class T>
-const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
+const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
 
     log_info("===============================================");
     log_info("RecurrentBase Backward Pass ...");
 
     aitensor<T> dOutput = gradients;
-    log_info("RecurrentBase Backward Pass 1...");
-    int sequence_length = this->input_data.size(); // sequence
 
-    log_detail("RecurrentBase Backward Pass 2... {0}", sequence_length);
+    int sequence_length = this->input_data.size(); // sequence
 
     int input_size      = this->input_data.at(0).rows();
 
-    log_info("RecurrentBase Backward Pass 3...");
-
     int embedding_size  = this->input_data.at(0).cols();
-
-    log_info("RecurrentBase Backward Pass 4...");
 
     int hidden_size = this->getHiddenSize();
 
@@ -906,28 +953,39 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
     this->processGradients(dOutput);
 
     ReductionType rtype = this->getRType();
+    RNNType     rnntype = this->getRNNType();
 
     std::vector<aimatrix<T>> dOutf, dOutb;
+
+    int gradient_size = dOutput.size();  
  
     // Now, let us see if we need to split;
     // Process gradient for the reduction operation
-    for (int step = sequence_length - 1; step >= 0; --step) {
+    for (int step = gradient_size - 1; step >= 0; --step) {
         aimatrix<T> seq_f, seq_b, seq_m;
-        if (rtype == ReductionType::SUM) {
+        if (this->bidirectional == true) {
+            if (rtype == ReductionType::SUM) {
+                seq_f = dOutput.at(step); 
+                seq_b = dOutput.at(step); 
+            } else 
+            if (rtype == ReductionType::AVG) {
+                seq_f = dOutput.at(step) / 2; 
+                seq_b = dOutput.at(step) / 2; 
+            } else 
+            if (rtype == ReductionType::CONCAT) {
+                seq_m = dOutput.at(step); 
+                seq_f = seq_m.block(0, 0, sequence_length, embedding_size);
+                seq_b = seq_m.block(0, embedding_size, sequence_length, embedding_size);
+            }
+            dOutf.push_back(seq_f);
+            dOutb.push_back(seq_b);
+        } else {
             seq_f = dOutput.at(step); 
-            seq_b = dOutput.at(step); 
-        } else 
-        if (rtype == ReductionType::AVG) {
-            seq_f = dOutput.at(step) / 2; 
-            seq_b = dOutput.at(step) / 2; 
-        } else 
-        if (rtype == ReductionType::CONCAT) {
-            seq_m = dOutput.at(step); 
-            seq_f = seq_m.block(0, 0, sequence_length, embedding_size);
-            seq_b = seq_m.block(0, embedding_size, sequence_length, embedding_size);
+            dOutf.push_back(seq_f);
         }
-        dOutf.push_back(seq_f);
-        dOutb.push_back(seq_b);
+        if (rnntype == RNNType::MANY_TO_ONE) {
+            break; // Since output is only one, then we take only the gradient.
+        }
     }
 
     log_detail("Start Backward bidirectional loop ...");
@@ -944,15 +1002,28 @@ const aitensor<T> RecurrentBase<T>::backprop(const aitensor<T>& gradients) {
         std::vector<CellBase<T>*> cells = this->getCells(direction);
 
         // Backward pass: Run from last to first time step
-        for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
+        for (int step = sequence_length - 1; step >= 0; --step) {
 
             log_detail("Sequence forward: Direction {0} Step {1}: ", direction, step);
             log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
 
-            if (direction == 0) {
-                dnextH = dOutf.at(step);
+            if (rnntype == RNNType::MANY_TO_ONE) {
+                // consider only the first step, afterwhich, 
+                // gradient with respect to hidden states per step is propagated along
+                // the gradient of the output is propagated only once at the beginning of the step.
+                if (step == sequence_length - 1) { 
+                    if (direction == 0) {
+                        dnextH = dOutf.at(0) + dnextH;
+                    } else {
+                        dnextH = dOutb.at(0) + dnextH;
+                    }
+                }
             } else {
-                dnextH = dOutb.at(step);
+                if (direction == 0) {
+                    dnextH = dOutf.at(step) + dnextH;
+                } else {
+                    dnextH = dOutb.at(step) + dnextH;
+                }
             }
  
             log_detail("dOuts input:");
@@ -1001,11 +1072,18 @@ void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learnin
     log_info("===============================================");
     log_info("RecurrentBase Updating Parameters ...");
 
-    int batch_size = this->getSequenceLength();
+    RNNType rnntype = this->getRNNType();
+
+    int sequence_length = this->getSequenceLength();
+
+    if (rnntype == RNNType::MANY_TO_ONE) {
+        sequence_length = 1;
+    }
 
     // initialize optimization parameters (V and bo) for output
     if (opt_V.size() == 0) {
-        for (int step = 0; step < batch_size; ++step) {
+
+        for (int step = 0; step < sequence_length; ++step) {
             Optimizer<T>* outV  = new Optimizer<T>(optimizertype, learningRate);
             Optimizer<T>* outbo = new Optimizer<T>(optimizertype, learningRate);
             this->opt_V.push_back(outV);
@@ -1014,40 +1092,48 @@ void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learnin
     }
 
     // updating optimization parameters (V and bo) for output
-    for (int step = 0; step < batch_size; ++step) {
-        this->opt_V.at(step)->adam(this->V.at(step), this->dV.at(step), iter);
-        this->opt_bo.at(step)->adam(this->bo.at(step), this->dbo.at(step), iter);
+    for (int step = 0; step < sequence_length; ++step) {
+        log_detail("Updating V at output step {0} ...", step);
+        this->opt_V.at(step)->update(optimizertype, this->V.at(step), this->dV.at(step), iter);
+        log_detail("Updating bo at output step {0} ...", step);
+        this->opt_bo.at(step)->update(optimizertype, this->bo.at(step), this->dbo.at(step), iter);
     }
 
+    // clear for the next training/epoch
     this->dV.clear();
     this->dbo.clear();
 
+    // Retrieve sequence again since  MANY_TO_ONE scenario does not matter.
+    sequence_length = this->getSequenceLength(); 
+
+    // if bidirectional is false, then we only have 1 direction (forward-direction)
     for (int direction = 0; direction < this->getNumDirections(); ++direction) {
 
         std::vector<CellBase<T>*> cells = this->getCells(direction);
 
         // Updating cells
         // for (int step = this->getSequenceLength() - 1; step >= 0; --step) {
-        for (int step = 0; step < batch_size; ++step) {
+        for (int step = 0; step < sequence_length; ++step) {
             for (int layer = this->getNumLayers() - 1; layer >= 0; --layer) {
                 if (celltype == CellType::RNN_VANILLA) {
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
+                    log_detail("Starting RNN update (direction: {0}) (step: {1}) ...", direction, step);
                     cell->updateParameters(optimizertype, learningRate, iter);
                 } else
                 if (celltype == CellType::RNN_LSTM) {
                     LSTMCell<T>* cell = dynamic_cast<LSTMCell<T>*>(cells[layer]);
+                    log_detail("Starting LSTM update (direction: {0}) (step: {1}) ...", direction, step);
                     cell->updateParameters(optimizertype, learningRate, iter);
                 } else
                 if (celltype == CellType::RNN_GRU) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
+                    log_detail("Starting GRU update (direction: {0}) (step: {1}) ...", direction, step);
                     cell->updateParameters(optimizertype, learningRate, iter);
                 }
             }
         }
     }
-    // clear for the next training/epoch
-    this->dV.clear();
-    this->dbo.clear();
+
 }
 
 /**********  Recurrent Network initialize templates *****************/

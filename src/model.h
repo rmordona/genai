@@ -89,6 +89,7 @@ private:
     std::vector<BaseOperator*> operations;
     aitensor<float> input_fdata;
     aitensor<double> input_ddata;
+    bool normalize = false;
 public: 
     ModelNode(std::string name, NodeType ntype, std::string datatype) { 
         this->name = name; 
@@ -100,9 +101,11 @@ public:
 
     NodeType getNodeType() { return this->ntype; }
 
-    void setDataFloat(const py::array_t<float>& input_data);
+    void setDataFloat(const py::array_t<float>& input_data, const bool normalize);
 
-    void setDataDouble(const py::array_t<double>& input_data);
+    void setDataDouble(const py::array_t<double>& input_data, const bool normalize);
+
+    bool getNormalize() { return this->normalize; }
 
     ssize_t getDataSize() { 
         if (datatype == "float") {

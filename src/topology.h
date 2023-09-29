@@ -112,7 +112,7 @@ private:
     // Handles Tensor
     aitensor<T> input_data_tensor;
     std::vector<aitensor<T>> dInput_vector;
-    bool tensor = false;
+    // bool tensor = false;
 
     // If Node has other input sources, count the number of sources.
     T suminputs = 0.0;
@@ -132,10 +132,10 @@ public:
 
     // The input is assumed to have BxNxM where B=Batch, N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setData(const py::array_t<T>& data);
+    void setData(const py::array_t<T>& data, const bool normalize);
 
     // Invoked by Graph.setData from Model.setData class
-    void setData(const aitensor<T> data);
+    void setData(const aitensor<T> data, const bool normalize);
 
     // Let's handle Tensors
     //void setDataTensor(const py::array_t<T>& embedding);
@@ -222,9 +222,9 @@ public:
 
     Node<T>* findNode(const std::string& nodename);
 
-    void setData(const std::string& nodename, const aitensor<T>& data);
+    void setData(const std::string& nodename, const aitensor<T>& data, const bool normalize);
 
-    void setData(const std::string& nodename, const py::array_t<T>& input_data);
+    void setData(const std::string& nodename, const py::array_t<T>& input_data, const bool normalize);
 
     void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
 

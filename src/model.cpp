@@ -102,7 +102,7 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         log_detail( "Entering Forward Propagation ..." );
         this->predicted = this->graph->forwardPropagation();
 
-        log_detail( "Predicted Result" );
+        log_detail( "Predicted Result: Tensor Size {0}", this->predicted.size() );
         log_matrix( this->predicted );
 
         log_detail( "Compute Loss ..." );
@@ -148,13 +148,14 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDataFloat(const py::array_t<float>& input_data) {
+void ModelNode::setDataFloat(const py::array_t<float>& input_data, const bool normalize) {
     try {
         if (datatype == "double") {
             throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
         }
 
         this->input_fdata = ConvertData::totensor(input_data);
+        this->normalize   = normalize;
 
     } catch (const AIException& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -173,7 +174,7 @@ void ModelNode::setDataFloat(const py::array_t<float>& input_data) {
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDataDouble(const py::array_t<double>& input_data) {
+void ModelNode::setDataDouble(const py::array_t<double>& input_data, bool const normalize) {
 
     try {
         if (datatype == "float") {
@@ -181,6 +182,7 @@ void ModelNode::setDataDouble(const py::array_t<double>& input_data) {
         }
 
         this->input_ddata = ConvertData::totensor(input_data);
+        this->normalize   = normalize;
 
     } catch (const AIException& e) {
         std::cerr << "Error: " << e.what() << std::endl;
@@ -497,10 +499,10 @@ void Model::seedNodes() {
         ssize_t size = node->getDataSize();
         if (size != 0) {
             if (datatype == "float") {
-                modelXf->getGraph()->setData(node->getName(), node->getDataFloat());
+                modelXf->getGraph()->setData(node->getName(), node->getDataFloat(), node->getNormalize());
             } else
             if (datatype == "double") {
-                modelXd->getGraph()->setData(node->getName(), node->getDataDouble());
+                modelXd->getGraph()->setData(node->getName(), node->getDataDouble(), node->getNormalize());
             }
         }
         std::cout << "(Operations) Node: " << node->getName() << std::endl;
