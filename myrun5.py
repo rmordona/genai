@@ -22,6 +22,7 @@ node1  = modelgraph.addNode("node1", ai.NodeType.Input);
 node1.setOperations([ai.LSTM(hidden_size=6, output_size=5, num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.GRU(hidden_size=6, output_size=5, num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
+
 embedding1 = [[[1.0, 2.0, 3.0, 4.0], [3.0, 4.0, 5.0, 6.0],[7.0,8.0,9.0,10.0]],
               [[11.0, 10.0, 9.0, 8.0], [7.0, 6.0, 5.0, 4],[3.0,2.0,1.0,0.0]]];
 node1.setData(data = np.array(embedding1, dtype=np.float32), normalize=False);

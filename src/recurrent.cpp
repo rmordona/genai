@@ -235,6 +235,14 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     bg.setConstant(T(0.01));
     bo.setConstant(T(0.01));
 
+    dWf = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dWi = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dWo = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dbf = airowvector<T>::Zero(this->hidden_size);
+    dbi = airowvector<T>::Zero(this->hidden_size);
+    dbg = airowvector<T>::Zero(this->hidden_size);
+    dbo = airowvector<T>::Zero(this->hidden_size);
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     aimatrix<T> C  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
@@ -389,22 +397,22 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     log_matrix(dGt);
 
     // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
-    this->dWf = BaseOperator::matmul(XH.transpose(), dFt);
-    this->dWi = BaseOperator::matmul(XH.transpose(), dIt);
-    this->dWg = BaseOperator::matmul(XH.transpose(), dGt);
-    this->dWo = BaseOperator::matmul(XH.transpose(), dOt);
+    aimatrix<T> dWf_ = BaseOperator::matmul(XH.transpose(), dFt);  this->dWf += dWf_;
+    aimatrix<T> dWi_ = BaseOperator::matmul(XH.transpose(), dIt);  this->dWi += dWi_;
+    aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt);  this->dWg += dWg_;
+    aimatrix<T> dWo_ = BaseOperator::matmul(XH.transpose(), dOt);  this->dWo += dWo_;
 
-    log_detail("Dimension of dWf: {0}x{1}", dWf.rows(), dWf.cols());
-    log_matrix(dWf);
+    log_detail("Dimension of dWf: {0}x{1}", this->dWf.rows(), this->dWf.cols());
+    log_matrix(this->dWf);
 
-    log_detail("Dimension of dWi: {0}x{1}", dWi.rows(), dWi.cols());
-    log_matrix(dWi);
+    log_detail("Dimension of dWi: {0}x{1}", this->dWi.rows(), this->dWi.cols());
+    log_matrix(this->dWi);
 
     // Compute gradients with respect to hidden biases bf, bi, bo, bc
-    this->dbf = dFt.colwise().sum();
-    this->dbi = dIt.colwise().sum();
-    this->dbg = dGt.colwise().sum();
-    this->dbo = dOt.colwise().sum();
+    airowvector<T> dbf_ = dFt.colwise().sum(); this->dbf += dbf_;
+    airowvector<T> dbi_ = dIt.colwise().sum(); this->dbi += dbi_;
+    airowvector<T> dbg_ = dGt.colwise().sum(); this->dbg += dbg_;
+    airowvector<T> dbo_ = dOt.colwise().sum(); this->dbo += dbo_;
 
     std::tie(Wfx, Wfh) = CellBase<T>::split(this->Wf, ps, hs);
     std::tie(Wix, Wih) = CellBase<T>::split(this->Wi, ps, hs);
@@ -538,6 +546,7 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     bz.resize(this->hidden_size);
     br.resize(this->hidden_size);
     bg.resize(this->hidden_size);
+
     BaseOperator::heInitMatrix(Wz);
     BaseOperator::heInitMatrix(Wr);
     BaseOperator::heInitMatrix(Wg);
@@ -545,6 +554,13 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     bz.setConstant(T(0.01));
     br.setConstant(T(0.01));
     bg.setConstant(T(0.01));
+
+    dWz = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dWr = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    dbz = airowvector<T>::Zero(this->hidden_size);
+    dbr = airowvector<T>::Zero(this->hidden_size);
+    dbg = airowvector<T>::Zero(this->hidden_size);
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
@@ -641,9 +657,9 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     log_matrix(XH);
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
-    this->dWz = BaseOperator::matmul(XH.transpose(), dZt);
-    this->dWr = BaseOperator::matmul(XH.transpose(), dRt);
-    this->dWg = BaseOperator::matmul(XH.transpose(), dGt);
+    aimatrix<T> dWz_ = BaseOperator::matmul(XH.transpose(), dZt); this->dWz += dWz_;
+    aimatrix<T> dWr_ = BaseOperator::matmul(XH.transpose(), dRt); this->dWr += dWr_;
+    aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt); this->dWg += dWg_;
 
     log_detail("Dimension of this->dWz: {0}x{1}", this->dWz.rows(), this->dWz.cols());
     log_matrix(this->dWz);
@@ -655,9 +671,9 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     log_matrix(this->dWg);
 
     // Compute gradients with respect to hidden biases bz, br, bg
-    this->dbz = dZt.colwise().sum();
-    this->dbr = dGt.colwise().sum();
-    this->dbg = dRt.colwise().sum();
+    airowvector<T> dbz_ = dZt.colwise().sum(); this->dbz += dbz_;
+    airowvector<T> dbr_ = dRt.colwise().sum(); this->dbr += dbr_;
+    airowvector<T> dbg_ = dGt.colwise().sum(); this->dbg += dbg_;
 
     log_detail("Dimension of this->Wz: {0}x{1}", this->Wz.rows(), this->Wz.cols());
     log_matrix(this->Wz);
