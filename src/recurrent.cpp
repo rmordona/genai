@@ -63,7 +63,7 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
     BaseOperator::heInitMatrix(W);
     BaseOperator::heInitMatrix(U);
 
-    bh.setConstant(T(0.00));
+    bh.setConstant(T(0.01));
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
@@ -92,7 +92,7 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
     // H = BaseOperator::tanh((aimatrix<T>) (X * W + H * U + bh) );
     aimatrix<T> H = this->H.back();  // previous time
-    aimatrix<T> new_H = (aimatrix<T>)  BaseOperator::tanh((aimatrix<T>) ((BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U)).rowwise() + bh ));
+    aimatrix<T> new_H = (aimatrix<T>)  BaseOperator::tanh((aimatrix<T>) ((BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U)).rowwise() + bh));
 
     log_detail("BaseOperator::matmul(X, W)");
     log_matrix(BaseOperator::matmul(X, W));
@@ -118,7 +118,7 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
+const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for RNN
     log_detail("===============================================");
     log_detail("RNNCell Backward Pass ...");
@@ -161,7 +161,7 @@ const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     log_matrix(dH);
 
     // Compute gradient with respect to H (dH) from tanh perspective
-    log_detail("Calculating gradient with respect to X (dX) ...");
+    log_detail("Calculating gradient with respect to U (dU) ...");
     this->dU = BaseOperator::matmul(H.transpose(), dtanh);
     log_matrix(this->dU);
 
@@ -178,7 +178,7 @@ const aimatrix<T> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H for each time step.
     // for the gradient wrt H, we just cache it for time step propagation, but layer propagation.
-    return dH;
+    return std::make_tuple(dX, dH);
 }
 
 template <class T>
@@ -238,11 +238,12 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     aimatrix<T> C  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
+    H.setConstant(T(1e-8));
+    C.setConstant(T(1e-8));
     this->H.push_back(H);
     this->C.push_back(C);
 
     XH   = aimatrix<T>::Zero(this->input_size, this->param_size + this->hidden_size); // concatenate X and H
-
 }
 
 template <class T>
@@ -261,25 +262,52 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     // Concatenate input and hidden state. 
     XH << X, H;  // In terms of dimension, we have: (NxP) + (NxH) = Nx(P+H)
 
+    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    log_matrix(XH);
+
+    log_detail("Dimension of Wf: {0}x{1}", Wf.rows(), Wf.cols());
+    log_matrix(Wf);
+
+    log_detail("Dimension of Wi: {0}x{1}", Wi.rows(), Wi.cols());
+    log_matrix(Wi);
+
+    log_detail("Dimension of Wo: {0}x{1}", Wo.rows(), Wo.cols());
+    log_matrix(Wo);
+
+    log_detail("Dimension of Wg: {0}x{1}", Wg.rows(), Wg.cols());
+    log_matrix(Wg);
+
     // Calculate the forget gate values (nx[p+h] * [p+h]xh = nxh)
     this->Ft = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wf).rowwise() + bf));
+    log_detail("Dimension of Ft: {0}x{1}", Ft.rows(), Ft.cols());
+    log_matrix(Ft);
 
     // Calculate the input gate values (nx[p+h] * [p+h]xh = nxh)
     this->It = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wi).rowwise() + bi));
+    log_detail("Dimension of It: {0}x{1}", It.rows(), It.cols());
+    log_matrix(It);
 
     // Calculate the output gate values (nx[p+h] * [p+h]xh = nxh)
     this->Ot = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wo).rowwise() + bo));
+    log_detail("Dimension of Ot: {0}x{1}", Ot.rows(), Ot.cols());
+    log_matrix(Ot);
 
     // Calculate the candidate state values (nx[p+h] * [p+h]xh = nxh)
     this->Gt = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(XH, Wg).rowwise() + bg));
+    log_detail("Dimension of Gt: {0}x{1}", Gt.rows(), Gt.cols());
+    log_matrix(Gt);
 
     // Calculate the new cell state by updating based on the gates (result: nxh)
     aimatrix<T> new_C = Ft.array() * C.array() + It.array() * Gt.array();
     this->C.push_back(new_C);
+    log_detail("Dimension of new_C: {0}x{1}", new_C.rows(), new_C.cols());
+    log_matrix(new_C);
 
     // Calculate the new hidden state by applying the output gate and tanh activation
     aimatrix<T> new_H = BaseOperator::tanh(new_C).array() * Ot.array();
     this->H.push_back(new_H);
+    log_detail("Dimension of new_H: {0}x{1}", new_H.rows(), new_H.cols());
+    log_matrix(new_H);
 
     log_info("LSTMCell Forward Pass end ...");
 
@@ -289,11 +317,18 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const std::tuple<aimatrix<T>, aimatrix<T>> LSTMCell<T>::backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int step, 
+        const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
     // Backpropagation logic for LSTM
+
 
     log_detail("===============================================");
     log_detail("LSTMCell Backward Pass ...");
+
+    // Compute gradient with respect to hidden state H (dH)
+    int ps = param_size, hs = hidden_size;
+
+    aimatrix<T> Wfx, Wfh, Wix, Wih, Wox, Woh, Wgx, Wgh;
 
     log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
     log_matrix(dnext_h);
@@ -301,46 +336,59 @@ const std::tuple<aimatrix<T>, aimatrix<T>> LSTMCell<T>::backward(int step, const
     log_detail("Dimension of dnext_c: {0}x{1}", dnext_c.rows(), dnext_c.cols());
     log_matrix(dnext_c);
 
-    log_detail("Capture Hidden state at step {0}", step);
+    aimatrix<T> nC = this->C.at(step+1); // Hidden state at t
+    aimatrix<T> nH = this->H.at(step+1); // Hidden state at t
     aimatrix<T> H = this->H.at(step); // Hidden state at t-1
-    log_detail("Capture Cell state at step {0}", step);
     aimatrix<T> C = this->C.at(step); // Cell state at t-1
-    log_detail("Capture Input at step {0}", step);
     aimatrix<T> X = this->X.at(step); // Input at t
 
-
+    log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
+    log_matrix(X);
     log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
     log_matrix(H);
     log_detail("Dimension of C: {0}x{1}", C.rows(), C.cols());
     log_matrix(C);
     log_detail("Dimension of Ft: {0}x{1}", Ft.rows(), Ft.cols());
     log_matrix(Ft); 
-    log_detail("Dimension of Ft: {0}x{1}", It.rows(), It.cols());
+    log_detail("Dimension of It: {0}x{1}", It.rows(), It.cols());
     log_matrix(It); 
-    log_detail("Dimension of Ft: {0}x{1}", Gt.rows(), Gt.cols());
+    log_detail("Dimension of Gt: {0}x{1}", Gt.rows(), Gt.cols());
     log_matrix(Gt); 
-    log_detail("Dimension of Ft: {0}x{1}", Ot.rows(), Ot.cols());
+    log_detail("Dimension of Ot: {0}x{1}", Ot.rows(), Ot.cols());
     log_matrix(Ot); 
 
-    // Gradient with respect to C
-    aimatrix<T> tanh  = BaseOperator::tanh(C);
-    aimatrix<T> dtanh = BaseOperator::tanhGradient(dnext_h, tanh);
-    aimatrix<T> dC    = Ot.array() * dtanh.array() + dnext_c.array();
+    // Concatenate input and hidden state.
+    XH << X, nH;
+
+    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    log_matrix(XH);
+
+    aimatrix<T> tanhC  = BaseOperator::tanh(nC);
+    aimatrix<T> dtanhC = BaseOperator::tanhGradient(dnext_h, tanhC);
+    aimatrix<T> dC     = Ot.array() * dtanhC.array() + dnext_c.array();
+
+    log_detail("Dimension of dC: {0}x{1}", dC.rows(), dC.cols());
+    log_matrix(dC);
 
     // Gradient with respect to O
-    aimatrix<T> dOt    = dnext_h.array() * tanh.array() * Ot.array() * ( 1 - Ot.array());
+    aimatrix<T> dOt = nC.array() * BaseOperator::sigmoidGradient(dnext_h, Ot).array(); // dnext_h.array() * Ot.array() * ( 1 - Ot.array());
+    log_detail("Dimension of dOt: {0}x{1}", dOt.rows(), dOt.cols());
+    log_matrix(dOt);
 
     // Gradient with respect to F
-    aimatrix<T> dFt = dC.array() * C.array() * Ft.array() * (1 - Ft.array());
+    aimatrix<T> dFt = C.array() * BaseOperator::sigmoidGradient(dC, Ft).array(); // dtanhC.array() * Ft.array() * (1 - Ft.array());
+    log_detail("Dimension of dFt: {0}x{1}", dFt.rows(), dFt.cols());
+    log_matrix(dFt);
 
     // Gradient with respect to I
-    aimatrix<T> dIt = dC.array() * Gt.array() * It.array() * (1 - It.array());
+    aimatrix<T> dIt = Gt.array() * BaseOperator::sigmoidGradient(dC, It).array(); // dtanhC.array() * It.array() * (1 - It.array());
+    log_detail("Dimension of dIt: {0}x{1}", dIt.rows(), dIt.cols());
+    log_matrix(dIt);
 
     // Gradient with respect to G
-    aimatrix<T> dGt = dC.array() * It.array() * (1 - Gt.array().square());
-
-    // Concatenate input and hidden state.
-    XH << X, H;
+    aimatrix<T> dGt = It.array() * BaseOperator::tanhGradient(dC, Gt).array(); // dtanhC.array() * (1 - Gt.array().square());
+    log_detail("Dimension of dGt: {0}x{1}", dGt.rows(), dGt.cols());
+    log_matrix(dGt);
 
     // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
     this->dWf = BaseOperator::matmul(XH.transpose(), dFt);
@@ -348,66 +396,113 @@ const std::tuple<aimatrix<T>, aimatrix<T>> LSTMCell<T>::backward(int step, const
     this->dWg = BaseOperator::matmul(XH.transpose(), dGt);
     this->dWo = BaseOperator::matmul(XH.transpose(), dOt);
 
-    // Compute gradients with respect to hidden biases bf, bi, bo, bc
+    log_detail("Dimension of dWf: {0}x{1}", dWf.rows(), dWf.cols());
+    log_matrix(dWf);
 
+    log_detail("Dimension of dWi: {0}x{1}", dWi.rows(), dWi.cols());
+    log_matrix(dWi);
+
+    // Compute gradients with respect to hidden biases bf, bi, bo, bc
     this->dbf = dFt.colwise().sum();
     this->dbi = dIt.colwise().sum();
     this->dbg = dGt.colwise().sum();
     this->dbo = dOt.colwise().sum();
 
-    // Compute gradient with respect to the cell state C (dC)
-    dC = dC.array() * Ft.array();
-
-    // Compute gradient with respect to hidden state H (dH)
-    int ps = param_size, hs = hidden_size;
-
-    aimatrix<T> Wfx, Wfh, Wix, Wih, Wox, Woh, Wgx, Wgh;
-
     std::tie(Wfx, Wfh) = CellBase<T>::split(this->Wf, ps, hs);
     std::tie(Wix, Wih) = CellBase<T>::split(this->Wi, ps, hs);
-    std::tie(Wox, Woh) = CellBase<T>::split(this->Wo, ps, hs);
     std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
+    std::tie(Wox, Woh) = CellBase<T>::split(this->Wo, ps, hs);
+
+    log_detail("Dimension of this->Wf: {0}x{1}", this->Wf.rows(), this->Wf.cols());
+    log_matrix(this->Wf);
+
+    log_detail("Dimension of Wfx: {0}x{1}", Wfx.rows(), Wfx.cols());
+    log_matrix(Wfx);
+
+    log_detail("Dimension of Wfh: {0}x{1}", Wfh.rows(), Wfh.cols());
+    log_matrix(Wfh);
+
+    log_detail("Dimension of this->Wi: {0}x{1}", this->Wi.rows(), this->Wi.cols());
+    log_matrix(this->Wi);
+
+    log_detail("Dimension of Wix: {0}x{1}", Wix.rows(), Wix.cols());
+    log_matrix(Wix);
+
+    log_detail("Dimension of Wih: {0}x{1}", Wih.rows(), Wih.cols());
+    log_matrix(Wih);
+
+    log_detail("Dimension of this->Wg: {0}x{1}", this->Wg.rows(), this->Wg.cols());
+    log_matrix(this->Wg);
+
+    log_detail("Dimension of Wgx: {0}x{1}", Wgx.rows(), Wgx.cols());
+    log_matrix(Wgx);
+
+    log_detail("Dimension of Wgh: {0}x{1}", Wgh.rows(), Wgh.cols());
+    log_matrix(Wgh);
+
+    log_detail("Dimension of this->Wo: {0}x{1}", this->Wo.rows(), this->Wo.cols());
+    log_matrix(this->Wo);
+
+    log_detail("Dimension of Wox: {0}x{1}", Wox.rows(), Wox.cols());
+    log_matrix(Wox);
+
+    log_detail("Dimension of Woh: {0}x{1}", Woh.rows(), Woh.cols());
+    log_matrix(Woh);
 
     // Compute gradient with respect to hidden state.
-    aimatrix<T> dH  = BaseOperator::matmul(dFt, Wfx) + BaseOperator::matmul(dIt, Wix) + 
-                      BaseOperator::matmul(dOt, Wox) + BaseOperator::matmul(dGt, Wgx);
+    aimatrix<T> dX  = BaseOperator::matmul(dFt, Wfx.transpose()) + BaseOperator::matmul(dIt, Wix.transpose()) + 
+                      BaseOperator::matmul(dOt, Wox.transpose()) + BaseOperator::matmul(dGt, Wgx.transpose());
 
     // Compute gradient with respect to input (dInput).
-    aimatrix<T> dX  = BaseOperator::matmul(dFt, Wfh) + BaseOperator::matmul(dIt, Wih) + 
-                      BaseOperator::matmul(dOt, Woh) + BaseOperator::matmul(dGt, Wgh);
+    aimatrix<T> dH  = BaseOperator::matmul(dFt, Wfh.transpose()) + BaseOperator::matmul(dIt, Wih.transpose()) + 
+                      BaseOperator::matmul(dOt, Woh.transpose()) + BaseOperator::matmul(dGt, Wgh.transpose());
 
+    // Compute gradient with respect to the cell state C (dC)
+    dC = dtanhC.array() * Ft.array();
+
+    this->dC.push_back(dC);
     this->dH.push_back(dH);
     this->dX.push_back(dX);
+
+    log_detail("Dimension of dC (dC * Ft): {0}x{1}", dC.rows(), dC.cols());
+    log_matrix(dC);
+
+    log_detail("Dimension of dH: {0}x{1}", dH.rows(), dH.cols());
+    log_matrix(dH);
+
+    log_detail("Dimension of dX: {0}x{1}", dX.rows(), dX.cols());
+    log_matrix(dX);
 
     log_info("LSTMCell Backward Pass end ...");
 
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H & C for each time step.
     // for the gradient wrt H & C, we just cache it for time step propagation, but layer propagation.
-    return std::make_tuple(dX, dH);
+    return std::make_tuple(dX, dH, dC);
 }
 
 template <class T>
 void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
     // Update parameters
-    if (opt_Ft == nullptr) {
-        opt_Ft = new Optimizer<T>(optimizertype, learningRate);
-        opt_It = new Optimizer<T>(optimizertype, learningRate);
-        opt_Gt = new Optimizer<T>(optimizertype, learningRate);
-        opt_Ot = new Optimizer<T>(optimizertype, learningRate);
+    if (opt_Wf == nullptr) {
+        opt_Wf = new Optimizer<T>(optimizertype, learningRate);
+        opt_Wi = new Optimizer<T>(optimizertype, learningRate);
+        opt_Wg = new Optimizer<T>(optimizertype, learningRate);
+        opt_Wo = new Optimizer<T>(optimizertype, learningRate);
         opt_bf = new Optimizer<T>(optimizertype, learningRate);
         opt_bi = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
         opt_bo = new Optimizer<T>(optimizertype, learningRate);
     }
+
     log_detail("Updating Ft in LSTM Cell ...");
-    opt_Ft->update(optimizertype, this->Ft, this->dWf, iter);
+    opt_Wf->update(optimizertype, this->Wf, this->dWf, iter);
     log_detail("Updating It in LSTM Cell ...");
-    opt_It->update(optimizertype, this->It, this->dWi, iter);
+    opt_Wi->update(optimizertype, this->Wi, this->dWi, iter);
     log_detail("Updating Gt in LSTM Cell ...");
-    opt_Gt->update(optimizertype, this->Gt, this->dWg, iter);
+    opt_Wg->update(optimizertype, this->Wg, this->dWg, iter);
     log_detail("Updating Ot in LSTM Cell ...");
-    opt_Ot->update(optimizertype, this->Ot, this->dWo, iter);
+    opt_Wo->update(optimizertype, this->Wo, this->dWo, iter);
     log_detail("Updating bf in LSTM Cell ...");
     opt_bf->update(optimizertype, this->bf, this->dbf, iter);
     log_detail("Updating bi in LSTM Cell ...");
@@ -512,47 +607,76 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const aimatrix<T> GRUCell<T>:: backward(int step, const aimatrix<T>& dnext_h) {
+const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for GRU
 
     log_detail("===============================================");
     log_detail("GRUCell Backward Pass ...");
 
-    aimatrix<T> H = this->H.at(step);
-    aimatrix<T> X = this->X.at(step);
-
     int ps = param_size, hs = hidden_size;
 
     aimatrix<T> Wzx, Wzh, Wrx, Wrh, Wgx, Wgh;
+
+    log_detail("Retrievint H and X at step {0} ...", step);
+    aimatrix<T> H = this->H.at(step);
+    aimatrix<T> X = this->X.at(step);
+
+    log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
+    log_matrix(H);
+
+    log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
+    log_matrix(X);
 
     std::tie(Wzx, Wzh) = CellBase<T>::split(this->Wz, ps, hs);
     std::tie(Wrx, Wrh) = CellBase<T>::split(this->Wr, ps, hs);
     std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
 
     // Compute gradients with respect to the gates
-    aimatrix<T> dZt =  dnext_h.array() * ( H.array() - Gt.array()) * Zt.array() * ( 1 - Zt.array());
-    aimatrix<T> dGt =  dnext_h.array() * ( 1 - Zt.array()) * ( 1 - Gt.array().square());
-    aimatrix<T> dRt = ( dGt.array() * (H * Wrh).array()  * ( 1 - Rt.array().square())) * Rt.array() * ( 1 - Rt.array());
+    aimatrix<T> dZt = dnext_h.array() * (H.array() - Gt.array()) * Zt.array() * (1 - Zt.array());
+    aimatrix<T> dGt = dnext_h.array() * (1 - Zt.array()) * (1 - Gt.array().square());
+    aimatrix<T> dRt = (dGt.array() * (H * Wrh).array()  * (1 - Rt.array().square())) * Rt.array() * (1 - Rt.array());
 
     // Concatenate input and hidden state.
     XH << X, H;
+
+    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    log_matrix(XH);
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
     this->dWz = BaseOperator::matmul(XH.transpose(), dZt);
     this->dWr = BaseOperator::matmul(XH.transpose(), dRt);
     this->dWg = BaseOperator::matmul(XH.transpose(), dGt);
 
+    log_detail("Dimension of this->dWz: {0}x{1}", this->dWz.rows(), this->dWz.cols());
+    log_matrix(this->dWz);
+
+    log_detail("Dimension of this->dWr: {0}x{1}", this->dWr.rows(), this->dWr.cols());
+    log_matrix(this->dWr);
+
+    log_detail("Dimension of this->dWg: {0}x{1}", this->dWg.rows(), this->dWg.cols());
+    log_matrix(this->dWg);
+
     // Compute gradients with respect to hidden biases bz, br, bg
     this->dbz = dZt.colwise().sum();
     this->dbr = dGt.colwise().sum();
     this->dbg = dRt.colwise().sum();
 
+    log_detail("Dimension of this->Wz: {0}x{1}", this->Wz.rows(), this->Wz.cols());
+    log_matrix(this->Wz);
+
+    log_detail("Dimension of Wzx: {0}x{1}", Wzx.rows(), Wzx.cols());
+    log_matrix(Wzx);
+
+    log_detail("Dimension of Wzh: {0}x{1}", Wzh.rows(), Wzh.cols());
+    log_matrix(Wzh);
+
     // Compute gradient with respect to hidden state H (dH)
-    aimatrix<T> dH = BaseOperator::matmul(dZt, Wzx) + BaseOperator::matmul(dRt, Wrx) + BaseOperator::matmul(dGt, Wgx);
-    this->dH.push_back(dH);
+    aimatrix<T> dX = BaseOperator::matmul(dZt, Wzx.transpose()) + BaseOperator::matmul(dRt, Wrx.transpose()) + BaseOperator::matmul(dGt, Wgx.transpose());
 
     // Compute gradient with respect to input (dInput)
-    aimatrix<T>  dX = BaseOperator::matmul(dZt, Wzh) + BaseOperator::matmul(dRt, Wrh) + BaseOperator::matmul(dGt, Wgh);
+    aimatrix<T> dH = BaseOperator::matmul(dZt, Wzh.transpose()) + BaseOperator::matmul(dRt, Wrh.transpose()) + BaseOperator::matmul(dGt, Wgh.transpose());
+
+    this->dH.push_back(dH);
     this->dX.push_back(dX);
 
     log_info("GRUCell Backward Pass end ...");
@@ -560,7 +684,7 @@ const aimatrix<T> GRUCell<T>:: backward(int step, const aimatrix<T>& dnext_h) {
     // Return gradient with respect to input.
     // We return the gradient wrt X for each layer, not wrt H & C for each time step.
     // for the gradient wrt H & C, we just cache it for time step propagation, but layer propagation.
-    return dH;
+    return std::make_tuple(dX, dH);
 }
 
 template <class T>
@@ -695,10 +819,11 @@ std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, a
         }
     }
 
-    aimatrix<T> v(out.rows(), out.cols());
-    airowvector<T> bo(out.cols());
+    aimatrix<T> v(out.cols(), this->output_size);
+    airowvector<T> bo(this->output_size);
     BaseOperator::heInitMatrix(v);
-    bo.Zero(out.cols());
+    // bo.Zero(out.cols());
+    bo.setConstant(T(0.01));
 
     this->V.push_back(v);
     this->bo.push_back(bo);
@@ -710,13 +835,14 @@ template <class T>
 const aitensor<T> RecurrentBase<T>::processOutputs() {
     log_info("===============================================");
     log_info("Recurrent Base Processing Output ...");
-    aimatrix<T> out, v, yhat;
+    aimatrix<T> H, V, Yhat; // H being the final output.
     airowvector<T> bo;
 
     int sequence_length    = this->getSequenceLength();
     ReductionType rtype    = this->getRType();
     RNNType       rnntype  = this->getRNNType();
     aitensor<T> prediction;
+    aitensor<T> output;
 
     log_detail("Entering Processing of Output");
 
@@ -728,46 +854,64 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
 
     for (int step = start_step; step < sequence_length; ++step) {
 
-        log_detail("Process Direction Step {0} with output size {1}", step, this->foutput.size());
+        log_detail("Process Output Step {0} with output size {1}", step, this->foutput.size());
 
         // merge bidirectional outputs
         if (this->bidirectional == true) {
             if (rtype == ReductionType::SUM) {
-                out = this->foutput.at(step).array() + this->boutput.at(step).array();
+                log_detail("Reduction type: SUM");
+                H = this->foutput.at(step).array() + this->boutput.at(step).array(); // H being the final output
             } else 
             if (rtype == ReductionType::AVG) {
-                out = ( this->foutput.at(step).array() + this->boutput.at(step).array() ) / 2;
+                log_detail("Reduction type: AVG");
+                H = ( this->foutput.at(step).array() + this->boutput.at(step).array() ) / 2; // H being the final output
             } else 
             if (rtype == ReductionType::CONCAT) {
-                out << this->foutput.at(step), this->boutput.at(step);
+                log_detail("Reduction type: CONCAT");
+                H << this->foutput.at(step), this->boutput.at(step); // H being the final output
             }
         } else {
-            out = this->foutput.at(step);
+            H = this->foutput.at(step);
         }
 
         log_detail("Reduction Result at step {0}:", step);
-        log_matrix(out);
 
         //  Get weights for the output;
-        std::tie(v, bo) = getWeights(step, out);
+        std::tie(V, bo) = getWeights(step, H);
+
+        log_detail("H output ...");
+        log_matrix(H);
+
+        log_detail("V output ...");
+        log_matrix(V);
+
+        log_detail("bo output ...");
+        log_rowvector(bo);
+
+        log_detail("Matmul (H * v) ...");
+        log_matrix(BaseOperator::matmul(H, V));
 
         if (this->getOType() == ActivationType::SOFTMAX) {
-            yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(out, v).rowwise() + bo));
+            log_detail("Non-Linearity (Softmax) ...");
+            Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
         } else 
         if (this->getOType() == ActivationType::TANH) {
-            yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(out, v).rowwise() + bo));
+            log_detail("Non-Linearity (TANH) ...");
+            Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
         } else
         if (this->getOType() == ActivationType::SIGMOID) {
-            yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(out, v).rowwise() + bo));
+            log_detail("Non-Linearity (SIGMOID) ...");
+            Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
         } else {
             this->setOutputSize( this->getHiddenSize());
-            yhat = out; // no non-linearity operations to logit, raw Hidden State output
+            Yhat = H; // no non-linearity operations to logit, raw Hidden State output
         }
 
-        log_detail("Non-Linearity result at step {0}:", step);
-        log_matrix(yhat);
+        log_detail("Non-Linearity result (yhat) at step {0}:", step);
+        log_matrix(Yhat);
 
-        prediction.push_back(yhat);
+        output.push_back(H);
+        prediction.push_back(Yhat);
 
     }
 
@@ -776,7 +920,7 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
 
     log_info("Recurrent Base Processing Output End with output size {0} ...", prediction.size());
 
-    // this->setOutput(prediction);
+    this->setOutput(output);
     this->setPrediction(prediction);
     return prediction; // Cache output for backward pass while also pass it to next operations.
 }
@@ -876,7 +1020,7 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     log_info("===============================================");
     log_info("RecurrentBase processing Gradients ...");
 
-    aimatrix<T> dOut, doutput, yhat;
+    aimatrix<T> dOut, dV, yhat, H, V; // H being the final output
 
     // Gradient will have dimension of: sequence_size, batch_size, output_size (instead of hidden_size)
 
@@ -896,33 +1040,54 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
         // Process gradient for the activation operation
         dOut = gradients.at(step); 
         yhat = prediction.at(step); 
+        V = this->V.at(step);
+        H = this->output.at(step);
+        log_detail("Gradients (dOut) at step {0}", step);
+        log_matrix(dOut);
+
+        log_detail("Dimension of V: {0}x{1}", V.rows(), V.cols());
+        log_matrix(V);
+
+        log_detail("Yhat output (prediction at step {})", step);
+        log_matrix(yhat);
+
         if (otype == ActivationType::SOFTMAX) {
+            log_detail("Non-Linearity Softmax Gardient ...");
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
-            doutput = BaseOperator::matmul(dOut, yhat.transpose());
-            this->dV.push_back(doutput);
+            dV = BaseOperator::matmul(H.transpose(), dOut);
+            this->dV.push_back(dV);
             this->dbo.push_back(dOut.colwise().sum());
         } else 
         if (otype == ActivationType::TANH) {
+            log_detail("Non-Linearity TANH Gardient ...");
             dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
-            doutput = BaseOperator::matmul(dOut, yhat.transpose());
-            this->dV.push_back(doutput);
+            dV = BaseOperator::matmul(H.transpose(), dOut);
+            this->dV.push_back(dV);
             this->dbo.push_back(dOut.colwise().sum());
         } else
         if (otype == ActivationType::SIGMOID) {
+            log_detail("Non-Linearity SIGMOID Gardient ...");
             dOut = BaseOperator::sigmoidGradient(dOut, yhat);  // dsigmoidV
-            doutput = BaseOperator::matmul(dOut, yhat.transpose());
-            this->dV.push_back(doutput);
+            dV = BaseOperator::matmul(H.transpose(), dOut);
+            this->dV.push_back(dV);
             this->dbo.push_back(dOut.colwise().sum());
-        }
+        } // else just use dOut
 
-        log_detail("Updating gradient at step {0} ...", step);
+        log_detail("Dimension of dOut: {0}x{1}", dOut.rows(), dOut.cols());
+        log_matrix(dOut);
+
+        log_detail("Dimension of dV: {0}x{1}", dV.rows(), dV.cols());
+        log_matrix(dV);
+
+        log_detail("dbo");
+        log_rowvector((airowvector<T>) dOut.colwise().sum());
+
+        log_detail("Setting gradient at step {0} ...", step);
         log_detail("Before image of gradient matrix:");
         log_matrix(gradients.at(step));
-        log_detail("Dimension of dOut: {0}x{1}", doutput.rows(), doutput.cols());
-        log_matrix(doutput);
-        log_detail("Dimension of V: {0}x{1}", this->V.at(step).rows(), this->V.at(step).cols());
-        log_matrix(this->V.at(step));
-        gradients.at(step) = BaseOperator::matmul(this->V.at(step).transpose(), doutput);
+
+        // Calculate dInput (dnext_H)
+        gradients.at(step) = BaseOperator::matmul(dOut, V.transpose());
         log_detail("After image of gradient matrix:");
         log_matrix(gradients.at(step));
     }
@@ -973,9 +1138,11 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                 seq_b = dOutput.at(step) / 2; 
             } else 
             if (rtype == ReductionType::CONCAT) {
-                seq_m = dOutput.at(step); 
-                seq_f = seq_m.block(0, 0, sequence_length, embedding_size);
+                seq_m = dOutput.at(step);
+                seq_f.resize(sequence_length, embedding_size);
+                seq_b.resize(sequence_length, embedding_size);
                 seq_b = seq_m.block(0, embedding_size, sequence_length, embedding_size);
+                seq_f = seq_m.block(0, 0, sequence_length, embedding_size);
             }
             dOutf.push_back(seq_f);
             dOutb.push_back(seq_b);
@@ -993,7 +1160,7 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
     // We need to send back the same structure of input_gradients as the input to the forward pass
     aitensor<T> dInput; // (batch_size, input_size, embedding_size);
 
-    aimatrix<T> dnextH, dnextC;
+    aimatrix<T> dOut, dnextH, dnextC;
 
     for (int direction = 0; direction < this->getNumDirections(); ++direction) {
 
@@ -1005,8 +1172,8 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
         // Backward pass: Run from last to first time step
         for (int step = sequence_length - 1; step >= 0; --step) {
 
-            log_detail("Sequence forward: Direction {0} Step {1}: ", direction, step);
-            log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
+            log_detail("*** Sequence forward: Direction {0} Step {1}: ", direction, step);
+            log_detail("*** Input Batch Dim: {0}x{1}", input_size, embedding_size);
 
             if (rnntype == RNNType::MANY_TO_ONE) {
                 // consider only the first step, afterwhich, 
@@ -1014,16 +1181,21 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                 // the gradient of the output is propagated only once at the beginning of the step.
                 if (step == sequence_length - 1) { 
                     if (direction == 0) {
+                        dOut = dOutf.at(0);
                         dnextH = dOutf.at(0) + dnextH;
+
                     } else {
+                        dOut = dOutb.at(0);
                         dnextH = dOutb.at(0) + dnextH;
                     }
-                }
+                } 
             } else {
                 if (direction == 0) {
-                    dnextH = dOutf.at(step) + dnextH;
+                    dOut = dOutf.at(step);
+                    dnextH = dOut + dnextH;
                 } else {
-                    dnextH = dOutb.at(step) + dnextH;
+                    dOut = dOutb.at(step);
+                    dnextH = dOut + dnextH;
                 }
             }
  
@@ -1036,15 +1208,15 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
 
                 if (celltype == CellType::RNN_VANILLA) {
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
-                    dnextH = cell->backward(step, dnextH);
+                    std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
                 } else
                 if (celltype == CellType::RNN_LSTM) {
                     LSTMCell<T>* cell = dynamic_cast<LSTMCell<T>*>(cells[layer]);
-                    std::tie(dnextH, dnextC) = cell->backward(step, dnextH, dnextC);
+                    std::tie(dOut, dnextH, dnextC) = cell->backward(step, dOut, dnextH, dnextC);
                 } else
                 if (celltype == CellType::RNN_GRU) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
-                    dnextH = cell->backward(step, dnextH);
+                    std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
                 } 
 
                 log_detail("Cell Backward pass output");
@@ -1055,10 +1227,10 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
             log_detail("Layer forward done ...");
 
             // Store the gradients for input data
-            dInput.push_back(dnextH);  
+            dInput.push_back(dOut);  
 
             log_detail("Sequence add dInput  ...");
-            log_matrix(dnextH);
+            log_matrix(dOut);
         }
         log_detail("Sequence forward done: Direction {0}  ...", direction );
     }

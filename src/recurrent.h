@@ -53,18 +53,22 @@ public:
     // such that we split XH into two matrices and get the original dimensions for X and H
     // so that X will have NxP and H will have NxH
     static std::tuple<aimatrix<T>, aimatrix<T>> split(const aimatrix<T>& XH, int param_size, int hidden_size) {
-        aimatrix<T> A = XH.block(0, 0, param_size, hidden_size);
-        aimatrix<T> B = XH.block(param_size, 0, param_size + hidden_size, hidden_size);
-        return std::make_tuple(A.transpose(), B.transpose());
+        aimatrix<T> A(param_size, hidden_size);
+        aimatrix<T> B(hidden_size, hidden_size);
+        B = XH.block(param_size, 0, hidden_size, hidden_size);
+        A = XH.block(0, 0, param_size, hidden_size);
+        return std::make_tuple(A, B);
     }
 
     virtual const aimatrix<T> forward(const aimatrix<T>& X) = 0; 
 
     // Used by vanilla RNN and GRU cells
-    virtual const aimatrix<T> backward(int step, const aimatrix<T>& dnext_h) = 0; 
+    virtual const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, 
+            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) = 0; 
 
     // Used by LSTM Cell
-    virtual const std::tuple<aimatrix<T>, aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) = 0;  
+    virtual const std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> backward(int step, 
+            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) = 0;  
 
     virtual void updateParameters(std::string& optimizertype, T& learningRate, int& iter) = 0;
 
@@ -123,11 +127,12 @@ public:
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
-    const aimatrix<T> backward(int step, const aimatrix<T>& dnext_h);
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h);
 
     // Not used by RNNCell
-    const std::tuple<aimatrix<T>, aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
-            return std::make_tuple(aimatrix<T>(), aimatrix<T>());
+    const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
+            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+            return std::make_tuple(aimatrix<T>(), aimatrix<T>(), aimatrix<T>());
     } 
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
@@ -159,6 +164,8 @@ private:
     std::vector<aimatrix<T>> dC;
     std::vector<aimatrix<T>> dX; // Gradient with respect to Input
 
+    aimatrix<T> XH;
+
     // Caching Gradients with respect to hidden-to-hidden weights  Ft, It, Gt, Ot
     aimatrix<T> dWf;
     aimatrix<T> dWi;
@@ -172,17 +179,14 @@ private:
     airowvector<T> dbo;
 
     // Caching optimizer parameters
-    Optimizer<T>* opt_Ft = nullptr; // for optimizer
-    Optimizer<T>* opt_It = nullptr; // for optimizer
-    Optimizer<T>* opt_Gt = nullptr; // for optimizer
-    Optimizer<T>* opt_Ot = nullptr; // for optimizer
+    Optimizer<T>* opt_Wf = nullptr; // for optimizer
+    Optimizer<T>* opt_Wi = nullptr; // for optimizer
+    Optimizer<T>* opt_Wg = nullptr; // for optimizer
+    Optimizer<T>* opt_Wo = nullptr; // for optimizer
     Optimizer<T>* opt_bf = nullptr; // for optimizer
     Optimizer<T>* opt_bi = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
     Optimizer<T>* opt_bo = nullptr; // for optimizer
-
-    aimatrix<T> XH;      // Concatenate X and H
-
 
     int input_size;
     int param_size;
@@ -197,10 +201,11 @@ public:
     const aimatrix<T> forward(const aimatrix<T>& X);
 
     // Not used by LSTMCell
-    const aimatrix<T> backward(int step, const aimatrix<T>& dnext_h)  {
-            return aimatrix<T>();
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h)  {
+            return std::make_tuple(aimatrix<T>(), aimatrix<T>());
     } 
-    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c);
+    const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
+            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 };
@@ -258,11 +263,12 @@ public:
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
-    const aimatrix<T> backward(int step, const aimatrix<T>& dnext_h);
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h);
 
     // Not used by GRUCell
-    const std::tuple<aimatrix<T>, aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
-            return std::make_tuple(aimatrix<T>(), aimatrix<T>());
+    const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
+            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+            return std::make_tuple(aimatrix<T>(), aimatrix<T>(), aimatrix<T>());
     } 
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
@@ -359,11 +365,11 @@ public:
     RNNType getRNNType() { return this->rnntype; }
     ActivationType getOType() { return this->otype; }
     ReductionType getRType() { return this->rtype; }
-    
+
     int getNumDirections() { return this->num_directions;}
     int getNumLayers() { return this->num_layers; }
 
-    // void setOutput(const std::vector<aimatrix<T>>& output) { this->output = output; }
+    void setOutput(const aitensor<T>& output) { this->output = output; }
     void setPrediction(const aitensor<T>& Yhat) { this->Yhat = Yhat; }
     const aitensor<T>& getPrediction() { return this->Yhat; }
 
