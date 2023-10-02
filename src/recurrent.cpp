@@ -320,8 +320,6 @@ template <class T>
 const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int step, 
         const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
     // Backpropagation logic for LSTM
-
-
     log_detail("===============================================");
     log_detail("LSTMCell Backward Pass ...");
 
@@ -336,7 +334,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     log_detail("Dimension of dnext_c: {0}x{1}", dnext_c.rows(), dnext_c.cols());
     log_matrix(dnext_c);
 
-    aimatrix<T> nC = this->C.at(step+1); // Hidden state at t
+    aimatrix<T> nC = this->C.at(step+1); // Cell state at t
     aimatrix<T> nH = this->H.at(step+1); // Hidden state at t
     aimatrix<T> H = this->H.at(step); // Hidden state at t-1
     aimatrix<T> C = this->C.at(step); // Cell state at t-1
