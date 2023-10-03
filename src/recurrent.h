@@ -99,10 +99,10 @@ private:
 
     airowvector<T> bh; // Hidden bias
 
-    std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
-    std::vector<aimatrix<T>> X;
-    std::vector<aimatrix<T>> dH; // Gradient with respect to Hidden state
-    std::vector<aimatrix<T>> dX; // Gradient with respect to Input
+    aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
+    aitensor<T> X;
+    aitensor<T> dH; // Gradient with respect to Hidden state
+    aitensor<T> dX; // Gradient with respect to Input
 
    // Caching Gradients with respect to hidden-to-hidden weights  W, U
     aimatrix<T> dW;
@@ -171,7 +171,7 @@ private:
 
     //aimatrix<T> XH;
 
-    // Caching Gradients with respect to hidden-to-hidden weights  Ft, It, Gt, Ot
+    // Caching Gradients with respect to  weights  Wf, Wi, Wg, Wo, Uf, Ui, Ug, Uo
     aimatrix<T> dWf;
     aimatrix<T> dWi;
     aimatrix<T> dWg;
@@ -258,7 +258,7 @@ private:
 
     //aimatrix<T> XH;      // Concatenate X and H
 
-    // Caching Gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
+    // Caching Gradients with respect to hidden-to-hidden weights Wz, Wr, Wg, Uz, Ur, Ug
     aimatrix<T> dWz;
     aimatrix<T> dWr;
     aimatrix<T> dWg;
@@ -267,7 +267,7 @@ private:
     aimatrix<T> dUr;
     aimatrix<T> dUg;
 
-    // Caching Gradients with respect to hidden biases bf, bi, bo, bc
+    // Caching Gradients with respect to hidden biases dbz, dbr, dbg
     airowvector<T> dbz;
     airowvector<T> dbr;
     airowvector<T> dbg;
