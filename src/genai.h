@@ -499,6 +499,28 @@ class BaseOperator {
     virtual void forwardPass() = 0;
     virtual void backwardPass() = 0;
 
+    static aimatrix<float> standardize(const aimatrix<float>& input_data) {
+        // Calculate the mean and standard deviation along each column
+        aivector<float> mean = input_data.colwise().mean();
+        aivector<float> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
+
+        // Standardize the matrix by subtracting the mean and dividing by the standard deviation
+        aimatrix<float> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
+
+        return standard;
+    }
+
+    static aimatrix<double> standardize(const aimatrix<double>& input_data) {
+        // Calculate the mean and standard deviation along each column
+        aivector<double> mean = input_data.colwise().mean();
+        aivector<double> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
+
+        // Standardize the matrix by subtracting the mean and dividing by the standard deviation
+        aimatrix<double> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
+
+        return standard;
+    }
+
     static aimatrix<float> matmul(const aimatrix<float>& A, const aimatrix<float>& B) {
         float alpha = 1.0f;
         float beta = 0.0f;

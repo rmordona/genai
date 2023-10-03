@@ -216,10 +216,22 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
 
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
-    Wf.resize(this->param_size + this->hidden_size, this->hidden_size);
-    Wi.resize(this->param_size + this->hidden_size, this->hidden_size);
-    Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
-    Wo.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wf.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wi.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wo.resize(this->param_size + this->hidden_size, this->hidden_size);
+
+    Wf.resize(this->param_size, this->hidden_size);
+    Wi.resize(this->param_size, this->hidden_size);
+    Wg.resize(this->param_size, this->hidden_size);
+    Wo.resize(this->param_size, this->hidden_size);
+
+    Uf.resize(this->hidden_size, this->hidden_size);
+    Ui.resize(this->hidden_size, this->hidden_size);
+    Ug.resize(this->hidden_size, this->hidden_size);
+    Uo.resize(this->hidden_size, this->hidden_size);
+
+
     bf.resize(this->hidden_size);
     bi.resize(this->hidden_size);
     bg.resize(this->hidden_size);
@@ -230,15 +242,31 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     BaseOperator::heInitMatrix(Wg);
     BaseOperator::heInitMatrix(Wo);
 
+    BaseOperator::heInitMatrix(Uf);
+    BaseOperator::heInitMatrix(Ui);
+    BaseOperator::heInitMatrix(Ug);
+    BaseOperator::heInitMatrix(Uo);
+
     bf.setConstant(T(0.01));
     bi.setConstant(T(0.01));
     bg.setConstant(T(0.01));
     bo.setConstant(T(0.01));
 
-    dWf = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
-    dWi = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
-    dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
-    dWo = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWf = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWi = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWo = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+
+    dWf = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    dWi = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    dWg = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    dWo = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+
+    dUf = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    dUi = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    dUg = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    dUo = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+
     dbf = airowvector<T>::Zero(this->hidden_size);
     dbi = airowvector<T>::Zero(this->hidden_size);
     dbg = airowvector<T>::Zero(this->hidden_size);
@@ -251,7 +279,7 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     this->H.push_back(H);
     this->C.push_back(C);
 
-    XH   = aimatrix<T>::Zero(this->input_size, this->param_size + this->hidden_size); // concatenate X and H
+    //XH   = aimatrix<T>::Zero(this->input_size, this->param_size + this->hidden_size); // concatenate X and H
 }
 
 template <class T>
@@ -268,10 +296,10 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     aimatrix<T> C = this->C.back();
 
     // Concatenate input and hidden state. 
-    XH << X, H;  // In terms of dimension, we have: (NxP) + (NxH) = Nx(P+H)
+    // XH << X, H;  // In terms of dimension, we have: (NxP) + (NxH) = Nx(P+H)
 
-    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
-    log_matrix(XH);
+    // log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    // log_matrix(XH);
 
     log_detail("Dimension of Wf: {0}x{1}", Wf.rows(), Wf.cols());
     log_matrix(Wf);
@@ -279,43 +307,52 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     log_detail("Dimension of Wi: {0}x{1}", Wi.rows(), Wi.cols());
     log_matrix(Wi);
 
-    log_detail("Dimension of Wo: {0}x{1}", Wo.rows(), Wo.cols());
-    log_matrix(Wo);
-
     log_detail("Dimension of Wg: {0}x{1}", Wg.rows(), Wg.cols());
     log_matrix(Wg);
 
+    log_detail("Dimension of Wo: {0}x{1}", Wo.rows(), Wo.cols());
+    log_matrix(Wo);
+
     // Calculate the forget gate values (nx[p+h] * [p+h]xh = nxh)
-    this->Ft = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wf).rowwise() + bf));
+    aimatrix<T> Ft = BaseOperator::sigmoid((aimatrix<T>) ((BaseOperator::matmul(X, Wf) + BaseOperator::matmul(H, Uf)).rowwise() + bf));
+        //  (BaseOperator::matmul(XH, Wf).rowwise() + bf));
     log_detail("Dimension of Ft: {0}x{1}", Ft.rows(), Ft.cols());
     log_matrix(Ft);
 
     // Calculate the input gate values (nx[p+h] * [p+h]xh = nxh)
-    this->It = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wi).rowwise() + bi));
+    aimatrix<T> It = BaseOperator::sigmoid((aimatrix<T>) ((BaseOperator::matmul(X, Wi) + BaseOperator::matmul(H, Ui)).rowwise() + bi));
+        // (BaseOperator::matmul(XH, Wi).rowwise() + bi));
     log_detail("Dimension of It: {0}x{1}", It.rows(), It.cols());
     log_matrix(It);
 
     // Calculate the output gate values (nx[p+h] * [p+h]xh = nxh)
-    this->Ot = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(XH, Wo).rowwise() + bo));
+    aimatrix<T> Ot = BaseOperator::sigmoid((aimatrix<T>)  ((BaseOperator::matmul(X, Wo) + BaseOperator::matmul(H, Uo)).rowwise() + bo));
+        // (BaseOperator::matmul(XH, Wo).rowwise() + bo));
     log_detail("Dimension of Ot: {0}x{1}", Ot.rows(), Ot.cols());
     log_matrix(Ot);
 
     // Calculate the candidate state values (nx[p+h] * [p+h]xh = nxh)
-    this->Gt = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(XH, Wg).rowwise() + bg));
+    aimatrix<T> Gt = BaseOperator::tanh((aimatrix<T>)  ((BaseOperator::matmul(X, Wg) + BaseOperator::matmul(H, Ug)).rowwise() + bg));
+        // (BaseOperator::matmul(XH, Wg).rowwise() + bg));
     log_detail("Dimension of Gt: {0}x{1}", Gt.rows(), Gt.cols());
     log_matrix(Gt);
 
     // Calculate the new cell state by updating based on the gates (result: nxh)
     aimatrix<T> new_C = Ft.array() * C.array() + It.array() * Gt.array();
-    this->C.push_back(new_C);
     log_detail("Dimension of new_C: {0}x{1}", new_C.rows(), new_C.cols());
     log_matrix(new_C);
 
     // Calculate the new hidden state by applying the output gate and tanh activation
     aimatrix<T> new_H = BaseOperator::tanh(new_C).array() * Ot.array();
-    this->H.push_back(new_H);
     log_detail("Dimension of new_H: {0}x{1}", new_H.rows(), new_H.cols());
     log_matrix(new_H);
+
+    this->Ft.push_back(Ft);
+    this->It.push_back(It);
+    this->Gt.push_back(Gt);
+    this->Ot.push_back(Ot);
+    this->C.push_back(new_C);
+    this->H.push_back(new_H);
 
     log_info("LSTMCell Forward Pass end ...");
 
@@ -332,15 +369,20 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     log_detail("LSTMCell Backward Pass ...");
 
     // Compute gradient with respect to hidden state H (dH)
-    int ps = param_size, hs = hidden_size;
+    //int ps = param_size, hs = hidden_size;
 
-    aimatrix<T> Wfx, Wfh, Wix, Wih, Wox, Woh, Wgx, Wgh;
+    //aimatrix<T> Wfx, Wfh, Wix, Wih, Wox, Woh, Wgx, Wgh;
 
     log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
     log_matrix(dnext_h);
 
     log_detail("Dimension of dnext_c: {0}x{1}", dnext_c.rows(), dnext_c.cols());
     log_matrix(dnext_c);
+
+    aimatrix<T> Ft = this->Ft.at(step);
+    aimatrix<T> It = this->It.at(step);
+    aimatrix<T> Gt = this->Gt.at(step);
+    aimatrix<T> Ot = this->Ot.at(step);
 
     aimatrix<T> nC = this->C.at(step+1); // Cell state at t
     aimatrix<T> nH = this->H.at(step+1); // Hidden state at t
@@ -364,10 +406,10 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     log_matrix(Ot); 
 
     // Concatenate input and hidden state.
-    XH << X, nH;
+    // XH << X, H;
 
-    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
-    log_matrix(XH);
+    // log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    //log_matrix(XH);
 
     aimatrix<T> tanhC  = BaseOperator::tanh(nC);
     aimatrix<T> dtanhC = BaseOperator::tanhGradient(dnext_h, tanhC);
@@ -377,30 +419,40 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     log_matrix(dC);
 
     // Gradient with respect to O
-    aimatrix<T> dOt = nC.array() * BaseOperator::sigmoidGradient(dnext_h, Ot).array(); // dnext_h.array() * Ot.array() * ( 1 - Ot.array());
+    aimatrix<T> dOt = nC.array() * dnext_h.array() * Ot.array() * ( 1 - Ot.array()); // BaseOperator::sigmoidGradient(dnext_h, Ot).array(); 
     log_detail("Dimension of dOt: {0}x{1}", dOt.rows(), dOt.cols());
     log_matrix(dOt);
 
     // Gradient with respect to F
-    aimatrix<T> dFt = C.array() * BaseOperator::sigmoidGradient(dC, Ft).array(); // dtanhC.array() * Ft.array() * (1 - Ft.array());
+    aimatrix<T> dFt = C.array() *  dtanhC.array() * Ft.array() * (1 - Ft.array()); // BaseOperator::sigmoidGradient(dC, Ft).array();
     log_detail("Dimension of dFt: {0}x{1}", dFt.rows(), dFt.cols());
     log_matrix(dFt);
 
     // Gradient with respect to I
-    aimatrix<T> dIt = Gt.array() * BaseOperator::sigmoidGradient(dC, It).array(); // dtanhC.array() * It.array() * (1 - It.array());
+    aimatrix<T> dIt = Gt.array() *  dtanhC.array() * It.array() * (1 - It.array()); //  BaseOperator::sigmoidGradient(dC, It).array(); 
     log_detail("Dimension of dIt: {0}x{1}", dIt.rows(), dIt.cols());
     log_matrix(dIt);
 
     // Gradient with respect to G
-    aimatrix<T> dGt = It.array() * BaseOperator::tanhGradient(dC, Gt).array(); // dtanhC.array() * (1 - Gt.array().square());
+    aimatrix<T> dGt = It.array() * dtanhC.array() * (1 - Gt.array().square()); // BaseOperator::tanhGradient(dC, Gt).array();
     log_detail("Dimension of dGt: {0}x{1}", dGt.rows(), dGt.cols());
     log_matrix(dGt);
 
     // Compute gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
-    aimatrix<T> dWf_ = BaseOperator::matmul(XH.transpose(), dFt);  this->dWf += dWf_;
-    aimatrix<T> dWi_ = BaseOperator::matmul(XH.transpose(), dIt);  this->dWi += dWi_;
-    aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt);  this->dWg += dWg_;
-    aimatrix<T> dWo_ = BaseOperator::matmul(XH.transpose(), dOt);  this->dWo += dWo_;
+    //aimatrix<T> dWf_ = BaseOperator::matmul(XH.transpose(), dFt);  this->dWf += dWf_;
+    //aimatrix<T> dWi_ = BaseOperator::matmul(XH.transpose(), dIt);  this->dWi += dWi_;
+    //aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt);  this->dWg += dWg_;
+    //aimatrix<T> dWo_ = BaseOperator::matmul(XH.transpose(), dOt);  this->dWo += dWo_;
+
+    aimatrix<T> dWf_ = BaseOperator::matmul(X.transpose(), dFt);  this->dWf += dWf_;
+    aimatrix<T> dWi_ = BaseOperator::matmul(X.transpose(), dIt);  this->dWi += dWi_;
+    aimatrix<T> dWg_ = BaseOperator::matmul(X.transpose(), dGt);  this->dWg += dWg_;
+    aimatrix<T> dWo_ = BaseOperator::matmul(X.transpose(), dOt);  this->dWo += dWo_;
+
+    aimatrix<T> dUf_ = BaseOperator::matmul(H.transpose(), dFt);  this->dUf += dUf_;
+    aimatrix<T> dUi_ = BaseOperator::matmul(H.transpose(), dIt);  this->dUi += dUi_;
+    aimatrix<T> dUg_ = BaseOperator::matmul(H.transpose(), dGt);  this->dUg += dUg_;
+    aimatrix<T> dUo_ = BaseOperator::matmul(H.transpose(), dOt);  this->dUo += dUo_;
 
     log_detail("Dimension of dWf: {0}x{1}", this->dWf.rows(), this->dWf.cols());
     log_matrix(this->dWf);
@@ -414,61 +466,82 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
     airowvector<T> dbg_ = dGt.colwise().sum(); this->dbg += dbg_;
     airowvector<T> dbo_ = dOt.colwise().sum(); this->dbo += dbo_;
 
-    std::tie(Wfx, Wfh) = CellBase<T>::split(this->Wf, ps, hs);
-    std::tie(Wix, Wih) = CellBase<T>::split(this->Wi, ps, hs);
-    std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
-    std::tie(Wox, Woh) = CellBase<T>::split(this->Wo, ps, hs);
+    //std::tie(Wfx, Wfh) = CellBase<T>::split(this->Wf, ps, hs);
+    //std::tie(Wix, Wih) = CellBase<T>::split(this->Wi, ps, hs);
+    //std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
+    //std::tie(Wox, Woh) = CellBase<T>::split(this->Wo, ps, hs);
 
     log_detail("Dimension of this->Wf: {0}x{1}", this->Wf.rows(), this->Wf.cols());
     log_matrix(this->Wf);
 
+    log_detail("Dimension of this->Uf: {0}x{1}", this->Uf.rows(), this->Uf.cols());
+    log_matrix(this->Uf);
+
+/*
     log_detail("Dimension of Wfx: {0}x{1}", Wfx.rows(), Wfx.cols());
     log_matrix(Wfx);
 
     log_detail("Dimension of Wfh: {0}x{1}", Wfh.rows(), Wfh.cols());
     log_matrix(Wfh);
+*/
 
     log_detail("Dimension of this->Wi: {0}x{1}", this->Wi.rows(), this->Wi.cols());
     log_matrix(this->Wi);
 
+    log_detail("Dimension of this->Ui: {0}x{1}", this->Ui.rows(), this->Ui.cols());
+    log_matrix(this->Ui);
+
+/*
     log_detail("Dimension of Wix: {0}x{1}", Wix.rows(), Wix.cols());
     log_matrix(Wix);
 
     log_detail("Dimension of Wih: {0}x{1}", Wih.rows(), Wih.cols());
     log_matrix(Wih);
-
+*/
     log_detail("Dimension of this->Wg: {0}x{1}", this->Wg.rows(), this->Wg.cols());
     log_matrix(this->Wg);
 
+    log_detail("Dimension of this->Ug: {0}x{1}", this->Ug.rows(), this->Ug.cols());
+    log_matrix(this->Ug);
+/*
     log_detail("Dimension of Wgx: {0}x{1}", Wgx.rows(), Wgx.cols());
     log_matrix(Wgx);
 
     log_detail("Dimension of Wgh: {0}x{1}", Wgh.rows(), Wgh.cols());
     log_matrix(Wgh);
-
+*/
     log_detail("Dimension of this->Wo: {0}x{1}", this->Wo.rows(), this->Wo.cols());
     log_matrix(this->Wo);
 
+    log_detail("Dimension of this->Uo: {0}x{1}", this->Uo.rows(), this->Uo.cols());
+    log_matrix(this->Uo);
+/*
     log_detail("Dimension of Wox: {0}x{1}", Wox.rows(), Wox.cols());
     log_matrix(Wox);
 
     log_detail("Dimension of Woh: {0}x{1}", Woh.rows(), Woh.cols());
     log_matrix(Woh);
-
+*/
     // Compute gradient with respect to hidden state.
+/*
     aimatrix<T> dX  = BaseOperator::matmul(dFt, Wfx.transpose()) + BaseOperator::matmul(dIt, Wix.transpose()) + 
                       BaseOperator::matmul(dOt, Wox.transpose()) + BaseOperator::matmul(dGt, Wgx.transpose());
 
     // Compute gradient with respect to input (dInput).
     aimatrix<T> dH  = BaseOperator::matmul(dFt, Wfh.transpose()) + BaseOperator::matmul(dIt, Wih.transpose()) + 
                       BaseOperator::matmul(dOt, Woh.transpose()) + BaseOperator::matmul(dGt, Wgh.transpose());
+*/
+
+    // Compute gradient with respect to input (dInput).
+    aimatrix<T> dX  = BaseOperator::matmul(dFt, Wf.transpose()) + BaseOperator::matmul(dIt, Wi.transpose()) + 
+                      BaseOperator::matmul(dOt, Wo.transpose()) + BaseOperator::matmul(dGt, Wg.transpose());
+
+    // Compute gradient with respect to hidden state.
+    aimatrix<T> dH  = BaseOperator::matmul(dFt, Uf.transpose()) + BaseOperator::matmul(dIt, Ui.transpose()) + 
+                      BaseOperator::matmul(dOt, Uo.transpose()) + BaseOperator::matmul(dGt, Ug.transpose());
 
     // Compute gradient with respect to the cell state C (dC)
     dC = dtanhC.array() * Ft.array();
-
-    this->dC.push_back(dC);
-    this->dH.push_back(dH);
-    this->dX.push_back(dX);
 
     log_detail("Dimension of dC (dC * Ft): {0}x{1}", dC.rows(), dC.cols());
     log_matrix(dC);
@@ -495,20 +568,36 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
         opt_Wi = new Optimizer<T>(optimizertype, learningRate);
         opt_Wg = new Optimizer<T>(optimizertype, learningRate);
         opt_Wo = new Optimizer<T>(optimizertype, learningRate);
+
+        opt_Uf = new Optimizer<T>(optimizertype, learningRate);
+        opt_Ui = new Optimizer<T>(optimizertype, learningRate);
+        opt_Ug = new Optimizer<T>(optimizertype, learningRate);
+        opt_Uo = new Optimizer<T>(optimizertype, learningRate);
+
         opt_bf = new Optimizer<T>(optimizertype, learningRate);
         opt_bi = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
         opt_bo = new Optimizer<T>(optimizertype, learningRate);
     }
 
-    log_detail("Updating Ft in LSTM Cell ...");
+    log_detail("Updating Wf in LSTM Cell ...");
     opt_Wf->update(optimizertype, this->Wf, this->dWf, iter);
-    log_detail("Updating It in LSTM Cell ...");
+    log_detail("Updating Wi in LSTM Cell ...");
     opt_Wi->update(optimizertype, this->Wi, this->dWi, iter);
-    log_detail("Updating Gt in LSTM Cell ...");
+    log_detail("Updating Wg in LSTM Cell ...");
     opt_Wg->update(optimizertype, this->Wg, this->dWg, iter);
-    log_detail("Updating Ot in LSTM Cell ...");
+    log_detail("Updating Wo in LSTM Cell ...");
     opt_Wo->update(optimizertype, this->Wo, this->dWo, iter);
+
+    log_detail("Updating Uf in LSTM Cell ...");
+    opt_Uf->update(optimizertype, this->Uf, this->dUf, iter);
+    log_detail("Updating Ui in LSTM Cell ...");
+    opt_Ui->update(optimizertype, this->Ui, this->dUi, iter);
+    log_detail("Updating Ui in LSTM Cell ...");
+    opt_Ug->update(optimizertype, this->Ui, this->dUg, iter);
+    log_detail("Updating Ui in LSTM Cell ...");
+    opt_Uo->update(optimizertype, this->Ui, this->dUo, iter);
+
     log_detail("Updating bf in LSTM Cell ...");
     opt_bf->update(optimizertype, this->bf, this->dbf, iter);
     log_detail("Updating bi in LSTM Cell ...");
@@ -517,12 +606,30 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
     opt_bg->update(optimizertype, this->bg, this->dbg, iter);
     log_detail("Updating bo in LSTM Cell ...");
     opt_bo->update(optimizertype, this->bo, this->dbo, iter);
+
+    this->Ft.clear();
+    this->It.clear();
+    this->Gt.clear();
+    this->Ot.clear();
     this->H.clear();
     this->C.clear();
     this->X.clear();
-    this->dH.clear();
-    this->dC.clear();
-    this->dX.clear();
+
+    this->dWf.setZero();
+    this->dWi.setZero();
+    this->dWg.setZero();
+    this->dWo.setZero();
+
+    this->dUf.setZero();
+    this->dUi.setZero();
+    this->dUg.setZero();
+    this->dUo.setZero();
+
+    this->dbf.setZero();
+    this->dbi.setZero();
+    this->dbg.setZero();
+    this->dbo.setZero();
+
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -540,9 +647,18 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
 
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
-    Wz.resize(this->param_size + this->hidden_size, this->hidden_size);
-    Wr.resize(this->param_size + this->hidden_size, this->hidden_size);
-    Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wz.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wr.resize(this->param_size + this->hidden_size, this->hidden_size);
+    //Wg.resize(this->param_size + this->hidden_size, this->hidden_size);
+
+    Wz.resize(this->param_size, this->hidden_size);
+    Wr.resize(this->param_size, this->hidden_size);
+    Wg.resize(this->param_size, this->hidden_size);
+
+    Uz.resize(this->hidden_size, this->hidden_size);
+    Ur.resize(this->hidden_size, this->hidden_size);
+    Ug.resize(this->hidden_size, this->hidden_size);
+
     bz.resize(this->hidden_size);
     br.resize(this->hidden_size);
     bg.resize(this->hidden_size);
@@ -555,9 +671,18 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     br.setConstant(T(0.01));
     bg.setConstant(T(0.01));
 
-    dWz = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
-    dWr = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
-    dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWz = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWr = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+    //dWg = aimatrix<T>::Zero(this->param_size + this->hidden_size, this->hidden_size);
+
+    dWz = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    dWr = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    dWg = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+
+    dUz = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    dUr = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    dUg = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+
     dbz = airowvector<T>::Zero(this->hidden_size);
     dbr = airowvector<T>::Zero(this->hidden_size);
     dbg = airowvector<T>::Zero(this->hidden_size);
@@ -565,7 +690,7 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
 
-    XH = aimatrix<T>::Zero(this->input_size, this->param_size + this->hidden_size); // concatenate X and H
+    // XH = aimatrix<T>::Zero(this->input_size, this->param_size + this->hidden_size); // concatenate X and H
 
 }
 
@@ -581,21 +706,21 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
 
     aimatrix<T> H = this->H.back(); // Hidden state at t-1
 
-    XH << X, H;
+    // XH << X, H;
 
     // Calculate the update gate using input, hidden state, and biases (nx[p+h] * [p+h]xh = nxh)
-    Zt =  BaseOperator::sigmoid((aimatrix<T>)(BaseOperator::matmul(XH, Wz).rowwise() + bz));
+    aimatrix<T> Zt =  BaseOperator::sigmoid((aimatrix<T>)((BaseOperator::matmul(X, Wz) + BaseOperator::matmul(H, Uz)).rowwise() + bz));
 
     // Calculate the reset gate using input, hidden state, and biases (nx[p+h] * [p+h]xh = nxh)
-    Rt =  BaseOperator::sigmoid((aimatrix<T>)(BaseOperator::matmul(XH, Wr).rowwise() + br));
+    aimatrix<T> Rt =  BaseOperator::sigmoid((aimatrix<T>)((BaseOperator::matmul(X, Wr) + BaseOperator::matmul(H, Ur)).rowwise() + br));
 
     // Calculate the candidate hidden state using input, reset gate, hidden state, and biases
     aimatrix<T> RH = Rt.array() * H.array();
     aimatrix<T> rXH(input_size, hidden_size + hidden_size);
 
-    rXH << X, RH;
+    // rXH << X, RH;
 
-    Gt = BaseOperator::tanh((aimatrix<T>)(BaseOperator::matmul(rXH, Wg).rowwise() + bg));
+    aimatrix<T> Gt = BaseOperator::tanh((aimatrix<T>)((BaseOperator::matmul(X, Wg) + BaseOperator::matmul(RH, Ug)).rowwise() + bg));
 
     log_detail("Forward Pass Zt ...");
     log_matrix(Zt);
@@ -612,6 +737,9 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
     log_detail("Forward Pass new_H ...");
     log_matrix(new_H);
 
+    this->Zt.push_back(Zt);
+    this->Rt.push_back(Rt);
+    this->Gt.push_back(Gt);
     this->H.push_back(new_H);
 
     log_info("GRUCell Forward Pass end ...");
@@ -627,13 +755,16 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     log_detail("===============================================");
     log_detail("GRUCell Backward Pass ...");
 
-    int ps = param_size, hs = hidden_size;
+    //int ps = param_size, hs = hidden_size;
 
-    aimatrix<T> Wzx, Wzh, Wrx, Wrh, Wgx, Wgh;
+    //aimatrix<T> Wzx, Wzh, Wrx, Wrh, Wgx, Wgh;
 
     log_detail("Retrievint H and X at step {0} ...", step);
-    aimatrix<T> H = this->H.at(step);
-    aimatrix<T> X = this->X.at(step);
+    aimatrix<T> Zt = this->Zt.at(step);
+    aimatrix<T> Rt = this->Rt.at(step);
+    aimatrix<T> Gt = this->Gt.at(step);
+    aimatrix<T> H  = this->H.at(step);
+    aimatrix<T> X  = this->X.at(step);
 
     log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
     log_matrix(H);
@@ -641,25 +772,35 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
     log_matrix(X);
 
-    std::tie(Wzx, Wzh) = CellBase<T>::split(this->Wz, ps, hs);
-    std::tie(Wrx, Wrh) = CellBase<T>::split(this->Wr, ps, hs);
-    std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
+    //std::tie(Wzx, Wzh) = CellBase<T>::split(this->Wz, ps, hs);
+    //std::tie(Wrx, Wrh) = CellBase<T>::split(this->Wr, ps, hs);
+    //std::tie(Wgx, Wgh) = CellBase<T>::split(this->Wg, ps, hs);
 
     // Compute gradients with respect to the gates
     aimatrix<T> dZt = dnext_h.array() * (H.array() - Gt.array()) * Zt.array() * (1 - Zt.array());
     aimatrix<T> dGt = dnext_h.array() * (1 - Zt.array()) * (1 - Gt.array().square());
-    aimatrix<T> dRt = (dGt.array() * (H * Wrh).array()  * (1 - Rt.array().square())) * Rt.array() * (1 - Rt.array());
+    aimatrix<T> dRt = (dGt.array() * (H * Ur).array()  * (1 - Rt.array().square())) * Rt.array() * (1 - Rt.array());
 
     // Concatenate input and hidden state.
-    XH << X, H;
+    //XH << X, H;
 
-    log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
-    log_matrix(XH);
+    //log_detail("Dimension of XH: {0}x{1}", XH.rows(), XH.cols());
+    //log_matrix(XH);
+
+    aimatrix<T> RH = Rt.array() * H.array();
 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
-    aimatrix<T> dWz_ = BaseOperator::matmul(XH.transpose(), dZt); this->dWz += dWz_;
-    aimatrix<T> dWr_ = BaseOperator::matmul(XH.transpose(), dRt); this->dWr += dWr_;
-    aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt); this->dWg += dWg_;
+    //aimatrix<T> dWz_ = BaseOperator::matmul(XH.transpose(), dZt); this->dWz += dWz_;
+    //aimatrix<T> dWr_ = BaseOperator::matmul(XH.transpose(), dRt); this->dWr += dWr_;
+    //aimatrix<T> dWg_ = BaseOperator::matmul(XH.transpose(), dGt); this->dWg += dWg_;
+
+    aimatrix<T> dWz_ = BaseOperator::matmul(X.transpose(), dZt); this->dWz += dWz_;
+    aimatrix<T> dWr_ = BaseOperator::matmul(X.transpose(), dRt); this->dWr += dWr_;
+    aimatrix<T> dWg_ = BaseOperator::matmul(X.transpose(), dGt); this->dWg += dWg_;
+
+    aimatrix<T> dUz_ = BaseOperator::matmul(H.transpose(), dZt); this->dUz += dUz_;
+    aimatrix<T> dUr_ = BaseOperator::matmul(H.transpose(), dRt); this->dUr += dUr_;
+    aimatrix<T> dUg_ = BaseOperator::matmul(RH.transpose(), dGt); this->dUg += dUg_;
 
     log_detail("Dimension of this->dWz: {0}x{1}", this->dWz.rows(), this->dWz.cols());
     log_matrix(this->dWz);
@@ -678,20 +819,21 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     log_detail("Dimension of this->Wz: {0}x{1}", this->Wz.rows(), this->Wz.cols());
     log_matrix(this->Wz);
 
+/*
     log_detail("Dimension of Wzx: {0}x{1}", Wzx.rows(), Wzx.cols());
     log_matrix(Wzx);
 
     log_detail("Dimension of Wzh: {0}x{1}", Wzh.rows(), Wzh.cols());
     log_matrix(Wzh);
+*/
 
     // Compute gradient with respect to hidden state H (dH)
-    aimatrix<T> dX = BaseOperator::matmul(dZt, Wzx.transpose()) + BaseOperator::matmul(dRt, Wrx.transpose()) + BaseOperator::matmul(dGt, Wgx.transpose());
+    //aimatrix<T> dX = BaseOperator::matmul(dZt, Wzx.transpose()) + BaseOperator::matmul(dRt, Wrx.transpose()) + BaseOperator::matmul(dGt, Wgx.transpose());
+    aimatrix<T> dX = BaseOperator::matmul(dZt, Wz.transpose()) + BaseOperator::matmul(dRt, Wr.transpose()) + BaseOperator::matmul(dGt, Wg.transpose());
 
     // Compute gradient with respect to input (dInput)
-    aimatrix<T> dH = BaseOperator::matmul(dZt, Wzh.transpose()) + BaseOperator::matmul(dRt, Wrh.transpose()) + BaseOperator::matmul(dGt, Wgh.transpose());
-
-    this->dH.push_back(dH);
-    this->dX.push_back(dX);
+    //aimatrix<T> dH = BaseOperator::matmul(dZt, Wzh.transpose()) + BaseOperator::matmul(dRt, Wrh.transpose()) + BaseOperator::matmul(dGt, Wgh.transpose());
+    aimatrix<T> dH = BaseOperator::matmul(dZt, Uz.transpose()) + BaseOperator::matmul(dRt, Ur.transpose()) + BaseOperator::matmul(dGt, Ug.transpose());
 
     log_info("GRUCell Backward Pass end ...");
 
@@ -708,6 +850,11 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_Wz = new Optimizer<T>(optimizertype, learningRate);
         opt_Wr = new Optimizer<T>(optimizertype, learningRate);
         opt_Wg = new Optimizer<T>(optimizertype, learningRate);
+
+        opt_Uz = new Optimizer<T>(optimizertype, learningRate);
+        opt_Ur = new Optimizer<T>(optimizertype, learningRate);
+        opt_Ug = new Optimizer<T>(optimizertype, learningRate);
+
         opt_bz = new Optimizer<T>(optimizertype, learningRate);
         opt_br = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
@@ -718,16 +865,40 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     opt_Wr->update(optimizertype, this->Wr, this->dWr, iter);
     log_detail("Updating Wg in GRU Cell ...");
     opt_Wg->update(optimizertype, this->Wg, this->dWg, iter);
+
+    log_detail("Updating Uz in GRU Cell ...");
+    opt_Uz->update(optimizertype, this->Uz, this->dUz, iter);
+    log_detail("Updating Ur in GRU Cell ...");
+    opt_Ur->update(optimizertype, this->Ur, this->dUr, iter);
+    log_detail("Updating Ug in GRU Cell ...");
+    opt_Ug->update(optimizertype, this->Ug, this->dUg, iter);
+
     log_detail("Updating bz in GRU Cell ...");
     opt_bz->update(optimizertype, this->bz, this->dbz, iter);
     log_detail("Updating br in GRU Cell ...");
     opt_br->update(optimizertype, this->br, this->dbr, iter);
     log_detail("Updating bg in GRU Cell ...");
     opt_bg->update(optimizertype, this->bg, this->dbg, iter);
+    this->Zt.clear();
+    this->Rt.clear();
+    this->Gt.clear();
     this->H.clear();
     this->X.clear();
     this->dH.clear();
     this->dX.clear();
+
+    this->dWz.setZero();
+    this->dWr.setZero();
+    this->dWg.setZero();
+
+    this->dUz.setZero();
+    this->dUr.setZero();
+    this->dUg.setZero();
+
+    this->dbz.setZero();
+    this->dbr.setZero();
+    this->dbg.setZero();
+
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -1212,8 +1383,11 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                     dnextH = dOut + dnextH;
                 }
             }
+
+            log_detail("dOut output:");
+            log_matrix(dOut);
  
-            log_detail("dOuts input:");
+            log_detail("dnextH input:");
             log_matrix(dnextH);
 
             // Backward pass through each layer of the RNN
@@ -1232,11 +1406,12 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
                     std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
                 } 
-
                 log_detail("Cell Backward pass output");
                 log_detail("dOuts output:");
                 log_matrix(dnextH);
+                dnextH = dOut + dnextH;
             }
+
 
             log_detail("Layer forward done ...");
 

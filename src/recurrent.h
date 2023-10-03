@@ -142,35 +142,45 @@ template <class T>
 class LSTMCell : public CellBase<T> {
 private:
     // Parameters (weights and biases)
-    aimatrix<T> Wf;      // Weight matrix for input gate from input x         (p + h) x h
-    aimatrix<T> Wi;      // Weight matrix for input gate from input x         (p + h) x h
-    aimatrix<T> Wo;      // Weight matrix for output gate from input x        (p + h) x h
-    aimatrix<T> Wg;      // Weight matrix for candidate state from input x    (p + h) x h
+    aimatrix<T> Wf;      // Weight matrix for input gate from input x         (p ) x h
+    aimatrix<T> Wi;      // Weight matrix for input gate from input x         (p ) x h
+    aimatrix<T> Wg;      // Weight matrix for candidate state from input x    (p ) x h
+    aimatrix<T> Wo;      // Weight matrix for output gate from input x        (p ) x h
+
+    aimatrix<T> Uf;      // Weight matrix for input gate from input x         ( h) x h
+    aimatrix<T> Ui;      // Weight matrix for input gate from input x         ( h) x h
+    aimatrix<T> Ug;      // Weight matrix for candidate state from input x    ( h) x h
+    aimatrix<T> Uo;      // Weight matrix for output gate from input x        ( h) x h
 
     airowvector<T> bf;   // Bias vector for input gate        (1xh)
     airowvector<T> bi;   // Bias vector for input gate        (1xh)
     airowvector<T> bg;   // Bias vector for candidate state   (1xh)
     airowvector<T> bo;   // Bias vector for output gate       (1xh)
 
-    aimatrix<T> Ft;      // Forget Gate       (nxh)
-    aimatrix<T> It;      // Input Gate        (nxh)
-    aimatrix<T> Ot;      // Output Gate       (nxh)
-    aimatrix<T> Gt;      // Candidate State   (nxh)
+    aitensor<T> Ft;      // Forget Gate       (nxh)
+    aitensor<T> It;      // Input Gate        (nxh)
+    aitensor<T> Ot;      // Output Gate       (nxh)
+    aitensor<T> Gt;      // Candidate State   (nxh)
 
-    std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
-    std::vector<aimatrix<T>> C;  // Cell state  (n x h) where n = number of words, h = hidden size
-    std::vector<aimatrix<T>> X;
-    std::vector<aimatrix<T>> dH; // Gradient with respect to Hidden state
-    std::vector<aimatrix<T>> dC;
-    std::vector<aimatrix<T>> dX; // Gradient with respect to Input
+    aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
+    aitensor<T> C;  // Cell state  (n x h) where n = number of words, h = hidden size
+    aitensor<T> X;
+    aitensor<T> dH; // Gradient with respect to Hidden state
+    aitensor<T> dC;
+    aitensor<T> dX; // Gradient with respect to Input
 
-    aimatrix<T> XH;
+    //aimatrix<T> XH;
 
     // Caching Gradients with respect to hidden-to-hidden weights  Ft, It, Gt, Ot
     aimatrix<T> dWf;
     aimatrix<T> dWi;
     aimatrix<T> dWg;
     aimatrix<T> dWo;
+
+    aimatrix<T> dUf;
+    aimatrix<T> dUi;
+    aimatrix<T> dUg;
+    aimatrix<T> dUo;
 
     // Caching Gradients with respect to hidden biases bf, bi, bg, bo
     airowvector<T> dbf;
@@ -183,6 +193,12 @@ private:
     Optimizer<T>* opt_Wi = nullptr; // for optimizer
     Optimizer<T>* opt_Wg = nullptr; // for optimizer
     Optimizer<T>* opt_Wo = nullptr; // for optimizer
+
+    Optimizer<T>* opt_Uf = nullptr; // for optimizer
+    Optimizer<T>* opt_Ui = nullptr; // for optimizer
+    Optimizer<T>* opt_Ug = nullptr; // for optimizer
+    Optimizer<T>* opt_Uo = nullptr; // for optimizer
+
     Optimizer<T>* opt_bf = nullptr; // for optimizer
     Optimizer<T>* opt_bi = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
@@ -214,30 +230,42 @@ template <class T>
 class GRUCell : public CellBase<T> {
 private:
     // Weights for the input-to-hidden connections
-    aimatrix<T> Wz;      // Weight matrix for the update gate               (p + h) x h
-    aimatrix<T> Wr;      // Weight matrix for the reset gate                (p + h) x h
-    aimatrix<T> Wg;      // Weight matrix for the candidate hidden state    (p + h) x h
+    aimatrix<T> Wz;      // Weight matrix for the update gate               (p ) x h
+    aimatrix<T> Wr;      // Weight matrix for the reset gate                (p ) x h
+    aimatrix<T> Wg;      // Weight matrix for the candidate hidden state    (p ) x h
+
+    aimatrix<T> Uz;      // Weight matrix for the update gate               ( h) x h
+    aimatrix<T> Ur;      // Weight matrix for the reset gate                ( h) x h
+    aimatrix<T> Ug;      // Weight matrix for the candidate hidden state    ( h) x h
 
     // Biases for the hidden units
     airowvector<T> bz;   // Bias vector for the update gate              (1xh)
     airowvector<T> br;   // Bias vector for the reset gate               (1xh)
     airowvector<T> bg;   // Bias vector for the candidate hidden state   (1xh)
 
-    aimatrix<T> Zt;      // Forget Gate       (nxh)
-    aimatrix<T> Rt;      // Input Gate        (nxh)
-    aimatrix<T> Gt;      // Candidate State   (nxh)
+    aitensor<T> Zt;      // Forget Gate       (nxh)
+    aitensor<T> Rt;      // Input Gate        (nxh)
+    aitensor<T> Gt;      // Candidate State   (nxh)
 
-    std::vector<aimatrix<T>> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
-    std::vector<aimatrix<T>> X;  // (n x p)
-    std::vector<aimatrix<T>> dH; // Gradient with respect to Hidden state
-    std::vector<aimatrix<T>> dX; // Gradient with respect to Input
+    aitensor<T> dZt;      // Forget Gate       (nxh)
+    aitensor<T> dRt;      // Input Gate        (nxh)
+    aitensor<T> dGt;      // Candidate State   (nxh)
 
-    aimatrix<T> XH;      // Concatenate X and H
+    aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
+    aitensor<T> X;  // (n x p)
+    aitensor<T> dH; // Gradient with respect to Hidden state
+    aitensor<T> dX; // Gradient with respect to Input
+
+    //aimatrix<T> XH;      // Concatenate X and H
 
     // Caching Gradients with respect to hidden-to-hidden weights Wf, Wi, Wo, Wc
     aimatrix<T> dWz;
     aimatrix<T> dWr;
     aimatrix<T> dWg;
+
+    aimatrix<T> dUz;
+    aimatrix<T> dUr;
+    aimatrix<T> dUg;
 
     // Caching Gradients with respect to hidden biases bf, bi, bo, bc
     airowvector<T> dbz;
@@ -248,6 +276,11 @@ private:
     Optimizer<T>* opt_Wz = nullptr; // for optimizer
     Optimizer<T>* opt_Wr = nullptr; // for optimizer
     Optimizer<T>* opt_Wg = nullptr; // for optimizer
+
+    Optimizer<T>* opt_Uz = nullptr; // for optimizer
+    Optimizer<T>* opt_Ur = nullptr; // for optimizer
+    Optimizer<T>* opt_Ug = nullptr; // for optimizer
+
     Optimizer<T>* opt_bz = nullptr; // for optimizer
     Optimizer<T>* opt_br = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer

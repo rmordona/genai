@@ -38,19 +38,6 @@ using namespace py::literals;
 * NodeFactory
 ********************************************************************************************/
 
-// Standardize the input
-template <class T>
-aimatrix<T> standardize(const aimatrix<T>& input_data) {
-    // Calculate the mean and standard deviation along each column
-    aivector<T> mean = input_data.colwise().mean();
-    aivector<T> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
-
-    // Standardize the matrix by subtracting the mean and dividing by the standard deviation
-    aimatrix<T> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
-
-    return standard;
-}
-
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
@@ -60,7 +47,7 @@ void Node<T>::setData(const py::array_t<T>& data, const bool normalize) {
     if (normalize == true) {
         int input_size = this->input_data.size();
         for (int i=0; i < input_size; i++) {
-            this->input_data.at(i).array() = standardize(this->input_data.at(i));
+            this->input_data.at(i).array() = BaseOperator::standardize(this->input_data.at(i));
         }   
     }
 }
@@ -71,7 +58,7 @@ void Node<T>::setData(const aitensor<T> data, const bool normalize) {
     if (normalize == true) {
         int input_size = this->input_data.size();
         for (int i=0; i < input_size; i++) {
-            this->input_data.at(i).array() = standardize(this->input_data.at(i));
+            this->input_data.at(i).array() = BaseOperator::standardize(this->input_data.at(i));
         }   
     }
 }
