@@ -47,6 +47,7 @@ enum class CellType {
 
 template <class T>
 class CellBase {
+
 public:
 
     // Here we are splitting the concatenated XH where dimension is Nx(P+H)
@@ -328,17 +329,17 @@ private:
     // where each time-step produces an output.
     aitensor<T> foutput, boutput, output;
     aitensor<T> V;      // Weight for the predicted output  (h x o) 
-    std::vector<airowvector<T>> bo;  // Bias for the predicted output  
+    std::vector<airowvector<T>> by;  // Bias for the predicted output  
 
     aitensor<T> dV;      // Weight for the predicted output  (h x o)
-    std::vector<airowvector<T>> dbo;  // Bias for the predicted output
+    std::vector<airowvector<T>> dby;  // Bias for the predicted output
 
     aitensor<T> gradients;
     aitensor<T> Yhat;
 
     // Caching optimizer parameters, vector of optimization parameters per time-step
     std::vector<Optimizer<T>*> opt_V; // for optimizer
-    std::vector<Optimizer<T>*> opt_bo; // for optimizer
+    std::vector<Optimizer<T>*> opt_by; // for optimizer
 
     bool initialized = false; // used to ensure V and bo are not initialized multiple times during training.
 
@@ -385,7 +386,9 @@ public:
 
     std::tuple<aimatrix<T>, airowvector<T>> getWeights(int step, aimatrix<T> out);
 
-    const aitensor<T> processOutputs();
+    const aimatrix<T> processPrediction(int step, const aimatrix<T>& H);
+
+    const aitensor<T> processPredictions();
 
     void processGradients(aitensor<T>& gradients);
 

@@ -62,7 +62,6 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
 
     BaseOperator::heInitMatrix(W);
     BaseOperator::heInitMatrix(U);
-
     bh.setConstant(T(0.01));
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
@@ -145,30 +144,33 @@ const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const a
 
     // Next operations is based on tanh( X * W + H * U + bh)
 
-    // Compute gradient with respect to input (X)(dInput) from tanh perspective
-    log_detail("Calculating gradient with respect to X (dX) ...");
-    aimatrix<T> dX = BaseOperator::matmul(dtanh, W.transpose());
-    log_matrix(this->dX);
 
     // Compute gradient with respect to W (dW) from tanh perspective
     log_detail("Calculating gradient with respect to W (dW) ...");
-    this->dW = BaseOperator::matmul(X.transpose(), dtanh);
+    aimatrix<T> dW_ = BaseOperator::matmul(X.transpose(), dtanh);  this->dW += dW_;
     log_matrix(this->dW);
+
+    // Compute gradient with respect to H (dH) from tanh perspective
+    log_detail("Calculating gradient with respect to U (dU) ...");
+    aimatrix<T> dU_ = BaseOperator::matmul(H.transpose(), dtanh); this->dU += dU_;
+    log_matrix(this->dU);
+
+    // Compute gradient with respect to hidden bias bh.
+    log_detail("Calculating dbh ...");
+    airowvector<T> dbh_ = dtanh.colwise().sum();  this->dbh += dbh_;
+    log_rowvector(this->dbh);
+
 
     // Compute gradient with respect to H (dH) from tanh perspective
     log_detail("Calculating gradient with respect to H (dH) ...");
     aimatrix<T> dH = BaseOperator::matmul(dtanh, U.transpose());
     log_matrix(dH);
 
-    // Compute gradient with respect to H (dH) from tanh perspective
-    log_detail("Calculating gradient with respect to U (dU) ...");
-    this->dU = BaseOperator::matmul(H.transpose(), dtanh);
-    log_matrix(this->dU);
 
-    // Compute gradient with respect to hidden bias bh.
-    log_detail("Calculating dbh ...");
-    this->dbh = dtanh.colwise().sum(); 
-    log_rowvector(this->dbh);
+    // Compute gradient with respect to input (X)(dInput) from tanh perspective
+    log_detail("Calculating gradient with respect to X (dX) ...");
+    aimatrix<T> dX = BaseOperator::matmul(dtanh, W.transpose());
+    log_matrix(this->dX);
 
     this->dH.push_back(dH);
     this->dX.push_back(dX);
@@ -199,6 +201,9 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     this->X.clear();
     this->dH.clear();
     this->dX.clear();
+    this->dW.setZero();
+    this->dU.setZero();
+    this->dbh.setZero();
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -892,33 +897,83 @@ void GRU<T>::updateParameters(std::string& optimizertype, T& learningRate, int& 
 template <class T>
 std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, aimatrix<T> out) {
 
+    RNNType       rnntype  = this->getRNNType();
     if (this->isInitialized()) {
-        RNNType       rnntype  = this->getRNNType();
+        // there is only one element in a vector of predicted outputs 
         if (rnntype == RNNType::MANY_TO_ONE) {
-            return std::make_tuple(this->V.at(0), this->bo.at(0));
+            return std::make_tuple(this->V.at(0), this->by.at(0));
         } else {
-            return std::make_tuple(this->V.at(step), this->bo.at(step));
+            log_detail("Getting weight at step {0} ...", step);
+            return std::make_tuple(this->V.at(step), this->by.at(step));
         }
     }
+    log_detail("Initializing  weight {0}x{1} at step {1} ...", out.cols(), this->output_size, step);
+    aimatrix<T> V;
+    if (rnntype == RNNType::ONE_TO_MANY) {
+       V.resize(this->input_size, this->output_size);
+    } else {
+       V.resize(out.cols(), this->output_size);
+    } 
+    airowvector<T> by(this->output_size);
+    BaseOperator::heInitMatrix(V);
+    by.setConstant(T(0.01));
 
-    aimatrix<T> v(out.cols(), this->output_size);
-    airowvector<T> bo(this->output_size);
-    BaseOperator::heInitMatrix(v);
-    // bo.Zero(out.cols());
-    bo.setConstant(T(0.01));
+    this->V.push_back(V);
+    this->by.push_back(by);
 
-    this->V.push_back(v);
-    this->bo.push_back(bo);
+    log_detail("End Initializing  weight {0}x{1} at step {1} ...", out.cols(), this->output_size, step);
 
-    return std::make_tuple(v, bo);
+    return std::make_tuple(V, by);
 }
 
+// Handle output for ONE_TO_MANY scenarios
 template <class T>
-const aitensor<T> RecurrentBase<T>::processOutputs() {
+const aimatrix<T> RecurrentBase<T>::processPrediction(int step, const aimatrix<T>& H) {
+    log_info("===============================================");
+    log_info("Recurrent Base Processing Output ...");
+    aimatrix<T> V, Yhat; // H being the final output.
+    airowvector<T> by;
+
+    log_detail("Entering Processing of Cell Output");
+    log_detail("Reduction Result at step {0}:", step);
+
+    //  Get weights for the output;
+    std::tie(V, by) = getWeights(step, H);
+
+    if (this->getOType() == ActivationType::SOFTMAX) {
+        log_detail("Non-Linearity (Softmax) ...");
+        Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
+    } else 
+    if (this->getOType() == ActivationType::TANH) {
+        log_detail("Non-Linearity (TANH) ...");
+        Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
+    } else
+    if (this->getOType() == ActivationType::SIGMOID) {
+        log_detail("Non-Linearity (SIGMOID) ...");
+        Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
+    } else {
+        this->setOutputSize( this->getHiddenSize());
+        Yhat = H; // no non-linearity operations to logit, raw Hidden State output
+    }
+
+    log_detail("Non-Linearity result (yhat) at step {0}:", step);
+    log_matrix(Yhat);
+
+    this->output.push_back(H);
+    this->Yhat.push_back(Yhat);
+
+    log_info("Recurrent Base Processing Output End with output size {0} ...", this->Yhat.size());
+
+    return Yhat; 
+}
+
+// Handle output for MANY_TO_ONE or MANY_TO_MANY scenarios
+template <class T>
+const aitensor<T> RecurrentBase<T>::processPredictions() {
     log_info("===============================================");
     log_info("Recurrent Base Processing Output ...");
     aimatrix<T> H, V, Yhat; // H being the final output.
-    airowvector<T> bo;
+    airowvector<T> by;
 
     int sequence_length    = this->getSequenceLength();
     ReductionType rtype    = this->getRType();
@@ -959,7 +1014,7 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
         log_detail("Reduction Result at step {0}:", step);
 
         //  Get weights for the output;
-        std::tie(V, bo) = getWeights(step, H);
+        std::tie(V, by) = getWeights(step, H);
 
         log_detail("H output ...");
         log_matrix(H);
@@ -968,22 +1023,22 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
         log_matrix(V);
 
         log_detail("bo output ...");
-        log_rowvector(bo);
+        log_rowvector(by);
 
         log_detail("Matmul (H * v) ...");
         log_matrix(BaseOperator::matmul(H, V));
 
         if (this->getOType() == ActivationType::SOFTMAX) {
             log_detail("Non-Linearity (Softmax) ...");
-            Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
+            Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
         } else 
         if (this->getOType() == ActivationType::TANH) {
             log_detail("Non-Linearity (TANH) ...");
-            Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
+            Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
         } else
         if (this->getOType() == ActivationType::SIGMOID) {
             log_detail("Non-Linearity (SIGMOID) ...");
-            Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + bo));
+            Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
         } else {
             this->setOutputSize( this->getHiddenSize());
             Yhat = H; // no non-linearity operations to logit, raw Hidden State output
@@ -996,9 +1051,6 @@ const aitensor<T> RecurrentBase<T>::processOutputs() {
         prediction.push_back(Yhat);
 
     }
-
-    // marker to indicate the weights are all initialized, as they depend on these sizes.
-    this->setInitialized();
 
     log_info("Recurrent Base Processing Output End with output size {0} ...", prediction.size());
 
@@ -1018,6 +1070,8 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
     this->setOType(ActivationType::SOFTMAX);
     this->setRType(ReductionType::AVG);
 
+    RNNType     rnntype = this->getRNNType();
+
     int sequence_length = this->input_data.size(); // sequence
     int input_size      = this->input_data.at(0).rows();
     int embedding_size  = this->input_data.at(0).cols();
@@ -1029,6 +1083,8 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", sequence_length, input_size, embedding_size );
     log_detail( "Number of Directions: {0}", num_directions );
+
+    aimatrix<T> input_batch; // absorves input from dataset or output from cell (in ONE_TO_MANY systems)
 
     for (int direction = 0; direction < num_directions; ++direction) {
 
@@ -1045,7 +1101,10 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
             // Reverse the order of data if backward direction (e.g. direction == 1);
             int idx_ = (direction == 0) ? step : ( sequence_length - step - 1);
 
-            aimatrix<T> input_batch = input_data.at(idx_);
+            //  handle only first input if ONE_TO_MANY or all input if not ONE_TO_MANY
+            if ((step == 0 && rnntype == RNNType::ONE_TO_MANY) || rnntype != RNNType::ONE_TO_MANY) {
+                input_batch = input_data.at(idx_);
+            } 
 
             log_detail("Input Batch:");
             log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
@@ -1056,17 +1115,17 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
                 if (celltype == CellType::RNN_VANILLA) {
                     log_detail("Casting to RNN Cell at layer {0} step {1}...", layer, step);
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
-                    input_batch = cell->forward(input_batch); // This is the Hidden State
+                    input_batch = cell->forward(input_batch); // Output the Hidden State
                 } else
                 if (celltype == CellType::RNN_LSTM) {
                     LSTMCell<T>* cell = dynamic_cast<LSTMCell<T>*>(cells[layer]);
                     log_detail("Casting to LSTM Cell at layer {0} step {1}...", layer, step);
-                    input_batch = cell->forward(input_batch); // This is the Hidden State
+                    input_batch = cell->forward(input_batch); // Output the Hidden State
                 } else
                 if (celltype == CellType::RNN_GRU) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
                     log_detail("Casting to GRU Cell at layer {0} step {1}...", layer, step);
-                    input_batch = cell->forward(input_batch); // This is the Hidden State
+                    input_batch = cell->forward(input_batch); // Output the Hidden State
                 } 
                 log_detail("Cell Forward pass output ...");
                 log_matrix(input_batch);
@@ -1077,6 +1136,13 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
             if (direction == 0) {
                 log_detail("Add Forward Direction output ...");
+
+                // pass predicted output of hidden state to next cell as input.
+                if (rnntype == RNNType::ONE_TO_MANY) {
+                    aimatrix<T> Yhat = processPrediction(step, input_batch);
+                    input_batch = Yhat;
+                }
+
                 this->foutput.push_back(input_batch);
                 log_detail("Forward Direction output size: {0}", this->foutput.size());
             } else {
@@ -1089,7 +1155,12 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_detail("Processing Output ...");
 
-    aitensor<T> Yhat = processOutputs();
+    if (rnntype != RNNType::ONE_TO_MANY) {
+        aitensor<T> Yhat = processPredictions();
+    }
+
+    // marker to indicate the weights are all initialized, as they depend on these sizes.
+    this->setInitialized();
 
     log_detail("RecurrentBase Forward Pass end ...");
 
@@ -1109,9 +1180,9 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     ActivationType       otype        = this->getOType();
     const aitensor<T>&   prediction   = this->getPrediction();
 
-    int last_sequence = this->getSequenceLength(); // Default for MANY_TO_MANY or ONE_TO_MANY scenario
+    int last_sequence   = this->getSequenceLength(); // Default for MANY_TO_MANY or ONE_TO_MANY scenario
 
-    if (rnntype == RNNType::MANY_TO_ONE) {
+    if (this->rnntype == RNNType::MANY_TO_ONE) {
         last_sequence = 1; // consider only the first sequence, given we only have 1 matrix in the vector
     }
 
@@ -1138,21 +1209,21 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
             dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
             dV = BaseOperator::matmul(H.transpose(), dOut);
             this->dV.push_back(dV);
-            this->dbo.push_back(dOut.colwise().sum());
+            this->dby.push_back(dOut.colwise().sum());
         } else 
         if (otype == ActivationType::TANH) {
             log_detail("Non-Linearity TANH Gardient ...");
             dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
             dV = BaseOperator::matmul(H.transpose(), dOut);
             this->dV.push_back(dV);
-            this->dbo.push_back(dOut.colwise().sum());
+            this->dby.push_back(dOut.colwise().sum());
         } else
         if (otype == ActivationType::SIGMOID) {
             log_detail("Non-Linearity SIGMOID Gardient ...");
             dOut = BaseOperator::sigmoidGradient(dOut, yhat);  // dsigmoidV
             dV = BaseOperator::matmul(H.transpose(), dOut);
             this->dV.push_back(dV);
-            this->dbo.push_back(dOut.colwise().sum());
+            this->dby.push_back(dOut.colwise().sum());
         } // else just use dOut
 
         log_detail("Dimension of dOut: {0}x{1}", dOut.rows(), dOut.cols());
@@ -1344,9 +1415,9 @@ void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learnin
 
         for (int step = 0; step < sequence_length; ++step) {
             Optimizer<T>* outV  = new Optimizer<T>(optimizertype, learningRate);
-            Optimizer<T>* outbo = new Optimizer<T>(optimizertype, learningRate);
+            Optimizer<T>* outby = new Optimizer<T>(optimizertype, learningRate);
             this->opt_V.push_back(outV);
-            this->opt_bo.push_back(outbo);
+            this->opt_by.push_back(outby);
         }
     }
 
@@ -1355,12 +1426,12 @@ void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learnin
         log_detail("Updating V at output step {0} ...", step);
         this->opt_V.at(step)->update(optimizertype, this->V.at(step), this->dV.at(step), iter);
         log_detail("Updating bo at output step {0} ...", step);
-        this->opt_bo.at(step)->update(optimizertype, this->bo.at(step), this->dbo.at(step), iter);
+        this->opt_by.at(step)->update(optimizertype, this->by.at(step), this->dby.at(step), iter);
     }
 
     // clear for the next training/epoch
     this->dV.clear();
-    this->dbo.clear();
+    this->dby.clear();
 
     // Retrieve sequence again since  MANY_TO_ONE scenario does not matter.
     sequence_length = this->getSequenceLength(); 
