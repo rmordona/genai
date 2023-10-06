@@ -100,6 +100,7 @@ private:
 
     airowvector<T> bh; // Hidden bias
 
+    // Cache the hidden states and input for BPTT (backpropagation through time)
     aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     aitensor<T> X;
     aitensor<T> dH; // Gradient with respect to Hidden state
@@ -117,14 +118,21 @@ private:
     Optimizer<T>* opt_U  = nullptr; // for optimizer
     Optimizer<T>* opt_bh = nullptr; // for optimizer
 
+    // For One-To-Many
+    aimatrix<T> O;
+    aimatrix<T> dO;
+    Optimizer<T>* opt_O  = nullptr; // for optimizer
+
     int input_size = 0;
     int param_size = 0;
     int hidden_size;
+    int output_size;
     bool last_layer = false;
-    // int output_size;
+    RNNType rnntype = RNNType::MANY_TO_MANY;
 
 public:
-    RNNCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
+    RNNCell(int hidden_size, int output_size, bool last_layer, RNNType rnntype) :  
+            hidden_size(hidden_size), output_size(output_size), last_layer(last_layer), rnntype(rnntype) {}
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
@@ -158,11 +166,13 @@ private:
     airowvector<T> bg;   // Bias vector for candidate state   (1xh)
     airowvector<T> bo;   // Bias vector for output gate       (1xh)
 
+    // Cache the gates for BPTT (backpropagation through time)
     aitensor<T> Ft;      // Forget Gate       (nxh)
     aitensor<T> It;      // Input Gate        (nxh)
     aitensor<T> Ot;      // Output Gate       (nxh)
     aitensor<T> Gt;      // Candidate State   (nxh)
 
+    // Cache the hidden states and input for BPTT (backpropagation through time)
     aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     aitensor<T> C;  // Cell state  (n x h) where n = number of words, h = hidden size
     aitensor<T> X;
@@ -205,14 +215,32 @@ private:
     Optimizer<T>* opt_bg = nullptr; // for optimizer
     Optimizer<T>* opt_bo = nullptr; // for optimizer
 
+
+    // For One-To-Many
+    aimatrix<T> Of;
+    aimatrix<T> Oi;
+    aimatrix<T> Og;
+    aimatrix<T> Oo;
+    aimatrix<T> dOf;
+    aimatrix<T> dOi;
+    aimatrix<T> dOg;
+    aimatrix<T> dOo;
+    Optimizer<T>* opt_Of  = nullptr; // for optimizer
+    Optimizer<T>* opt_Oi  = nullptr; // for optimizer
+    Optimizer<T>* opt_Og  = nullptr; // for optimizer
+    Optimizer<T>* opt_Oo  = nullptr; // for optimizer
+
     int input_size;
     int param_size;
     int hidden_size;
+    int output_size;
     bool last_layer = false;
-    // int output_size;
+    RNNType rnntype = RNNType::MANY_TO_MANY;
+
 
 public:
-    LSTMCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
+    LSTMCell(int hidden_size, int output_size, bool last_layer, RNNType rnntype) : 
+        hidden_size(hidden_size), output_size(output_size), last_layer(last_layer), rnntype(rnntype) {}
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
@@ -244,14 +272,12 @@ private:
     airowvector<T> br;   // Bias vector for the reset gate               (1xh)
     airowvector<T> bg;   // Bias vector for the candidate hidden state   (1xh)
 
+    // Cache the gates for BPTT (backpropagation through time)
     aitensor<T> Zt;      // Forget Gate       (nxh)
     aitensor<T> Rt;      // Input Gate        (nxh)
     aitensor<T> Gt;      // Candidate State   (nxh)
 
-    aitensor<T> dZt;      // Forget Gate       (nxh)
-    aitensor<T> dRt;      // Input Gate        (nxh)
-    aitensor<T> dGt;      // Candidate State   (nxh)
-
+    // Cache the hidden states and input for BPTT (backpropagation through time)
     aitensor<T> H;  // Hidden state  (n x h) where n = number of words, h = hidden size
     aitensor<T> X;  // (n x p)
     aitensor<T> dH; // Gradient with respect to Hidden state
@@ -286,14 +312,27 @@ private:
     Optimizer<T>* opt_br = nullptr; // for optimizer
     Optimizer<T>* opt_bg = nullptr; // for optimizer
 
+    // For One-To-Many
+    aimatrix<T> Oz;
+    aimatrix<T> Or;
+    aimatrix<T> Og;
+    aimatrix<T> dOz;
+    aimatrix<T> dOr;
+    aimatrix<T> dOg;
+    Optimizer<T>* opt_Oz  = nullptr; // for optimizer
+    Optimizer<T>* opt_Or  = nullptr; // for optimizer
+    Optimizer<T>* opt_Og  = nullptr; // for optimizer
+
     int input_size;
     int param_size;
     int hidden_size;
+    int output_size;
     bool last_layer = false;
-    // int output_size;
+    RNNType rnntype = RNNType::MANY_TO_MANY;
 
 public:
-    GRUCell(int hidden_size, bool last_layer) : hidden_size(hidden_size), last_layer(last_layer) {}
+    GRUCell(int hidden_size, int output_size, bool last_layer, RNNType rnntype) : 
+        hidden_size(hidden_size), output_size(output_size), last_layer(last_layer), rnntype(rnntype) {}
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
@@ -317,7 +356,7 @@ private:
 
     aitensor<T> input_data;
 
-    int sequence_length = 0;
+    int sequence_length = 1; // For ONE-TO-MANY, we define the sequence length.
     int input_size = 0;
     int embedding_size = 0;
     int num_directions = 2;
@@ -343,8 +382,10 @@ private:
 
     bool initialized = false; // used to ensure V and bo are not initialized multiple times during training.
 
+
     int hidden_size;
     int output_size;
+    int output_sequence_length = 0;
     int num_layers;
     bool bidirectional;
     RNNType rnntype;
@@ -353,31 +394,32 @@ private:
     CellType celltype;
 
         // Factory function to create cell objects based on an option
-    CellBase<T>* createCell(CellType celltype, int hidden_size, bool last_layer) {
+    CellBase<T>* createCell(CellType celltype, int hidden_size, int output_size, bool last_layer, RNNType rnntype) {
         if (celltype == CellType::RNN_VANILLA) {
-            return new RNNCell<T>(hidden_size, last_layer);
+            return new RNNCell<T>(hidden_size, output_size, last_layer, rnntype);
         } else
         if (celltype == CellType::RNN_LSTM) {
-            return new LSTMCell<T>(hidden_size, last_layer);
+            return new LSTMCell<T>(hidden_size, output_size, last_layer, rnntype);
         } else
         if (celltype == CellType::RNN_GRU) {
-            return new GRUCell<T>(hidden_size, last_layer);
+            return new GRUCell<T>(hidden_size, output_size, last_layer, rnntype);
         } else {
             return nullptr; // Invalid option
         }
     }
 
 public:
-    RecurrentBase(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype, CellType celltype) 
-        : hidden_size(hidden_size), output_size(output_size), num_layers(num_layers), bidirectional(bidirectional), rnntype(rnntype), celltype(celltype) {
+    RecurrentBase(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype, CellType celltype) 
+        : hidden_size(hidden_size), output_size(output_size), output_sequence_length(output_sequence_length), num_layers(num_layers), 
+            bidirectional(bidirectional), rnntype(rnntype), celltype(celltype) {
 
         if (bidirectional != true) {
             this->num_directions = 1;
         }
 
         for (int layer = 0; layer < num_layers; ++layer) {
-            CellBase<T>* rnn_ptr1 = createCell(celltype, hidden_size, layer + 1 == num_layers);
-            CellBase<T>* rnn_ptr2 = createCell(celltype, hidden_size, layer + 1 == num_layers);
+            CellBase<T>* rnn_ptr1 = createCell(celltype, hidden_size, output_size, layer + 1 == num_layers, rnntype);
+            CellBase<T>* rnn_ptr2 = createCell(celltype, hidden_size, output_size, layer + 1 == num_layers, rnntype);
             this->fcells.push_back(std::move(rnn_ptr1)); 
             this->bcells.push_back(std::move(rnn_ptr2));
         }
@@ -397,6 +439,8 @@ public:
     const aitensor<T> backwardpass(const aitensor<T>& gradients);
 
     void updatingParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    void clearCache();
 
     RNNType getRNNType() { return this->rnntype; }
     ActivationType getOType() { return this->otype; }
@@ -428,6 +472,9 @@ public:
     void setOutputSize(int output_size) { this->output_size = output_size; }
     int getOutputSize() { return this->output_size;  }
 
+    // For One-To-Many scenario
+    int getOutputSequenceLength() { return this->output_sequence_length; }
+
     void setInitialized() { this->initialized = true; }
     bool isInitialized() { return this->initialized; }
 
@@ -449,8 +496,8 @@ class RNN : public BaseOperator {
 private:
     RecurrentBase<T>* rnnbase;
 public:
-    RNN(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype) {
-            this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+    RNN(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype) {
+            this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
     }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
@@ -467,8 +514,8 @@ class LSTM : public BaseOperator {
 private:
     RecurrentBase<T>* rnnbase;
 public:
-    LSTM(int hidden_size, int output_size, int num_layers, bool bidirectional, RNNType rnntype)  {
-        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_LSTM);
+    LSTM(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype)  {
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_LSTM);
     }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
@@ -484,8 +531,8 @@ class GRU : public BaseOperator {
 private:
     RecurrentBase<T>* rnnbase;
 public:
-    GRU(int hidden_size, int output_size,  int num_layers, bool bidirectional, RNNType rnntype) {
-        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, num_layers, bidirectional, rnntype, CellType::RNN_GRU);
+    GRU(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype) {
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_GRU);
     }
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);

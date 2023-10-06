@@ -51,13 +51,11 @@ void BaseModel<T>::setLoss(std::string& losstype) {
     this->losstype = losstype;
 }
 
-// The input is assumed to have NxM where N=number of samples, M=embedding vector size
+// The output is assumed to have BxNxM where B=batch/sequence size, N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
 void BaseModel<T>::setTarget(const py::array_t<T>& target) {
-
     this->target = ConvertData::totensor(target);
-
 }
 
 template <class T>
@@ -71,7 +69,7 @@ void BaseModel<T>::useCrossEntropy() {
 }
 
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, const T learningRate , const int itermax) {
+void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, const T learningRate , const int max_epoch) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -94,7 +92,7 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
 
     std::cout << "Starting Iteration ..." << std::endl;
 
-    for (int iter = 1; iter <= itermax; iter++) {
+    for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
         this->graph->nextBatch();
@@ -324,9 +322,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
         }  else   // Recurrent Network Component
         if (auto rnn = std::dynamic_pointer_cast<ModelRNN>(op)) {
             if (datatype == "float") {
-                RNN<float>* newop = new RNN<float>(
-                                                            rnn->getHiddenSize(),
+                RNN<float>* newop = new RNN<float>(         rnn->getHiddenSize(),
                                                             rnn->getOuputSize(),
+                                                            rnn->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             rnn->getNumLayers(),
                                                             rnn->getBiDirection(),
                                                             rnn->getRNNType()
@@ -334,9 +332,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                 this->operations.push_back(newop);
             } else 
             if (datatype == "double") {
-                RNN<double>* newop = new RNN<double>(
-                                                            rnn->getHiddenSize(),
+                RNN<double>* newop = new RNN<double>(       rnn->getHiddenSize(),
                                                             rnn->getOuputSize(),
+                                                            rnn->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             rnn->getNumLayers(),
                                                             rnn->getBiDirection(),
                                                             rnn->getRNNType()
@@ -346,9 +344,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
         } else   // Recurrent Network Component
         if (auto lstm = std::dynamic_pointer_cast<ModelLSTM>(op)) {
             if (datatype == "float") {
-                LSTM<float>* newop = new LSTM<float>(
-                                                            lstm->getHiddenSize(),
+                LSTM<float>* newop = new LSTM<float>(       lstm->getHiddenSize(),
                                                             lstm->getOuputSize(),
+                                                            lstm->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             lstm->getNumLayers(),
                                                             lstm->getBiDirection(),
                                                             lstm->getRNNType()
@@ -356,9 +354,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                 this->operations.push_back(newop);
             } else 
             if (datatype == "double") {
-                LSTM<double>* newop = new LSTM<double>(
-                                                            lstm->getHiddenSize(),
+                LSTM<double>* newop = new LSTM<double>(     lstm->getHiddenSize(),
                                                             lstm->getOuputSize(),
+                                                            lstm->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             lstm->getNumLayers(),
                                                             lstm->getBiDirection(),
                                                             lstm->getRNNType()
@@ -368,9 +366,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
         } else   // Recurrent Network Component
         if (auto gru = std::dynamic_pointer_cast<ModelGRU>(op)) {
             if (datatype == "float") {
-                GRU<float>* newop = new GRU<float>(
-                                                            gru->getHiddenSize(),
+                GRU<float>* newop = new GRU<float>(         gru->getHiddenSize(),
                                                             gru->getOuputSize(),
+                                                            gru->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             gru->getNumLayers(),
                                                             gru->getBiDirection(),
                                                             gru->getRNNType()
@@ -378,9 +376,9 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                 this->operations.push_back(newop);
             } else 
             if (datatype == "double") {
-                GRU<double>* newop = new GRU<double>(
-                                                            gru->getHiddenSize(),
+                GRU<double>* newop = new GRU<double>(       gru->getHiddenSize(),
                                                             gru->getOuputSize(),
+                                                            gru->getOutputSequenceLength(), // For One-TO-Many Scenario
                                                             gru->getNumLayers(),
                                                             gru->getBiDirection(),
                                                             gru->getRNNType()
@@ -397,19 +395,19 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
 * The actual model is the BaseModel Class.
 *************************************************************************************************/
 Model::Model(const std::string& losstype, const std::string& optimizertype, 
-        const double learningRate, const int itermax, const std::string& datatype) {
+        const double learningRate, const int max_epoch, const std::string& datatype) {
     this->losstype = losstype;
     this->optimizertype = optimizertype;
     this->learningRate = learningRate;
-    this->itermax = itermax;
+    this->max_epoch = max_epoch;
     this->datatype = datatype;
     if (datatype == "float") {
-        std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>(losstype, optimizertype, static_cast<float>(learningRate), itermax);
+        std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
         std::shared_ptr<Graph<float>> graphXf = std::make_unique<Graph<float>>();
         bmodelf->setGraph(graphXf);
         this->modelXf = bmodelf;
     } else if (datatype == "double") {
-        std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>(losstype, optimizertype, static_cast<double>(learningRate), itermax);
+        std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
         std::shared_ptr<Graph<double>> graphXd = std::make_unique<Graph<double>>();
         bmodeld->setGraph(graphXd);
         this->modelXd = bmodeld;
@@ -426,7 +424,7 @@ Model::Model(const std::string& losstype, const std::string& optimizertype,
 *************************************************************************************************/
 std::shared_ptr<ModelNode> Model::addNode(std::string name, NodeType ntype) {
     if (datatype == "float") {
-                    std::cout << "Entering add Node ..." << std::endl;
+        std::cout << "Entering add Node ..." << std::endl;
         if (!isNode(name)) { 
               std::cout << "Entering add Node 1..." << std::endl;
             std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
@@ -512,8 +510,7 @@ void Model::seedNodes() {
         if (datatype == "double") {
             modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
         }
-
-    }
+    } 
 }
 
 /************************************************************************************************
@@ -526,7 +523,6 @@ void Model::setTargetFloat(const py::array_t<float>& target) {
         if (datatype == "double") {
             throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
         }
-
         modelXf->setTarget(target);
 
     } catch (const AIException& e) {
@@ -564,21 +560,26 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
 }
 
 /************************************************************************************************
+* Model::compile
+* This is where configuration begins.
+*************************************************************************************************/
+
+/************************************************************************************************
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
-void Model::train(std::string& losstype, std::string& optimizertype, double learningRate,  int itermax) {
+void Model::train(std::string& losstype, std::string& optimizertype, double learningRate,  int max_epoch) {
     try {
             std::cout << "Hello 1 ..." << std::endl;
         this->seedNodes();
         if (datatype == "float") {
             std::cout << "Hello 2 ..." << std::endl;
-            this->modelXf->train(losstype, optimizertype, static_cast<float>(learningRate), itermax);
+            this->modelXf->train(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
             std::cout << "Hello 2a ..." << std::endl;
         }
         if (datatype == "double") {
             std::cout << "Hello 4 ..." << std::endl;
-            this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), itermax);
+            this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
             std::cout << "Hello 6 ..." << std::endl;
         }
     } catch (const AIException& e) {

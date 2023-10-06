@@ -685,25 +685,28 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("type") = "relu", 
                 py::arg("alpha") = 0.01);
     py::class_<ModelRNN, BaseOperator, std::shared_ptr<ModelRNN>>(m, "RNN")
-        .def(py::init<int, int, int, bool, RNNType>(), 
+        .def(py::init<int, int, int, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 1,
-                py::arg("output_size") = 1, 
+                py::arg("output_size") = 1,
+                py::arg("output_sequence_length") = 0, 
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
 
     py::class_<ModelLSTM, BaseOperator, std::shared_ptr<ModelLSTM>>(m, "LSTM")
-        .def(py::init<int, int, int, bool, RNNType>(), 
+        .def(py::init<int, int, int, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 1,
                 py::arg("output_size") = 1, 
+                py::arg("output_sequence_length") = 0,
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
 
     py::class_<ModelGRU, BaseOperator, std::shared_ptr<ModelGRU>>(m, "GRU")
-        .def(py::init<int, int, int, bool, RNNType>(), 
+        .def(py::init<int, int, int, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 1,
-                py::arg("output_size") = 1, 
+                py::arg("output_size") = 1,
+                py::arg("output_sequence_length") = 0,  
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);

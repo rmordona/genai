@@ -24,7 +24,7 @@
  * Author: Raymond Michael O. Ordona
  *
  */
-
+ 
 /************************************************************************************************************
 * Note that the design of the Recurrent Network Cells is based on using a matrix with dimension NxP
 * where N is the number of words and P is the embedding size (the dimension).
@@ -56,18 +56,29 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
     this->input_size = N;  
     this->param_size = P;  
 
-    W.resize(this->param_size, this->hidden_size);
-    U.resize(this->hidden_size, this->hidden_size);
-    bh.resize(this->hidden_size);
+    // Cell Shared Weights
+    this->W.resize(this->param_size, this->hidden_size);
+    this->U.resize(this->hidden_size, this->hidden_size);
+    this->bh.resize(this->hidden_size);
 
-    BaseOperator::heInitMatrix(W);
-    BaseOperator::heInitMatrix(U);
-    bh.setConstant(T(0.01));
+    this->dW = aimatrix<T>::Zero(this->param_size, this->hidden_size);
+    this->dU = aimatrix<T>::Zero(this->hidden_size, this->hidden_size);
+    this->dbh = airowvector<T>::Zero(this->hidden_size);
+
+    BaseOperator::heInitMatrix(this->W);
+    BaseOperator::heInitMatrix(this->U);
+    this->bh.setConstant(T(0.01));
+
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        this->O.resize(this->output_size, this->hidden_size); // This weight is required for subsequent ONE_TO_MANY time_steps.
+        this->dO = aimatrix<T>::Zero(this->output_size, this->hidden_size);
+        BaseOperator::heInitMatrix(this->O);
+    }
 
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
 }
-
+ 
 template <class T>
 const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 
@@ -76,21 +87,29 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 
     log_detail("Size: {0}", X.size());
 
-    this->X.push_back(X);
+    int step = this->X.size();
 
+    this->X.push_back(X);
     setInitialWeights(X.rows(), X.cols());
+
+    aimatrix<T> H = this->H.back();  // Hidden state at t-1
+
+    aimatrix<T> W =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->W : this->O;
 
     log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
     log_matrix(X);
-    log_detail("Dimension of U: {0}x{1}", U.rows(), U.cols());
-    log_matrix(U);
     log_detail("Dimension of W: {0}x{1}", W.rows(), W.cols());
     log_matrix(W);
+    log_detail("Dimension of O (One-to-Many only): {0}x{1}", O.rows(), O.cols());
+    log_matrix(O);
+    log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
+    log_matrix(H);
+    log_detail("Dimension of U: {0}x{1}", U.rows(), U.cols());
+    log_matrix(U);
 
     // Compute hidden state.
     //     (nxh) =  (nxp) * (pxh) + (nxh) * (hxh) + h
     // H = BaseOperator::tanh((aimatrix<T>) (X * W + H * U + bh) );
-    aimatrix<T> H = this->H.back();  // previous time
     aimatrix<T> new_H = (aimatrix<T>)  BaseOperator::tanh((aimatrix<T>) ((BaseOperator::matmul(X, W) + BaseOperator::matmul(H, U)).rowwise() + bh));
 
     log_detail("BaseOperator::matmul(X, W)");
@@ -125,8 +144,11 @@ const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const a
     log_detail("Dimension of dnext_h: {0}x{1}", dnext_h.rows(), dnext_h.cols());
     log_matrix(dnext_h);
 
-    aimatrix<T> H = this->H.at(step); // Hidden state at t-1
-    aimatrix<T> X = this->X.at(step); // Input at t
+    bool is_W_seq = (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0));
+
+    const aimatrix<T>& H = this->H.at(step); // Hidden state at t-1
+    const aimatrix<T>& X = this->X.at(step); // Input at t
+    const aimatrix<T>& W =  (is_W_seq) ?  this->W : this->O;
 
     log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
     log_matrix(X);
@@ -147,12 +169,34 @@ const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const a
 
     // Compute gradient with respect to W (dW) from tanh perspective
     log_detail("Calculating gradient with respect to W (dW) ...");
-    aimatrix<T> dW_ = BaseOperator::matmul(X.transpose(), dtanh);  this->dW += dW_;
+    aimatrix<T> dW_ = BaseOperator::matmul(X.transpose(), dtanh);
+
+    if (is_W_seq) { 
+        if (this->rnntype == RNNType::ONE_TO_MANY) {
+            this->dW += dW_;       // current step
+            this->dW += this->dO;  // previous steps
+        } else {
+            this->dW += dW_;
+        }
+    } else {  
+        this->dO += dW_; 
+    }
+
+    log_detail("Gradient of dW_:");
+    log_matrix(dW_);
+    log_detail("Gradient of this->dW:");
     log_matrix(this->dW);
+    log_detail("Gradient of this->dO:");
+    log_matrix(this->dO);
 
     // Compute gradient with respect to H (dH) from tanh perspective
     log_detail("Calculating gradient with respect to U (dU) ...");
-    aimatrix<T> dU_ = BaseOperator::matmul(H.transpose(), dtanh); this->dU += dU_;
+    aimatrix<T> dU_ = BaseOperator::matmul(H.transpose(), dtanh); 
+    this->dU += dU_;
+
+    log_detail("Gradient of dU_:");
+    log_matrix(dU_);
+    log_detail("Gradient of dU:");
     log_matrix(this->dU);
 
     // Compute gradient with respect to hidden bias bh.
@@ -170,7 +214,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const a
     // Compute gradient with respect to input (X)(dInput) from tanh perspective
     log_detail("Calculating gradient with respect to X (dX) ...");
     aimatrix<T> dX = BaseOperator::matmul(dtanh, W.transpose());
-    log_matrix(this->dX);
+    log_matrix(dX);
 
     this->dH.push_back(dH);
     this->dX.push_back(dX);
@@ -190,6 +234,9 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_W  = new Optimizer<T>(optimizertype, learningRate);
         opt_U  = new Optimizer<T>(optimizertype, learningRate);
         opt_bh = new Optimizer<T>(optimizertype, learningRate);
+        if (rnntype == RNNType::ONE_TO_MANY) {
+            opt_O  = new Optimizer<T>(optimizertype, learningRate);
+        }
     }
     log_detail("Updating W in RNN Cell ...");
     opt_W->update(optimizertype, this->W, this->dW, iter);
@@ -204,6 +251,12 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     this->dW.setZero();
     this->dU.setZero();
     this->dbh.setZero();
+
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        log_detail("Updating O in RNN Cell ...");
+        opt_O->update(optimizertype, this->O, this->dO, iter);
+        this->dO.setZero();
+    }
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -222,6 +275,7 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     // Initialize parameters (weights and biases)
     // Note: Initialize these parameters according to your initialization strategy
 
+    // Cell Shared Weights
     Wf.resize(this->param_size, this->hidden_size);
     Wi.resize(this->param_size, this->hidden_size);
     Wg.resize(this->param_size, this->hidden_size);
@@ -231,7 +285,6 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     Ui.resize(this->hidden_size, this->hidden_size);
     Ug.resize(this->hidden_size, this->hidden_size);
     Uo.resize(this->hidden_size, this->hidden_size);
-
 
     bf.resize(this->hidden_size);
     bi.resize(this->hidden_size);
@@ -268,6 +321,21 @@ void LSTMCell<T>::setInitialWeights(int N, int P) {
     dbg = airowvector<T>::Zero(this->hidden_size);
     dbo = airowvector<T>::Zero(this->hidden_size);
 
+    // This weight is required for subsequent ONE_TO_MANY time_steps.
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        Of.resize(this->output_size, this->hidden_size); 
+        Oi.resize(this->output_size, this->hidden_size); 
+        Og.resize(this->output_size, this->hidden_size); 
+        Oo.resize(this->output_size, this->hidden_size); 
+        BaseOperator::heInitMatrix(Of);
+        BaseOperator::heInitMatrix(Oi);
+        BaseOperator::heInitMatrix(Og);
+        BaseOperator::heInitMatrix(Oo);
+        dOf = aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+        dOi = aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+        dOg = aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+        dOo = aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+    }
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     aimatrix<T> C  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     H.setConstant(T(1e-8));
@@ -283,12 +351,19 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     log_detail("===============================================");
     log_detail("LSTMCell Forward Pass ...");
 
+    int step = this->X.size();
+
     this->X.push_back(X);
 
     setInitialWeights(X.rows(), X.cols());
 
-    aimatrix<T> H = this->H.back();
-    aimatrix<T> C = this->C.back();
+    aimatrix<T> H = this->H.back(); // Hidden state at t-1
+    aimatrix<T> C = this->C.back(); // Cell state at t-1
+
+    aimatrix<T> Wf =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wf : this->Of;
+    aimatrix<T> Wi =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wi : this->Oi;
+    aimatrix<T> Wg =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wg : this->Og;
+    aimatrix<T> Wo =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wo : this->Oo;
 
     log_detail("Dimension of Wf: {0}x{1}", Wf.rows(), Wf.cols());
     log_matrix(Wf);
@@ -518,6 +593,13 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
         opt_bi = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
         opt_bo = new Optimizer<T>(optimizertype, learningRate);
+
+        if (rnntype == RNNType::ONE_TO_MANY) {
+            opt_Of = new Optimizer<T>(optimizertype, learningRate);
+            opt_Oi = new Optimizer<T>(optimizertype, learningRate);
+            opt_Og = new Optimizer<T>(optimizertype, learningRate);
+            opt_Oo = new Optimizer<T>(optimizertype, learningRate);
+        }
     }
 
     log_detail("Updating Wf in LSTM Cell ...");
@@ -570,6 +652,20 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
     this->dbg.setZero();
     this->dbo.setZero();
 
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        log_detail("Updating Of in LSTM Cell ...");
+        opt_Of->update(optimizertype, this->Of, this->dOf, iter);
+        log_detail("Updating Oi in LSTM Cell ...");
+        opt_Oi->update(optimizertype, this->Oi, this->dOi, iter);
+        log_detail("Updating Og in LSTM Cell ...");
+        opt_Og->update(optimizertype, this->Og, this->dOg, iter);
+        log_detail("Updating Og in LSTM Cell ...");
+        opt_Oo->update(optimizertype, this->Oo, this->dOo, iter);
+        this->dOf.setZero();
+        this->dOi.setZero();
+        this->dOg.setZero();
+        this->dOo.setZero();
+    }
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -606,6 +702,8 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     bz.setConstant(T(0.01));
     br.setConstant(T(0.01));
     bg.setConstant(T(0.01));
+
+
     dWz = aimatrix<T>::Zero(this->param_size, this->hidden_size);
     dWr = aimatrix<T>::Zero(this->param_size, this->hidden_size);
     dWg = aimatrix<T>::Zero(this->param_size, this->hidden_size);
@@ -618,6 +716,18 @@ void GRUCell<T>::setInitialWeights(int N, int P) {
     dbr = airowvector<T>::Zero(this->hidden_size);
     dbg = airowvector<T>::Zero(this->hidden_size);
 
+    // This weight is required for subsequent ONE_TO_MANY time_steps.
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        Oz.resize(this->output_size, this->hidden_size); 
+        Or.resize(this->output_size, this->hidden_size); 
+        Og.resize(this->output_size, this->hidden_size); 
+        BaseOperator::heInitMatrix(Oz);
+        BaseOperator::heInitMatrix(Or);
+        BaseOperator::heInitMatrix(Og);
+        dOz.aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+        dOr.aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+        dOg.aimatrix<T>::Zero(this->output_size, this->hidden_size); 
+    }
     aimatrix<T> H  = aimatrix<T>::Zero(this->input_size, this->hidden_size);
     this->H.push_back(H);
 
@@ -629,11 +739,17 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
     log_detail("===============================================");
     log_detail("GRUCell Forward Pass ...");
 
+    int step = this->X.size();
+
     this->X.push_back(X);
 
     setInitialWeights(X.rows(), X.cols());
 
     aimatrix<T> H = this->H.back(); // Hidden state at t-1
+
+    aimatrix<T> Wz =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wz : this->Oz;
+    aimatrix<T> Wr =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wr : this->Or;
+    aimatrix<T> Wg =  (this->rnntype != RNNType::ONE_TO_MANY || (this->rnntype == RNNType::ONE_TO_MANY && step == 0)) ?  this->Wg : this->Og;
 
     // Calculate the update gate using input, hidden state, and biases (nxp * pxh + nxh * hxh  = nxh)
     aimatrix<T> Zt =  BaseOperator::sigmoid((aimatrix<T>)((BaseOperator::matmul(X, Wz) + BaseOperator::matmul(H, Uz)).rowwise() + bz));
@@ -703,7 +819,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     aimatrix<T> dRt = (dGt.array() * (H * Ur).array()  * (1 - Rt.array().square())) * Rt.array() * (1 - Rt.array());
 
     aimatrix<T> RH = Rt.array() * H.array();
-
+ 
     // Compute gradients with respect to hidden-to-hidden weights Wz, Wr, Wg
     aimatrix<T> dWz_ = BaseOperator::matmul(X.transpose(), dZt); this->dWz += dWz_;
     aimatrix<T> dWr_ = BaseOperator::matmul(X.transpose(), dRt); this->dWr += dWr_;
@@ -760,6 +876,12 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
         opt_bz = new Optimizer<T>(optimizertype, learningRate);
         opt_br = new Optimizer<T>(optimizertype, learningRate);
         opt_bg = new Optimizer<T>(optimizertype, learningRate);
+
+        if (rnntype == RNNType::ONE_TO_MANY) {
+            opt_Oz = new Optimizer<T>(optimizertype, learningRate);
+            opt_Or = new Optimizer<T>(optimizertype, learningRate);
+            opt_Og = new Optimizer<T>(optimizertype, learningRate);
+        }
     }
     log_detail("Updating Wz in GRU Cell ...");
     opt_Wz->update(optimizertype, this->Wz, this->dWz, iter);
@@ -781,6 +903,7 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     opt_br->update(optimizertype, this->br, this->dbr, iter);
     log_detail("Updating bg in GRU Cell ...");
     opt_bg->update(optimizertype, this->bg, this->dbg, iter);
+
     this->Zt.clear();
     this->Rt.clear();
     this->Gt.clear();
@@ -801,6 +924,17 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     this->dbr.setZero();
     this->dbg.setZero();
 
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        log_detail("Updating Oz in GRU Cell ...");
+        opt_Oz->update(optimizertype, this->Oz, this->dOz, iter);
+        log_detail("Updating Or in GRU Cell ...");
+        opt_Or->update(optimizertype, this->Or, this->dOr, iter);
+        log_detail("Updating Og in GRU Cell ...");
+        opt_Og->update(optimizertype, this->Og, this->dOg, iter);
+        this->dOz.setZero();
+        this->dOr.setZero();
+        this->dOg.setZero();
+    }
     this->input_size = 0;
     this->param_size = 0;
 }
@@ -903,17 +1037,17 @@ std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, a
         if (rnntype == RNNType::MANY_TO_ONE) {
             return std::make_tuple(this->V.at(0), this->by.at(0));
         } else {
-            log_detail("Getting weight at step {0} ...", step);
+            log_detail("Getting weight {0}x{1} at step {2} ...", this->input_size, this->output_size, step);
             return std::make_tuple(this->V.at(step), this->by.at(step));
         }
     }
-    log_detail("Initializing  weight {0}x{1} at step {1} ...", out.cols(), this->output_size, step);
+    log_detail("Initializing  weight {0}x{1} at step {2} ...", out.cols(), this->output_size, step);
     aimatrix<T> V;
-    if (rnntype == RNNType::ONE_TO_MANY) {
-       V.resize(this->input_size, this->output_size);
-    } else {
+   // if (rnntype == RNNType::ONE_TO_MANY) {
+   //    V.resize(this->input_size, this->output_size);
+   // } else {
        V.resize(out.cols(), this->output_size);
-    } 
+   // } 
     airowvector<T> by(this->output_size);
     BaseOperator::heInitMatrix(V);
     by.setConstant(T(0.01));
@@ -921,7 +1055,7 @@ std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, a
     this->V.push_back(V);
     this->by.push_back(by);
 
-    log_detail("End Initializing  weight {0}x{1} at step {1} ...", out.cols(), this->output_size, step);
+    log_detail("End Initializing  weight {0}x{1} at step {2} ...", out.cols(), this->output_size, step);
 
     return std::make_tuple(V, by);
 }
@@ -940,8 +1074,18 @@ const aimatrix<T> RecurrentBase<T>::processPrediction(int step, const aimatrix<T
     //  Get weights for the output;
     std::tie(V, by) = getWeights(step, H);
 
+    log_detail("Get (H) new_H");
+    log_matrix(H);
+
+    log_detail("Get (V) weight");
+    log_matrix(V);
+
+    log_detail("Get (by) weight");
+    log_rowvector(by);
+
     if (this->getOType() == ActivationType::SOFTMAX) {
         log_detail("Non-Linearity (Softmax) ...");
+        log_matrix((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
         Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
     } else 
     if (this->getOType() == ActivationType::TANH) {
@@ -1077,6 +1221,13 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
     int embedding_size  = this->input_data.at(0).cols();
     int num_directions  = this->getNumDirections();
 
+    if (rnntype == RNNType::ONE_TO_MANY) {
+        sequence_length = this->getOutputSequenceLength();
+        if (sequence_length == 0) {
+            throw AIException("Sequence Length for One-To-Many Scenario not specified ...");
+        }
+    } 
+
     this->setSequenceLength(sequence_length);
     this->setInputSize(input_size);
     this->setEmbeddingSize(embedding_size);
@@ -1084,7 +1235,11 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
     log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", sequence_length, input_size, embedding_size );
     log_detail( "Number of Directions: {0}", num_directions );
 
-    aimatrix<T> input_batch; // absorves input from dataset or output from cell (in ONE_TO_MANY systems)
+    if (this->bidirectional == true &&  rnntype == RNNType::ONE_TO_MANY) {
+        throw AIException("Bidirectional RNN for One-To-Many Scenario is not allowed ...");
+    }
+
+    aimatrix<T> input_batch; // absorbs input from dataset or output from cell (in ONE_TO_MANY systems)
 
     for (int direction = 0; direction < num_directions; ++direction) {
 
@@ -1137,7 +1292,7 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
             if (direction == 0) {
                 log_detail("Add Forward Direction output ...");
 
-                // pass predicted output of hidden state to next cell as input.
+                // pass predicted output of hidden state to next time step as input in ONE_TO_MANY scenario.
                 if (rnntype == RNNType::ONE_TO_MANY) {
                     aimatrix<T> Yhat = processPrediction(step, input_batch);
                     input_batch = Yhat;
@@ -1155,8 +1310,9 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_detail("Processing Output ...");
 
+    // otherwise, if scenario is not ONE_TO_MANY, then generate output as is without passing to next time step.
     if (rnntype != RNNType::ONE_TO_MANY) {
-        aitensor<T> Yhat = processPredictions();
+        Yhat = processPredictions();
     }
 
     // marker to indicate the weights are all initialized, as they depend on these sizes.
@@ -1167,6 +1323,7 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
     return Yhat;
 }
 
+// For Many-To-Many or MANY-To-One Scenario
 template <class T>
 void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 
@@ -1180,14 +1337,20 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
     ActivationType       otype        = this->getOType();
     const aitensor<T>&   prediction   = this->getPrediction();
 
-    int last_sequence   = this->getSequenceLength(); // Default for MANY_TO_MANY or ONE_TO_MANY scenario
+    // Default for MANY_TO_MANY scenario
+    int last_sequence   = this->getSequenceLength(); 
 
+    // for ONE_TO_MANY scenario
+    if (this->rnntype == RNNType::ONE_TO_MANY) {
+        last_sequence = this->getOutputSequenceLength();
+    } else // For MANY_TO_ONE scenario
     if (this->rnntype == RNNType::MANY_TO_ONE) {
         last_sequence = 1; // consider only the first sequence, given we only have 1 matrix in the vector
     }
 
     for (int step = 0; step < last_sequence; ++step) {
 
+        log_detail("-----------------------------------------");
         log_detail("Sequence step {0} for gradient processing", step);
 
         // Process gradient for the activation operation
@@ -1197,6 +1360,9 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
         H = this->output.at(step);
         log_detail("Gradients (dOut) at step {0}", step);
         log_matrix(dOut);
+
+        log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
+        log_matrix(H);
 
         log_detail("Dimension of V: {0}x{1}", V.rows(), V.cols());
         log_matrix(V);
@@ -1232,7 +1398,7 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
         log_detail("Dimension of dV: {0}x{1}", dV.rows(), dV.cols());
         log_matrix(dV);
 
-        log_detail("dbo");
+        log_detail("dby");
         log_rowvector((airowvector<T>) dOut.colwise().sum());
 
         log_detail("Setting gradient at step {0} ...", step);
@@ -1241,8 +1407,13 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 
         // Calculate dInput (dnext_H)
         gradients.at(step) = BaseOperator::matmul(dOut, V.transpose());
-        log_detail("After image of gradient matrix:");
+        log_detail("After image of gradient (dnextH: BaseOperator::matmul(dOut, V.transpose())");
         log_matrix(gradients.at(step));
+
+        aimatrix<T> dInput = BaseOperator::matmul(H.transpose(), dOut);
+        log_detail("After image of gradient (new dV: BaseOperator::matmul(H.transpose(), dOut)");
+        log_matrix(dInput);
+
     }
     log_info("RecurrentBase Backward Pass end ...");
 }
@@ -1304,7 +1475,7 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
             dOutf.push_back(seq_f);
         }
         if (rnntype == RNNType::MANY_TO_ONE) {
-            break; // Since output is only one, then we take only the gradient.
+            break; // Since output is only one, then we take only the last gradient.
         }
     }
 
@@ -1396,6 +1567,17 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
     return dInput;
 }
 
+template<class T>
+void RecurrentBase<T>::clearCache() {
+    this->foutput.clear();
+    this->boutput.clear();
+    this->output.clear();
+    this->dV.clear();
+    this->dby.clear();
+    this->gradients.clear();
+    this->Yhat.clear();
+}
+
 template <class T>
 void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
@@ -1429,9 +1611,8 @@ void RecurrentBase<T>::updatingParameters(std::string& optimizertype, T& learnin
         this->opt_by.at(step)->update(optimizertype, this->by.at(step), this->dby.at(step), iter);
     }
 
-    // clear for the next training/epoch
-    this->dV.clear();
-    this->dby.clear();
+    // clear Cache for the next training/epoch
+    this->clearCache();
 
     // Retrieve sequence again since  MANY_TO_ONE scenario does not matter.
     sequence_length = this->getSequenceLength(); 

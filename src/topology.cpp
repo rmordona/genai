@@ -234,9 +234,6 @@ void Node<T>::forwardPass() {
     // See if we can perform reduction.
     aitensor<T> output = aggregateData(this->input_data); // see Node.setData
 
-    // If we are dealing with 3D
-    // aitensor<T> output_tensor = this->input_data_tensor; // see Node.setDataTensor
-
     for (const auto& op : operations ) {
         // Check the dynamic type of the object using dynamic_cast
         // if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {

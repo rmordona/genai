@@ -44,14 +44,14 @@ private:
     std::string losstype = "mse";
     std::string optimizertype = "adam";
     T learningRate = 0.01;
-    int itermax = 1;
+    int max_epoch = 1;
 public:
     BaseModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const T learningRate = 0.01, const int itermax = 1) {
+          const T learningRate = 0.01, const int max_epoch = 1) {
         this->losstype = losstype;
         this->optimizertype = optimizertype;
         this->learningRate = learningRate;
-        this->itermax = itermax;
+        this->max_epoch = max_epoch;
     }
 
     void setGraph(std::shared_ptr<Graph<T>>  graph);
@@ -68,7 +68,9 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, const T learningRate = 0.01, const int itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
+
+    void test() {}
 
 };
 
@@ -135,7 +137,7 @@ class Model {
 private:
     std::string losstype = "mse";
     std::string optimizertype = "adam";
-    int itermax = 1;
+    int max_epoch = 1;
     std::string datatype = "float";
     double learningRate = 0.01;
     std::shared_ptr<Graph<float>> graphXf;
@@ -174,7 +176,7 @@ public:
 
     void seedNodes();
 
-    void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int itermax = 1);
+    void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 
 };
 
@@ -391,13 +393,16 @@ class ModelRNN : public BaseOperator {
 private:
    int hidden_size;
    int output_size;
+   int output_sequence_length;
    int num_layers;
    bool bidirectional;
    RNNType rnntype;
 public: 
-    ModelRNN(int hidden_size = 1, int output_size = 3, int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
+    ModelRNN(int hidden_size = 1, int output_size = 3, int output_sequence_length = 1, 
+             int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
         this->hidden_size = hidden_size;
         this->output_size = output_size;
+        this->output_sequence_length = output_sequence_length;
         this->num_layers = num_layers;
         this->bidirectional = bidirectional;
         this->rnntype = rnntype;
@@ -405,6 +410,7 @@ public:
 
     int getHiddenSize() { return this->hidden_size; }
     int getOuputSize() { return this->output_size; }
+    int getOutputSequenceLength() { return this->output_sequence_length; }
     int getNumLayers() { return this->num_layers; }
     bool getBiDirection() { return this->bidirectional; }
     RNNType getRNNType() { return this->rnntype; }
@@ -421,13 +427,16 @@ class ModelLSTM : public BaseOperator {
 private:
    int hidden_size;
    int output_size;
+   int output_sequence_length;
    int num_layers;
    bool bidirectional;
    RNNType rnntype;
 public: 
-    ModelLSTM(int hidden_size = 1, int output_size = 3, int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
+    ModelLSTM(int hidden_size = 1, int output_size = 3, int output_sequence_length = 1, 
+              int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
         this->hidden_size = hidden_size;
         this->output_size = output_size;
+        this->output_sequence_length = output_sequence_length;
         this->num_layers = num_layers;
         this->bidirectional = bidirectional;
         this->rnntype = rnntype;
@@ -435,6 +444,7 @@ public:
 
     int getHiddenSize() { return this->hidden_size; }
     int getOuputSize() { return this->output_size; }
+    int getOutputSequenceLength() { return this->output_sequence_length; }
     int getNumLayers() { return this->num_layers; }
     bool getBiDirection() { return this->bidirectional; }
     RNNType getRNNType() { return this->rnntype; }
@@ -451,13 +461,16 @@ class ModelGRU : public BaseOperator {
 private:
    int hidden_size;
    int output_size;
+   int output_sequence_length;
    int num_layers;
    bool bidirectional;
    RNNType rnntype;
 public: 
-    ModelGRU(int hidden_size = 1, int output_size = 3, int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
+    ModelGRU(int hidden_size = 1, int output_size = 3, int output_sequence_length = 1, 
+             int num_layers = 1, bool bidirectional = true, RNNType rnntype = RNNType::MANY_TO_MANY) {
         this->hidden_size = hidden_size;
         this->output_size = output_size;
+        this->output_sequence_length = output_sequence_length;
         this->num_layers = num_layers;
         this->bidirectional = bidirectional;
         this->rnntype = rnntype;
@@ -465,6 +478,7 @@ public:
 
     int getHiddenSize() { return this->hidden_size; }
     int getOuputSize() { return this->output_size; }
+    int getOutputSequenceLength() { return this->output_sequence_length; }
     int getNumLayers() { return this->num_layers; }
     bool getBiDirection() { return this->bidirectional; }
     RNNType getRNNType() { return this->rnntype; }
