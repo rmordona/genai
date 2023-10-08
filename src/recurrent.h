@@ -230,14 +230,12 @@ private:
     Optimizer<T>* opt_Og  = nullptr; // for optimizer
     Optimizer<T>* opt_Oo  = nullptr; // for optimizer
 
-    int input_size;
-    int param_size;
+    int input_size = 0;
+    int param_size = 0;
     int hidden_size;
     int output_size;
     bool last_layer = false;
     RNNType rnntype = RNNType::MANY_TO_MANY;
-
-
 public:
     LSTMCell(int hidden_size, int output_size, bool last_layer, RNNType rnntype) : 
         hidden_size(hidden_size), output_size(output_size), last_layer(last_layer), rnntype(rnntype) {}
@@ -323,8 +321,8 @@ private:
     Optimizer<T>* opt_Or  = nullptr; // for optimizer
     Optimizer<T>* opt_Og  = nullptr; // for optimizer
 
-    int input_size;
-    int param_size;
+    int input_size = 0;
+    int param_size = 0;
     int hidden_size;
     int output_size;
     bool last_layer = false;
@@ -450,8 +448,8 @@ public:
     int getNumLayers() { return this->num_layers; }
 
     void setOutput(const aitensor<T>& output) { this->output = output; }
-    void setPrediction(const aitensor<T>& Yhat) { this->Yhat = Yhat; }
-    const aitensor<T>& getPrediction() { return this->Yhat; }
+    void setPredictions(const aitensor<T>& Yhat) { this->Yhat = Yhat; }
+    const aitensor<T>& getPredictions() { return this->Yhat; }
 
     void setGradients(const aitensor<T>& gradients) { this->gradients = gradients; }
     const aitensor<T>& getGradients() { return this->gradients; }
@@ -497,16 +495,14 @@ private:
     RecurrentBase<T>* rnnbase;
 public:
     RNN(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype) {
-            this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
+        this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_VANILLA);
     }
-
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
     void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
     void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
-
 };
 
 template <class T>
@@ -517,7 +513,6 @@ public:
     LSTM(int hidden_size, int output_size, int output_sequence_length, int num_layers, bool bidirectional, RNNType rnntype)  {
         this->rnnbase = new RecurrentBase<T>(hidden_size, output_size, output_sequence_length, num_layers, bidirectional, rnntype, CellType::RNN_LSTM);
     }
-
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);

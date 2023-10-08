@@ -541,12 +541,7 @@ class BaseOperator {
         int ldb = B.cols();  // leading dimension of B.
         int ldc = B.cols();  // leading dimension of C.
 
-        std::cout << "matmul:" << std::endl;
-        std::cout << "M:" << M << ", N:" << N << ", K:" << K << std::endl;
-
         aimatrix<float> C(M, N);
-
-        std::cout << "matmul declaration done ..." << std::endl;
 
         // Default:
         // Here we assume the following:
@@ -556,8 +551,6 @@ class BaseOperator {
 
         // For Eigen::RowMajor, use bellow instead:
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, M, N, K, alpha, A.data(), lda, B.data(), ldb, beta, C.data(), ldc);
-
-        std::cout << "cblas sgemm done ..." << std::endl;
 
         return C;
     }
