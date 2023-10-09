@@ -221,15 +221,13 @@ void Node<T>::propagateGradients(const aitensor<T>& gradients) {
 template <class T>
 void Node<T>::forwardPass() {
     // Propagate forward data to connected nodes
-    int size = operations.size();
-
     std::string name = this->getName();
 
     log_info( "**************************************" );
     log_info( "***      Node Forward Pass  **********" );
     log_info( "**************************************" );
 
-    log_detail("Node forward: ({0}) Operation Size: {1}", name, size);
+    log_detail("Node forward: ({0}) Operation Size: {1}", name, operations.size());
 
     // See if we can perform reduction.
     aitensor<T> output = aggregateData(this->input_data); // see Node.setData
@@ -238,7 +236,7 @@ void Node<T>::forwardPass() {
         // Check the dynamic type of the object using dynamic_cast
         // if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
         if (Linear<T>* linear = dynamic_cast<Linear<T>*>(op)) {
-            log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, size);
+            log_detail("Node [{0}] Linear Operation  (Forward Pass) Size: {1}", name, operations.size());
             output = linear->forward(output); 
             log_info("Returned Linear Forward pass with the below output ...");
             log_matrix( output );
@@ -314,15 +312,13 @@ void Node<T>::forwardPass() {
 template <class T>
 void Node<T>::backwardPass() {
     // Propagate backward gradients to connected nodes
-    int size = operations.size();
-
     std::string name = this->getName();
 
     log_info( "**************************************" );
     log_info( "***     Node Backward Pass  **********" );
     log_info( "**************************************" );
 
-    log_detail("Node: {0} Size: {1}", name, size);
+    log_detail("Node: {0} Size: {1}", name, operations.size());
 
     // Create a copy of the original vector
     std::vector<BaseOperator*> reversedOperations = operations;

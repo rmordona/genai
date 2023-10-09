@@ -55,7 +55,7 @@ void RNNCell<T>::setInitialWeights(int N, int P) {
 
     this->input_size = N;  
     this->param_size = P;  
-
+ 
     // Cell Shared Weights
     this->W.resize(this->param_size, this->hidden_size);
     this->U.resize(this->hidden_size, this->hidden_size);
@@ -174,7 +174,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const a
 
     if (is_W_seq) { 
         this->dW += dW_;       // current step
-        if (this->rnntype == RNNType::ONE_TO_MANY) {
+        if (this->rnntype == RNNType::ONE_TO_MANY && step==0) {
             this->dW += this->dO;  // previous steps
         } 
     } else {  
@@ -516,7 +516,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int 
         this->dWi += dWi_;       // current step
         this->dWg += dWg_;       // current step
         this->dWo += dWo_;       // current step
-        if (this->rnntype == RNNType::ONE_TO_MANY) {
+        if (this->rnntype == RNNType::ONE_TO_MANY && step == 0) {
             this->dWf += this->dOf;  // previous steps
             this->dWi += this->dOi;  // previous steps
             this->dWg += this->dOg;  // previous steps
@@ -831,8 +831,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
     aimatrix<T> Rt = this->Rt.at(step);
     aimatrix<T> Gt = this->Gt.at(step);
 
-    aimatrix<T> nH = this->H.at(step+1); // Hidden state at t
-    aimatrix<T> H  = this->H.at(step);
+    aimatrix<T> H  = this->H.at(step); // Hidden state at t-1
     aimatrix<T> X  = this->X.at(step);
 
     log_detail("Dimension of H: {0}x{1}", H.rows(), H.cols());
@@ -867,7 +866,7 @@ const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const a
         this->dWr += dWr_;       // current step
         log_detail("dWg_ {0}x{1}", dWg_.rows(), dWg_.cols());
         this->dWg += dWg_;       // current step
-        if (this->rnntype == RNNType::ONE_TO_MANY) {
+        if (this->rnntype == RNNType::ONE_TO_MANY && step == 0) {
         log_detail("this->dOz {0}x{1}", this->dOz.rows(), this->dOz.cols());
             this->dWz += this->dOz;  // previous steps
         log_detail("this->dOr {0}x{1}", this->dOr.rows(), this->dOr.cols());
@@ -1488,10 +1487,8 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
 
     int hidden_size = this->getHiddenSize();
 
-    int num_directions  = this->getNumDirections();
-
     log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", sequence_length, input_size, embedding_size );
-    log_detail( "Directions: {0}", num_directions );
+    log_detail( "Directions: {0}", this->getNumDirections() );
 
     this->processGradients(dOutput);
 
@@ -1499,7 +1496,7 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
     RNNType     rnntype = this->getRNNType();
 
     aitensor<T> dOutf, dOutb;
-
+ 
     int gradient_size = dOutput.size();  
  
     // Now, let us see if we need to split;
@@ -1570,22 +1567,28 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
             } else {
                 if (direction == 0) {
                     dOut = dOutf.at(step);
+                    log_detail("Forward (dOut): {0}x{1}", dOut.rows(), dOut.cols());
+                    log_matrix(dOut);
+                    log_detail("Forward (dnextH): {0}x{1}", dnextH.rows(), dnextH.cols());
+                    log_matrix(dnextH);
                     dnextH = dOut + dnextH;
                 } else {
                     dOut = dOutb.at(step);
+                    log_detail("Backward (dOut): {0}x{1}", dOut.rows(), dOut.cols());
+                    log_detail("Backward (dnextH): {0}x{1}", dnextH.rows(), dnextH.cols());
                     dnextH = dOut + dnextH;
                 }
             }
 
-            log_detail("dOut output:");
+            log_detail("dOut output: {0}x{1}", dOut.rows(), dOut.cols());
             log_matrix(dOut);
  
-            log_detail("dnextH input:");
+            log_detail("dnextH input: {0}x{1}", dnextH.rows(), dnextH.cols());
             log_matrix(dnextH);
 
             // Backward pass through each layer of the RNN
             for (int layer = this->getNumLayers() - 1; layer >= 0; --layer) {
-                log_detail("Entering Cell Backward pass ... layer {0}", layer);
+                log_detail("Entering Cell Layer Backward pass ... layer {0}", layer);
 
                 if (celltype == CellType::RNN_VANILLA) {
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
@@ -1600,10 +1603,13 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
                     std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
                 } 
-                log_detail("Cell Backward pass output");
-                log_detail("dOuts output:");
-                log_matrix(dnextH);
-                    dnextH = dOut + dnextH;
+                log_detail("Cell Backward pass output (Layer {0})", layer);
+            log_detail("Backward dOut output: {0}x{1}", dOut.rows(), dOut.cols());
+            log_matrix(dOut);
+ 
+            log_detail("Backward dnextH input: {0}x{1}", dnextH.rows(), dnextH.cols());
+            log_matrix(dnextH);
+                // dnextH = dOut + dnextH;
             }
 
 

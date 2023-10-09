@@ -672,12 +672,9 @@ const aitensor<T> Linear<T>::backward(const aitensor<T>& gradients) {
     log_info("===========================================");
     log_info( "Entering Linear Gradient Backward pass ..." );
 
-    aimatrix<T>& weights = parameters.weights;
-    airowvector<T>& biases = parameters.biases;
-
-    log_detail( "Size of gradients: {:d}" , gradients.size()  );
-    log_detail( "Size of weights: {:d}"  , weights.size()  );
-    log_detail( "Size of biases: {:d}" , biases.size()  );
+    log_detail( "Size of gradients: {:d}" , parameters.biases.size()  );
+    log_detail( "Size of weights: {:d}"  , parameters.weights.size()  );
+    log_detail( "Size of biases: {:d}" , parameters.biases.size()  );
     log_detail( "---" );
     log_detail( "Computing Gradient now ..." );
 

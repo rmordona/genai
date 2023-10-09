@@ -1,600 +1,400 @@
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ... 14.66211 ... Elapsed 0.003512 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ... 12.31806 ... Elapsed 0.002959 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ... 10.21881 ... Elapsed 0.002841 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  7.46584 ... Elapsed 0.002725 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  5.93678 ... Elapsed 0.002645 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  4.47420 ... Elapsed 0.00264 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  3.47265 ... Elapsed 0.002657 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  2.36969 ... Elapsed 0.002624 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.76445 ... Elapsed 0.002687 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.37052 ... Elapsed 0.002585 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.37757 ... Elapsed 0.002608 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.07125 ... Elapsed 0.002688 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.18268 ... Elapsed 0.002638 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.32041 ... Elapsed 0.002654 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.11230 ... Elapsed 0.00266 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.28855 ... Elapsed 0.002657 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.36972 ... Elapsed 0.002709 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.22699 ... Elapsed 0.002558 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.23131 ... Elapsed 0.00264 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.11894 ... Elapsed 0.002644 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.28355 ... Elapsed 0.00272 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.96034 ... Elapsed 0.00267 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.10759 ... Elapsed 0.002636 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.88869 ... Elapsed 0.002549 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.25343 ... Elapsed 0.002562 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.78921 ... Elapsed 0.002495 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.64655 ... Elapsed 0.002549 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.15046 ... Elapsed 0.002565 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.68192 ... Elapsed 0.002529 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.60419 ... Elapsed 0.002592 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57178 ... Elapsed 0.0027 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.99104 ... Elapsed 0.002523 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.02705 ... Elapsed 0.002481 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.72633 ... Elapsed 0.002526 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57446 ... Elapsed 0.002678 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.98492 ... Elapsed 0.002586 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.53188 ... Elapsed 0.002589 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47113 ... Elapsed 0.002472 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.99733 ... Elapsed 0.002563 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.65938 ... Elapsed 0.002572 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57262 ... Elapsed 0.002577 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.93382 ... Elapsed 0.002518 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.65376 ... Elapsed 0.002515 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.60369 ... Elapsed 0.002528 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46940 ... Elapsed 0.00257 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.62155 ... Elapsed 0.002556 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.62439 ... Elapsed 0.002597 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.59566 ... Elapsed 0.002726 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49567 ... Elapsed 0.002537 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57165 ... Elapsed 0.002524 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57905 ... Elapsed 0.003194 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49698 ... Elapsed 0.002643 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.61763 ... Elapsed 0.002548 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47589 ... Elapsed 0.040399 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57626 ... Elapsed 0.002707 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.52242 ... Elapsed 0.002506 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48803 ... Elapsed 0.002577 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.51461 ... Elapsed 0.00266 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.52442 ... Elapsed 0.002557 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45943 ... Elapsed 0.002576 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48788 ... Elapsed 0.002509 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48509 ... Elapsed 0.002521 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48751 ... Elapsed 0.002589 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49357 ... Elapsed 0.002552 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43359 ... Elapsed 0.00254 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.57999 ... Elapsed 0.002559 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.61671 ... Elapsed 0.002668 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46599 ... Elapsed 0.002552 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44963 ... Elapsed 0.002637 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45842 ... Elapsed 0.002501 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46156 ... Elapsed 0.002666 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45894 ... Elapsed 0.00258 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45188 ... Elapsed 0.002622 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.52069 ... Elapsed 0.002552 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47385 ... Elapsed 0.002495 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46006 ... Elapsed 0.00261 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48001 ... Elapsed 0.002538 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46597 ... Elapsed 0.0026 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45743 ... Elapsed 0.002606 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44520 ... Elapsed 0.002563 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49262 ... Elapsed 0.002536 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45624 ... Elapsed 0.002712 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47135 ... Elapsed 0.002586 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44494 ... Elapsed 0.002748 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47031 ... Elapsed 0.00262 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46444 ... Elapsed 0.002647 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46221 ... Elapsed 0.002769 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46657 ... Elapsed 0.002616 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45456 ... Elapsed 0.002481 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49758 ... Elapsed 0.002643 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.95679 ... Elapsed 0.002729 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45778 ... Elapsed 0.00253 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45584 ... Elapsed 0.002631 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47294 ... Elapsed 0.002529 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46900 ... Elapsed 0.002565 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45399 ... Elapsed 0.002568 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46325 ... Elapsed 0.00274 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46779 ... Elapsed 0.002617 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45024 ... Elapsed 0.002545 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44144 ... Elapsed 0.002561 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44691 ... Elapsed 0.002608 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48738 ... Elapsed 0.002488 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44554 ... Elapsed 0.002613 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47003 ... Elapsed 0.002609 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47717 ... Elapsed 0.00256 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44472 ... Elapsed 0.011353 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44500 ... Elapsed 0.002563 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44619 ... Elapsed 0.002537 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44598 ... Elapsed 0.002551 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44635 ... Elapsed 0.002618 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44662 ... Elapsed 0.002511 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47687 ... Elapsed 0.002458 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44036 ... Elapsed 0.002477 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44462 ... Elapsed 0.002469 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44721 ... Elapsed 0.002457 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44822 ... Elapsed 0.00275 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48262 ... Elapsed 0.002569 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  1.04283 ... Elapsed 0.002559 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45236 ... Elapsed 0.002631 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45029 ... Elapsed 0.002624 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46030 ... Elapsed 0.002491 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46253 ... Elapsed 0.002585 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45820 ... Elapsed 0.002577 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45583 ... Elapsed 0.002652 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46012 ... Elapsed 0.00261 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44657 ... Elapsed 0.002638 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45141 ... Elapsed 0.002479 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44816 ... Elapsed 0.002554 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.42315 ... Elapsed 0.002574 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.50053 ... Elapsed 0.002566 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45921 ... Elapsed 0.002579 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.67851 ... Elapsed 0.002737 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45233 ... Elapsed 0.00256 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.52425 ... Elapsed 0.002658 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44433 ... Elapsed 0.002589 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45489 ... Elapsed 0.002495 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44686 ... Elapsed 0.002558 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.58251 ... Elapsed 0.002682 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46673 ... Elapsed 0.002615 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45701 ... Elapsed 0.002608 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.71157 ... Elapsed 0.002555 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45749 ... Elapsed 0.002629 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43288 ... Elapsed 0.002552 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47178 ... Elapsed 0.002514 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45926 ... Elapsed 0.002608 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.58230 ... Elapsed 0.002609 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43694 ... Elapsed 0.002625 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47505 ... Elapsed 0.002663 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44980 ... Elapsed 0.002516 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.41696 ... Elapsed 0.002554 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45045 ... Elapsed 0.002645 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.53408 ... Elapsed 0.002617 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46009 ... Elapsed 0.002625 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45302 ... Elapsed 0.002558 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.52686 ... Elapsed 0.002564 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44920 ... Elapsed 0.002702 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46274 ... Elapsed 0.00253 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44374 ... Elapsed 0.002957 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.47334 ... Elapsed 0.042517 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43882 ... Elapsed 0.002558 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46441 ... Elapsed 0.002472 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44928 ... Elapsed 0.00263 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45310 ... Elapsed 0.002593 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46445 ... Elapsed 0.00253 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45084 ... Elapsed 0.002533 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.51501 ... Elapsed 0.00265 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43430 ... Elapsed 0.002566 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44887 ... Elapsed 0.002673 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45740 ... Elapsed 0.002596 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46826 ... Elapsed 0.002536 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46800 ... Elapsed 0.002548 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.55458 ... Elapsed 0.002477 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44900 ... Elapsed 0.002587 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44546 ... Elapsed 0.002578 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45357 ... Elapsed 0.002574 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45724 ... Elapsed 0.002589 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44595 ... Elapsed 0.002597 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48947 ... Elapsed 0.002518 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46273 ... Elapsed 0.002555 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45647 ... Elapsed 0.002536 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.46441 ... Elapsed 0.002635 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45415 ... Elapsed 0.002544 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44593 ... Elapsed 0.002619 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44940 ... Elapsed 0.002621 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44686 ... Elapsed 0.002582 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44843 ... Elapsed 0.002576 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44676 ... Elapsed 0.0025 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.49551 ... Elapsed 0.002599 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43925 ... Elapsed 0.002575 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44482 ... Elapsed 0.002582 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.48124 ... Elapsed 0.00257 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44745 ... Elapsed 0.002607 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45626 ... Elapsed 0.002552 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.51129 ... Elapsed 0.00263 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44782 ... Elapsed 0.002568 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44724 ... Elapsed 0.002643 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.44752 ... Elapsed 0.002566 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.45080 ... Elapsed 0.002492 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43479 ... Elapsed 0.00258 at Sat Oct  7 23:15:03 2023
-tab(xyz):  Compute Loss ...
-tab(xyz):  Compute Loss ...  0.43742 ... Elapsed 0.002592 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:14.6621 ... elapsed 0.003512 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:12.3181 ... elapsed 0.002959 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:10.2188 ... elapsed 0.002841 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:7.46584 ... elapsed 0.002725 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:5.93678 ... elapsed 0.002645 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:4.4742 ... elapsed 0.00264 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:3.47265 ... elapsed 0.002657 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:2.36969 ... elapsed 0.002624 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.76445 ... elapsed 0.002687 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.37052 ... elapsed 0.002585 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.37757 ... elapsed 0.002608 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.07125 ... elapsed 0.002688 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.18268 ... elapsed 0.002638 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.32041 ... elapsed 0.002654 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.1123 ... elapsed 0.00266 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.28855 ... elapsed 0.002657 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.36972 ... elapsed 0.002709 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.22699 ... elapsed 0.002558 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.23131 ... elapsed 0.00264 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.11894 ... elapsed 0.002644 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.28355 ... elapsed 0.00272 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.960337 ... elapsed 0.00267 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.10759 ... elapsed 0.002636 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.888688 ... elapsed 0.002549 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.25343 ... elapsed 0.002562 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.789211 ... elapsed 0.002495 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.64655 ... elapsed 0.002549 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.15046 ... elapsed 0.002565 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.681916 ... elapsed 0.002529 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.604187 ... elapsed 0.002592 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.571783 ... elapsed 0.0027 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.991041 ... elapsed 0.002523 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.02705 ... elapsed 0.002481 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.726329 ... elapsed 0.002526 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.57446 ... elapsed 0.002678 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.984917 ... elapsed 0.002586 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.531883 ... elapsed 0.002589 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.471128 ... elapsed 0.002472 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.99733 ... elapsed 0.002563 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.659377 ... elapsed 0.002572 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.572621 ... elapsed 0.002577 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.933824 ... elapsed 0.002518 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.653755 ... elapsed 0.002515 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.603694 ... elapsed 0.002528 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.469396 ... elapsed 0.00257 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.621552 ... elapsed 0.002556 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.624386 ... elapsed 0.002597 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.595657 ... elapsed 0.002726 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.495673 ... elapsed 0.002537 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.571651 ... elapsed 0.002524 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.579047 ... elapsed 0.003194 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.496984 ... elapsed 0.002643 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.61763 ... elapsed 0.002548 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.475886 ... elapsed 0.040399 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.576261 ... elapsed 0.002707 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.522424 ... elapsed 0.002506 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.488026 ... elapsed 0.002577 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.514608 ... elapsed 0.00266 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.52442 ... elapsed 0.002557 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.459432 ... elapsed 0.002576 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.48788 ... elapsed 0.002509 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.485093 ... elapsed 0.002521 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.487509 ... elapsed 0.002589 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.493568 ... elapsed 0.002552 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.43359 ... elapsed 0.00254 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.579988 ... elapsed 0.002559 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.61671 ... elapsed 0.002668 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.465986 ... elapsed 0.002552 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.44963 ... elapsed 0.002637 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.458419 ... elapsed 0.002501 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.461559 ... elapsed 0.002666 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.458943 ... elapsed 0.00258 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.45188 ... elapsed 0.002622 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.520689 ... elapsed 0.002552 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.473846 ... elapsed 0.002495 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.460063 ... elapsed 0.00261 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.480014 ... elapsed 0.002538 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.465972 ... elapsed 0.0026 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.457428 ... elapsed 0.002606 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445202 ... elapsed 0.002563 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.492622 ... elapsed 0.002536 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.456242 ... elapsed 0.002712 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.471349 ... elapsed 0.002586 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444936 ... elapsed 0.002748 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.470312 ... elapsed 0.00262 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.46444 ... elapsed 0.002647 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.462205 ... elapsed 0.002769 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.466571 ... elapsed 0.002616 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.454559 ... elapsed 0.002481 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.497577 ... elapsed 0.002643 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.956789 ... elapsed 0.002729 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.457783 ... elapsed 0.00253 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.455837 ... elapsed 0.002631 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.472938 ... elapsed 0.002529 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.469003 ... elapsed 0.002565 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.453994 ... elapsed 0.002568 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.463247 ... elapsed 0.00274 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.467786 ... elapsed 0.002617 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.450238 ... elapsed 0.002545 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.441437 ... elapsed 0.002561 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446908 ... elapsed 0.002608 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.487381 ... elapsed 0.002488 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445536 ... elapsed 0.002613 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.470026 ... elapsed 0.002609 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.47717 ... elapsed 0.00256 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444723 ... elapsed 0.011353 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444995 ... elapsed 0.002563 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446191 ... elapsed 0.002537 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445977 ... elapsed 0.002551 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446348 ... elapsed 0.002618 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446619 ... elapsed 0.002511 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.47687 ... elapsed 0.002458 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.440364 ... elapsed 0.002477 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444619 ... elapsed 0.002469 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.447211 ... elapsed 0.002457 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.448215 ... elapsed 0.00275 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.482621 ... elapsed 0.002569 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:1.04283 ... elapsed 0.002559 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.452364 ... elapsed 0.002631 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.450293 ... elapsed 0.002624 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.460296 ... elapsed 0.002491 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.462526 ... elapsed 0.002585 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.4582 ... elapsed 0.002577 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.455828 ... elapsed 0.002652 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.460116 ... elapsed 0.00261 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446565 ... elapsed 0.002638 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.451407 ... elapsed 0.002479 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.448157 ... elapsed 0.002554 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.423151 ... elapsed 0.002574 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.500533 ... elapsed 0.002566 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.459213 ... elapsed 0.002579 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.67851 ... elapsed 0.002737 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.452329 ... elapsed 0.00256 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.524246 ... elapsed 0.002658 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444332 ... elapsed 0.002589 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.454887 ... elapsed 0.002495 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446864 ... elapsed 0.002558 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.582508 ... elapsed 0.002682 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.466727 ... elapsed 0.002615 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.457006 ... elapsed 0.002608 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.711569 ... elapsed 0.002555 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.45749 ... elapsed 0.002629 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.432882 ... elapsed 0.002552 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.471776 ... elapsed 0.002514 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.459262 ... elapsed 0.002608 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.582305 ... elapsed 0.002609 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.436942 ... elapsed 0.002625 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.475049 ... elapsed 0.002663 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.449797 ... elapsed 0.002516 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.416956 ... elapsed 0.002554 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.450449 ... elapsed 0.002645 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.534083 ... elapsed 0.002617 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.460089 ... elapsed 0.002625 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.453018 ... elapsed 0.002558 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.526858 ... elapsed 0.002564 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.449202 ... elapsed 0.002702 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.462745 ... elapsed 0.00253 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.443743 ... elapsed 0.002957 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.473342 ... elapsed 0.042517 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.438816 ... elapsed 0.002558 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.464408 ... elapsed 0.002472 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.449281 ... elapsed 0.00263 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.453102 ... elapsed 0.002593 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.464448 ... elapsed 0.00253 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.450842 ... elapsed 0.002533 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.51501 ... elapsed 0.00265 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.434297 ... elapsed 0.002566 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.448869 ... elapsed 0.002673 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.457398 ... elapsed 0.002596 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.468257 ... elapsed 0.002536 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.468005 ... elapsed 0.002548 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.554581 ... elapsed 0.002477 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.448997 ... elapsed 0.002587 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445456 ... elapsed 0.002578 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.453568 ... elapsed 0.002574 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.457236 ... elapsed 0.002589 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445952 ... elapsed 0.002597 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.489468 ... elapsed 0.002518 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.462732 ... elapsed 0.002555 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.456473 ... elapsed 0.002536 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.464408 ... elapsed 0.002635 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.45415 ... elapsed 0.002544 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.445927 ... elapsed 0.002619 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.449405 ... elapsed 0.002621 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446861 ... elapsed 0.002582 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.448431 ... elapsed 0.002576 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.446755 ... elapsed 0.0025 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.495509 ... elapsed 0.002599 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.439248 ... elapsed 0.002575 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.444825 ... elapsed 0.002582 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.481245 ... elapsed 0.00257 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.447454 ... elapsed 0.002607 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.456259 ... elapsed 0.002552 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.511291 ... elapsed 0.00263 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.447817 ... elapsed 0.002568 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.447242 ... elapsed 0.002643 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.447515 ... elapsed 0.002566 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.450799 ... elapsed 0.002492 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.434788 ... elapsed 0.00258 at Sat Oct  7 23:15:03 2023
--------> Compute Loss:0.437417 ... elapsed 0.002592 at Sat Oct  7 23:15:03 2023
+-------> Compute Loss:9.92814 ... elapsed 0.006664 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:6.17803 ... elapsed 0.005914 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:3.26877 ... elapsed 0.005882 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:1.55761 ... elapsed 0.005625 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.893662 ... elapsed 0.005705 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.708424 ... elapsed 0.005539 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.850762 ... elapsed 0.005528 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:1.02 ... elapsed 0.005609 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:1.03032 ... elapsed 0.005484 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:1.09978 ... elapsed 0.005411 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:1.13524 ... elapsed 0.005473 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.92697 ... elapsed 0.005115 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.770791 ... elapsed 0.005047 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.706726 ... elapsed 0.004909 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.730884 ... elapsed 0.004957 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.667209 ... elapsed 0.005243 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.705011 ... elapsed 0.00515 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.773989 ... elapsed 0.005033 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.617672 ... elapsed 0.00509 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.646936 ... elapsed 0.005132 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.648012 ... elapsed 0.005017 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.558912 ... elapsed 0.00501 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.588513 ... elapsed 0.005066 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.621336 ... elapsed 0.004886 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.476223 ... elapsed 0.005125 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.727638 ... elapsed 0.005211 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.395209 ... elapsed 0.005365 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.570953 ... elapsed 0.005166 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.371373 ... elapsed 0.004855 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.393512 ... elapsed 0.005361 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.379254 ... elapsed 0.005254 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.422179 ... elapsed 0.005124 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.345867 ... elapsed 0.00487 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.278342 ... elapsed 0.005006 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.362661 ... elapsed 0.005046 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.435444 ... elapsed 0.004965 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.225321 ... elapsed 0.00502 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.214078 ... elapsed 0.005019 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.226226 ... elapsed 0.005046 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.260223 ... elapsed 0.004914 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.186236 ... elapsed 0.005077 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.208479 ... elapsed 0.005048 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.119926 ... elapsed 0.00491 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.20903 ... elapsed 0.005071 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0736182 ... elapsed 0.004932 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0950255 ... elapsed 0.004924 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.10846 ... elapsed 0.005084 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0742006 ... elapsed 0.005123 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0682963 ... elapsed 0.004993 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0727256 ... elapsed 0.005143 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0611474 ... elapsed 0.005268 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0634698 ... elapsed 0.005245 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0769211 ... elapsed 0.005246 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0540375 ... elapsed 0.005048 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0804786 ... elapsed 0.004948 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.051683 ... elapsed 0.00512 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0377948 ... elapsed 0.005274 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0349783 ... elapsed 0.005083 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0683862 ... elapsed 0.005103 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.354418 ... elapsed 0.004986 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0424969 ... elapsed 0.004926 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0457048 ... elapsed 0.005116 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0383038 ... elapsed 0.005218 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.154872 ... elapsed 0.005241 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0340326 ... elapsed 0.005303 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0267258 ... elapsed 0.005454 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0339227 ... elapsed 0.004981 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0755429 ... elapsed 0.004885 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0285014 ... elapsed 0.005024 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0285423 ... elapsed 0.005333 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0313768 ... elapsed 0.005065 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0276992 ... elapsed 0.004971 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0312489 ... elapsed 0.006137 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.228663 ... elapsed 0.004916 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0275598 ... elapsed 0.005222 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0259566 ... elapsed 0.005399 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0265788 ... elapsed 0.005323 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0314836 ... elapsed 0.005123 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0315573 ... elapsed 0.005401 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0271733 ... elapsed 0.005097 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0301515 ... elapsed 0.005018 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0259843 ... elapsed 0.004992 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0257663 ... elapsed 0.005074 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.101451 ... elapsed 0.005173 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0259921 ... elapsed 0.005036 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.134306 ... elapsed 0.005149 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0257706 ... elapsed 0.004885 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0403231 ... elapsed 0.005006 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0321015 ... elapsed 0.005276 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.040003 ... elapsed 0.005136 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0297852 ... elapsed 0.005184 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0921725 ... elapsed 0.005213 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.114569 ... elapsed 0.005005 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0401107 ... elapsed 0.005286 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0397606 ... elapsed 0.005258 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0385714 ... elapsed 0.004903 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0418346 ... elapsed 0.004951 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0271928 ... elapsed 0.005183 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.322945 ... elapsed 0.005368 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0261283 ... elapsed 0.005419 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0282454 ... elapsed 0.005342 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0253997 ... elapsed 0.005162 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0284393 ... elapsed 0.004954 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0302973 ... elapsed 0.004909 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0265091 ... elapsed 0.005249 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0274433 ... elapsed 0.004966 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.027037 ... elapsed 0.004956 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0265692 ... elapsed 0.00518 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0260643 ... elapsed 0.005053 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0256007 ... elapsed 0.00507 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0341678 ... elapsed 0.005188 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0263193 ... elapsed 0.005272 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0267339 ... elapsed 0.004957 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0428244 ... elapsed 0.004922 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.15288 ... elapsed 0.00519 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0269074 ... elapsed 0.005046 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0259636 ... elapsed 0.005198 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0362184 ... elapsed 0.005215 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0579346 ... elapsed 0.005392 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0385852 ... elapsed 0.005231 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0301198 ... elapsed 0.005015 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0314626 ... elapsed 0.004929 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0278244 ... elapsed 0.004866 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.027407 ... elapsed 0.04092 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0294309 ... elapsed 0.005855 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0276265 ... elapsed 0.005273 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.029497 ... elapsed 0.0051 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0278544 ... elapsed 0.005018 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0300927 ... elapsed 0.005059 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0265826 ... elapsed 0.005075 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0356016 ... elapsed 0.005501 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0256517 ... elapsed 0.005199 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0263532 ... elapsed 0.005082 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0313316 ... elapsed 0.005066 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0273915 ... elapsed 0.005307 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0252412 ... elapsed 0.005204 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0286288 ... elapsed 0.00543 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0264952 ... elapsed 0.004878 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0558846 ... elapsed 0.00502 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0254509 ... elapsed 0.005059 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0296587 ... elapsed 0.005019 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0277075 ... elapsed 0.005249 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0303699 ... elapsed 0.005252 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0275571 ... elapsed 0.005507 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0354145 ... elapsed 0.005191 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0284237 ... elapsed 0.005367 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0308984 ... elapsed 0.005123 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0264265 ... elapsed 0.009723 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0267548 ... elapsed 0.005781 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0317452 ... elapsed 0.005945 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0302867 ... elapsed 0.005833 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0283795 ... elapsed 0.005704 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0347672 ... elapsed 0.005623 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0284114 ... elapsed 0.005643 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0327071 ... elapsed 0.005918 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.147375 ... elapsed 0.005686 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0415479 ... elapsed 0.005742 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0778001 ... elapsed 0.005805 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0475984 ... elapsed 0.005636 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0437342 ... elapsed 0.005664 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0885885 ... elapsed 0.005786 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0382603 ... elapsed 0.005617 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.114515 ... elapsed 0.005616 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.0457176 ... elapsed 0.005564 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.146796 ... elapsed 0.005713 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.026249 ... elapsed 0.005865 at Mon Oct  9 07:28:02 2023
+-------> Compute Loss:0.257691 ... elapsed 0.005633 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.358144 ... elapsed 0.005782 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0266045 ... elapsed 0.005794 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0593378 ... elapsed 0.005758 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0705145 ... elapsed 0.005659 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0377774 ... elapsed 0.005779 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0500526 ... elapsed 0.005825 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.102215 ... elapsed 0.005709 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0338269 ... elapsed 0.005848 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0257985 ... elapsed 0.005559 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.056786 ... elapsed 0.005528 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0944622 ... elapsed 0.00567 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0286864 ... elapsed 0.005656 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.326402 ... elapsed 0.00547 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0661724 ... elapsed 0.005616 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0852891 ... elapsed 0.005703 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0871966 ... elapsed 0.005476 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0727909 ... elapsed 0.005758 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.042325 ... elapsed 0.005803 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0445088 ... elapsed 0.005694 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0371882 ... elapsed 0.005819 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0806399 ... elapsed 0.005581 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0543534 ... elapsed 0.005805 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.05213 ... elapsed 0.005804 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0318793 ... elapsed 0.005751 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.491424 ... elapsed 0.005652 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0456775 ... elapsed 0.00588 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0453886 ... elapsed 0.005703 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0678354 ... elapsed 0.0058 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.127011 ... elapsed 0.005879 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.467201 ... elapsed 0.005699 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0269717 ... elapsed 0.005744 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0943772 ... elapsed 0.005879 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0382333 ... elapsed 0.005722 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0348318 ... elapsed 0.005586 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0297305 ... elapsed 0.005731 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.430956 ... elapsed 0.005689 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0263259 ... elapsed 0.005741 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0342814 ... elapsed 0.005759 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.05922 ... elapsed 0.005777 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0446517 ... elapsed 0.006293 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0446722 ... elapsed 0.005634 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0403527 ... elapsed 0.006155 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0279885 ... elapsed 0.005791 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0279455 ... elapsed 0.005666 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.029855 ... elapsed 0.005734 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0324817 ... elapsed 0.005824 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0287872 ... elapsed 0.0057 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.299187 ... elapsed 0.005673 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0256583 ... elapsed 0.005891 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0305605 ... elapsed 0.005471 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.195457 ... elapsed 0.005563 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0459366 ... elapsed 0.005663 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0761404 ... elapsed 0.005975 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0709702 ... elapsed 0.005819 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0526784 ... elapsed 0.005679 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0291874 ... elapsed 0.005745 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.203409 ... elapsed 0.005597 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0304557 ... elapsed 0.005742 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0746962 ... elapsed 0.005791 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0300943 ... elapsed 0.005731 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.028458 ... elapsed 0.005505 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0384883 ... elapsed 0.005637 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0425685 ... elapsed 0.005865 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.323459 ... elapsed 0.005781 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0326956 ... elapsed 0.005708 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0404113 ... elapsed 0.005826 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0373206 ... elapsed 0.005512 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0312867 ... elapsed 0.005672 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0289376 ... elapsed 0.005939 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0256724 ... elapsed 0.005661 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.026584 ... elapsed 0.006072 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0261193 ... elapsed 0.005901 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0711255 ... elapsed 0.005874 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.02696 ... elapsed 0.005848 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.182125 ... elapsed 0.005683 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0274493 ... elapsed 0.005679 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0389736 ... elapsed 0.005731 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0406369 ... elapsed 0.005795 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.04371 ... elapsed 0.005701 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0376627 ... elapsed 0.005748 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0471799 ... elapsed 0.00585 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.171626 ... elapsed 0.005643 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0362767 ... elapsed 0.005645 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.262045 ... elapsed 0.005894 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0376148 ... elapsed 0.005678 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.045795 ... elapsed 0.005926 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0838652 ... elapsed 0.005695 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0632082 ... elapsed 0.005801 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0272752 ... elapsed 0.005912 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0313794 ... elapsed 0.005816 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0347764 ... elapsed 0.005517 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0391369 ... elapsed 0.0057 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0366963 ... elapsed 0.00563 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0320378 ... elapsed 0.005618 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0284893 ... elapsed 0.005974 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.320093 ... elapsed 0.005665 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.082093 ... elapsed 0.005567 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0603229 ... elapsed 0.005661 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0943595 ... elapsed 0.005883 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.121409 ... elapsed 0.005757 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0746684 ... elapsed 0.005496 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0331676 ... elapsed 0.005846 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0362354 ... elapsed 0.005724 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0677746 ... elapsed 0.005803 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0770593 ... elapsed 0.005724 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0525091 ... elapsed 0.005817 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0328368 ... elapsed 0.005777 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0269513 ... elapsed 0.005613 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0345051 ... elapsed 0.005594 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.039256 ... elapsed 0.005899 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0393832 ... elapsed 0.005519 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0277021 ... elapsed 0.005696 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.02651 ... elapsed 0.005838 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0310024 ... elapsed 0.005784 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0272649 ... elapsed 0.00574 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0268526 ... elapsed 0.005917 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0259806 ... elapsed 0.005765 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0253706 ... elapsed 0.00575 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0330545 ... elapsed 0.005775 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0257484 ... elapsed 0.005811 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0259574 ... elapsed 0.005908 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0254616 ... elapsed 0.005542 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0266935 ... elapsed 0.005514 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0261876 ... elapsed 0.005596 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0255765 ... elapsed 0.005724 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0358995 ... elapsed 0.005746 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.149901 ... elapsed 0.006006 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0259053 ... elapsed 0.005781 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0322163 ... elapsed 0.005546 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0395456 ... elapsed 0.00585 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.213351 ... elapsed 0.005824 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0371973 ... elapsed 0.005755 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.04199 ... elapsed 0.005972 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0301127 ... elapsed 0.005808 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0292047 ... elapsed 0.005539 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0269715 ... elapsed 0.013755 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0265309 ... elapsed 0.005548 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0267757 ... elapsed 0.005884 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0269438 ... elapsed 0.005659 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.027228 ... elapsed 0.005738 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0304342 ... elapsed 0.005692 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0268964 ... elapsed 0.005817 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0265127 ... elapsed 0.005775 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0270696 ... elapsed 0.005696 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.027965 ... elapsed 0.005623 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0273514 ... elapsed 0.005807 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:1.01459 ... elapsed 0.005751 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.027334 ... elapsed 0.005731 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0753501 ... elapsed 0.00563 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0924768 ... elapsed 0.005626 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0379205 ... elapsed 0.0056 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0558203 ... elapsed 0.005814 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0285523 ... elapsed 0.005719 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0454816 ... elapsed 0.005573 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0340474 ... elapsed 0.005771 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.590054 ... elapsed 0.00567 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0280203 ... elapsed 0.005528 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0303394 ... elapsed 0.005798 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0358853 ... elapsed 0.005672 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0723656 ... elapsed 0.005722 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0622072 ... elapsed 0.00594 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0301642 ... elapsed 0.005631 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0281125 ... elapsed 0.005727 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.317973 ... elapsed 0.005744 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0320128 ... elapsed 0.005446 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0285929 ... elapsed 0.005578 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.028322 ... elapsed 0.00583 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0390219 ... elapsed 0.005606 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0319624 ... elapsed 0.005496 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.029009 ... elapsed 0.005684 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0253232 ... elapsed 0.005554 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0325413 ... elapsed 0.005557 at Mon Oct  9 07:28:03 2023
+-------> Compute Loss:0.0267105 ... elapsed 0.005815 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0270435 ... elapsed 0.005654 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256081 ... elapsed 0.005617 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0255416 ... elapsed 0.005897 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0265241 ... elapsed 0.005571 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0255515 ... elapsed 0.005446 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0261985 ... elapsed 0.005771 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0261384 ... elapsed 0.005681 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0259958 ... elapsed 0.00574 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0252387 ... elapsed 0.005705 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0254111 ... elapsed 0.005825 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0257699 ... elapsed 0.005742 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0258594 ... elapsed 0.005706 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256994 ... elapsed 0.005786 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0252711 ... elapsed 0.005681 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253472 ... elapsed 0.005636 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0255253 ... elapsed 0.005827 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0255237 ... elapsed 0.005898 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0254776 ... elapsed 0.005552 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0364243 ... elapsed 0.005579 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253344 ... elapsed 0.005703 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253674 ... elapsed 0.005676 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253551 ... elapsed 0.00567 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0518082 ... elapsed 0.005826 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0257875 ... elapsed 0.005558 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0280511 ... elapsed 0.005641 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.030211 ... elapsed 0.005675 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0450463 ... elapsed 0.005458 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0280431 ... elapsed 0.005779 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0267607 ... elapsed 0.005929 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0264855 ... elapsed 0.005693 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0268942 ... elapsed 0.005671 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0336196 ... elapsed 0.005712 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256046 ... elapsed 0.00561 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0258103 ... elapsed 0.005694 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0276452 ... elapsed 0.005848 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0260468 ... elapsed 0.005808 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.025601 ... elapsed 0.00569 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.026762 ... elapsed 0.005542 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0254704 ... elapsed 0.005581 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256731 ... elapsed 0.005628 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0259539 ... elapsed 0.005801 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0254432 ... elapsed 0.005575 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0252529 ... elapsed 0.005986 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253096 ... elapsed 0.005836 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253898 ... elapsed 0.005655 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0258462 ... elapsed 0.005422 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256654 ... elapsed 0.005783 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253516 ... elapsed 0.00552 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253379 ... elapsed 0.005611 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0254712 ... elapsed 0.005756 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256425 ... elapsed 0.005607 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0256049 ... elapsed 0.005796 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.025249 ... elapsed 0.005808 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253112 ... elapsed 0.005593 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0255124 ... elapsed 0.005757 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.025487 ... elapsed 0.005706 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253147 ... elapsed 0.005493 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253508 ... elapsed 0.005811 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0252733 ... elapsed 0.005796 at Mon Oct  9 07:28:04 2023
+-------> Compute Loss:0.0253456 ... elapsed 0.005672 at Mon Oct  9 07:28:04 2023

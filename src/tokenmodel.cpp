@@ -457,11 +457,10 @@ void TokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSi
 
     int vocabSize     = wordEmbeddings.rows();
     int embeddingSize = wordEmbeddings.cols();
-    int tokenSize = tokenHashToIndex.size();
 
     log_detail( "Vocabulary Size: {:d}",  vocabSize );
     log_detail( "Embedding Size: {:d}",  embeddingSize );
-    log_detail( "Token Size: {:d}", tokenSize );
+    log_detail( "Token Size: {:d}", tokenHashToIndex.size() );
 
     // Initialize Adagrad gradients
     aimatrix<T> adagradGradients = aimatrix<T>::Constant(vocabSize, embeddingSize, 1e-8);
