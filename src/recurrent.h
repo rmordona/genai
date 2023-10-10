@@ -64,12 +64,10 @@ public:
     virtual const aimatrix<T> forward(const aimatrix<T>& X) = 0; 
 
     // Used by vanilla RNN and GRU cells
-    virtual const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, 
-            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) = 0; 
+    virtual const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h) = 0; 
 
     // Used by LSTM Cell
-    virtual const std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> backward(int step, 
-            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) = 0;  
+    virtual const std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) = 0;  
 
     virtual void updateParameters(std::string& optimizertype, T& learningRate, int& iter) = 0;
 
@@ -136,11 +134,10 @@ public:
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
-    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h);
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h);
 
     // Not used by RNNCell
-    const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
-            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+    const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step,  const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
             return std::make_tuple(aimatrix<T>(), aimatrix<T>(), aimatrix<T>());
     } 
 
@@ -244,11 +241,11 @@ public:
     const aimatrix<T> forward(const aimatrix<T>& X);
 
     // Not used by LSTMCell
-    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h)  {
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h)  {
             return std::make_tuple(aimatrix<T>(), aimatrix<T>());
     } 
     const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
-            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c);
+            const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 };
@@ -334,11 +331,11 @@ public:
 
     void setInitialWeights(int N, int P);
     const aimatrix<T> forward(const aimatrix<T>& X);
-    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h);
+    const std::tuple<aimatrix<T>,aimatrix<T>> backward(int step, const aimatrix<T>& dnext_h);
 
     // Not used by GRUCell
     const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> backward(int step, 
-            const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+            const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
             return std::make_tuple(aimatrix<T>(), aimatrix<T>(), aimatrix<T>());
     } 
 

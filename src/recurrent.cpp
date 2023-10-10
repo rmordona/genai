@@ -136,7 +136,7 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) {
+const std::tuple<aimatrix<T>,aimatrix<T>> RNNCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for RNN
     log_detail("===============================================");
     log_detail("RNNCell Backward Pass ...");
@@ -421,8 +421,7 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int step, 
-        const aimatrix<T>& dOut, const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
+const std::tuple<aimatrix<T>,aimatrix<T>,aimatrix<T>> LSTMCell<T>::backward(int step,  const aimatrix<T>& dnext_h, const aimatrix<T>& dnext_c) {
     // Backpropagation logic for LSTM
     log_detail("===============================================");
     log_detail("LSTMCell Backward Pass ...");
@@ -816,7 +815,7 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
 }
 
 template <class T>
-const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const aimatrix<T>& dOut, const aimatrix<T>& dnext_h) {
+const std::tuple<aimatrix<T>,aimatrix<T>> GRUCell<T>::backward(int step, const aimatrix<T>& dnext_h) {
     // Backpropagation logic for GRU
 
     log_detail("===============================================");
@@ -1557,11 +1556,11 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                 if (step == sequence_length - 1) { 
                     if (direction == 0) {
                         dOut = dOutf.at(0);
-                        dnextH = dOutf.at(0) + dnextH;
+                        dnextH = dOutf.at(0) + dnextH;  // add contribution from Yhat and from other time steps
 
                     } else {
                         dOut = dOutb.at(0);
-                        dnextH = dOutb.at(0) + dnextH;
+                        dnextH = dOutb.at(0) + dnextH;  // add contribution from Yhat and from other time steps
                     }
                 } 
             } else {
@@ -1571,12 +1570,12 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
                     log_matrix(dOut);
                     log_detail("Forward (dnextH): {0}x{1}", dnextH.rows(), dnextH.cols());
                     log_matrix(dnextH);
-                    dnextH = dOut + dnextH;
+                    dnextH = dOut + dnextH;  // add contribution from Yhat and from other time steps
                 } else {
                     dOut = dOutb.at(step);
                     log_detail("Backward (dOut): {0}x{1}", dOut.rows(), dOut.cols());
                     log_detail("Backward (dnextH): {0}x{1}", dnextH.rows(), dnextH.cols());
-                    dnextH = dOut + dnextH;
+                    dnextH = dOut  + dnextH; // add contribution from Yhat and from other time steps
                 }
             }
 
@@ -1592,16 +1591,16 @@ const aitensor<T> RecurrentBase<T>::backwardpass(const aitensor<T>& gradients) {
 
                 if (celltype == CellType::RNN_VANILLA) {
                     RNNCell<T>* cell = dynamic_cast<RNNCell<T>*>(cells[layer]);
-                    std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
+                    std::tie(dOut, dnextH) = cell->backward(step, dnextH);
                 } else
                 if (celltype == CellType::RNN_LSTM) {
                     LSTMCell<T>* cell = dynamic_cast<LSTMCell<T>*>(cells[layer]);
-                    std::tie(dOut, dnextH, dnextC) = cell->backward(step, dOut, dnextH, dnextC);
+                    std::tie(dOut, dnextH, dnextC) = cell->backward(step, dnextH, dnextC);
                     dnextC = dOut + dnextC;
                 } else
                 if (celltype == CellType::RNN_GRU) {
                     GRUCell<T>* cell = dynamic_cast<GRUCell<T>*>(cells[layer]);
-                    std::tie(dOut, dnextH) = cell->backward(step, dOut, dnextH);
+                    std::tie(dOut, dnextH) = cell->backward(step, dnextH);
                 } 
                 log_detail("Cell Backward pass output (Layer {0})", layer);
             log_detail("Backward dOut output: {0}x{1}", dOut.rows(), dOut.cols());

@@ -65,8 +65,10 @@ static std::vector<aitensor<T>> head_split(const aitensor<T>& tensor, int splits
 template <class T>
 class Attention : public BaseOperator {
 private:
-
     aitensor<T> input_data;   // Input Dimention: BxNxM
+    aitensor<T> encoder_data;  // If we are passing an encoded input to a decoder
+    aitensor<T> encoder_gradient;  // If we are passing an encoded input to a decoder
+
     Linear<T>* Q  = nullptr;  // BxNxW
     Linear<T>* K  = nullptr;  // BxNxW
     Linear<T>* V  = nullptr;  // BxNxW
@@ -108,6 +110,19 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    // if passing encoded input to decoder, we take care of the K and V input.
+    void setEncoderData(const aitensor<T>& encoder_data) {
+        this->encoder_data = encoder_data;
+    }
+
+    void setEncoderGradient(const aitensor<T>& encoder_gradient) {
+        this->encoder_gradient = encoder_gradient;
+    }
+
+    const aitensor<T> getEncoderGradient() {
+        return this->encoder_gradient;
+    }
+
     void forwardPass() {}
     void backwardPass() {}
     std::string generateDotFormat();
@@ -121,8 +136,10 @@ template <class T>
 class MultiHeadAttention : public BaseOperator {
 private:
     aitensor<T> input_data; // NxW samples, by using & 
-    std::vector<Attention<T>*> M1;
+    aitensor<T> encoder_data;  // If we are passing an encoded input to a decoder
+    aitensor<T> encoder_gradient;  // If we are passing an encoded input to a decoder
 
+    std::vector<Attention<T>*> M1;
     bool bias = true;
 
     int B = 0;  // batch size
@@ -157,6 +174,15 @@ public:
     const aitensor<T> backward(const aitensor<T>& gradients);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    // if passing encoded input to decoder, we take care of the K and V input.
+    void setEncoderData(const aitensor<T>& encoder_data) {
+        this->encoder_data = encoder_data;
+    }
+
+    void setEncoderGradient(const aitensor<T>& encoder_gradient) {
+        this->encoder_gradient = encoder_gradient;
+    }
 
     void forwardPass() {}
     void backwardPass() {}
@@ -284,4 +310,73 @@ public:
 };
 
 
+/*****************************************************************************************************
+* Base Encoder  Layer
+*****************************************************************************************************/
+template <class T>
+class Decoder : public BaseOperator {
+private:
+    aitensor<T> input_data; // NxW samples, by using & 
+    MultiHeadAttention<T>* M1 = nullptr;
+    LayerNorm<T>* LN1 = nullptr;
+    MultiHeadAttention<T>* M2 = nullptr;
+    LayerNorm<T>* LN2 = nullptr;
+    FeedForward<T>* F1 = nullptr;
+    LayerNorm<T>* LN3 = nullptr;
+
+    aitensor<T> M1out; // Cache output for use by attention backprop
+    aitensor<T> M2out; // Cache output for use by attention backprop
+    aitensor<T> LN1out; // Cache output for use by feedforward backprop
+    aitensor<T> LN2out; // Cache output for use by feedforward backprop
+    aitensor<T> F1out; // Cache output for use by feedforward backprop
+
+    bool bias = true;
+    int B = 0;
+    int N = 0;
+    int M = 0;
+    int H = 0;
+    int W = 0;
+
+    std::string activationtype = "leakyrelu";
+    float alpha = 0.01; // for leakyReLU
+
+public:
+
+    Decoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+        this->activationtype = activationtype;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+        log_info( "**** Encoder instance created ****" );
+    }
+
+    Decoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+        log_info( "**** Encoder instance created ****" );
+    }
+
+    // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
+    // We only need the M dimension from an BxNxM input to generate parameter matrix.
+    // where weights is BxNxW and bias is W.
+    const aitensor<T> forward(const aitensor<T>& input_data);
+
+    // Leave the gradients as is. They are cached in the Node. 
+    // They will be used to update the parameters in next parallel operations.
+    // the dInput is the gradient we propagate to source Nodes in the graph;
+    // while the parameter gradients get cached to be used to update the parameters later.
+    const aitensor<T> backward(const aitensor<T>&  gradients);
+
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    void forwardPass() {}
+    void backwardPass() {}
+    std::string generateDotFormat();
+};
+
+
 #endif
+
