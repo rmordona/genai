@@ -91,6 +91,10 @@ private:
     std::vector<BaseOperator*> operations;
     aitensor<float> input_fdata;
     aitensor<double> input_ddata;
+
+    aitensor<float> decoder_fdata;  // (For Transformer Decoders)
+    aitensor<double> decoder_ddata; // (For Transformer Decoders)
+
     bool normalize = false;
 public: 
     ModelNode(std::string name, NodeType ntype, std::string datatype) { 
@@ -103,9 +107,13 @@ public:
 
     NodeType getNodeType() { return this->ntype; }
 
-    void setDataFloat(const py::array_t<float>& input_data, const bool normalize);
+    void setDataFloat(const py::array_t<float>& data, const bool normalize);
 
-    void setDataDouble(const py::array_t<double>& input_data, const bool normalize);
+    void setDataDouble(const py::array_t<double>& data, const bool normalize);
+
+    void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize);
+
+    void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize);
 
     bool getNormalize() { return this->normalize; }
 
@@ -119,8 +127,21 @@ public:
         return 0;
     }
 
+    ssize_t getDecoderDataSize() { 
+        if (datatype == "float") {
+            return this->decoder_fdata.size(); 
+        } else 
+        if (datatype == "double") {
+            return this->decoder_ddata.size(); 
+        }
+        return 0;
+    }
+
     aitensor<float> getDataFloat() { return this->input_fdata; }
     aitensor<double> getDataDouble() { return this->input_ddata; }
+
+    aitensor<float> getDecoderDataFloat() { return this->decoder_fdata; }
+    aitensor<double> getDecoderDataDouble() { return this->decoder_ddata; }
 
     void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations); // accept as ModelNode operations
 
@@ -179,9 +200,6 @@ public:
     void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 
 };
-
-
-
 
 /************************************************************************************************
 * We use ModelLinear class as a meta model only for use  as entry point for python API.
@@ -368,6 +386,43 @@ public:
     }
 
     ModelEncoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+    }
+
+    int getHead() { return this->H; }
+    int getSize() { return this->W; }
+    bool getBias() { return this->bias; }
+    std::string getActivationType() { return this->activationtype; }
+    float getAlpha() { return this->alpha; }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+/************************************************************************************************
+* We use ModelDecoder class as a meta model only for use  as entry point for python API.
+* The actual model is the Encoder  class.
+*************************************************************************************************/
+class ModelDecoder : public BaseOperator {
+private:
+    std::string activationtype = "leakyrelu";
+    int W = 0;  // number of weights (or number of features)
+    int H = 1;  // number of heads
+    bool bias = true;
+    float alpha = 0.01;
+public: 
+    ModelDecoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+        this->activationtype = activationtype;
+        this->W = size;
+        this->bias = bias;
+        this->H = heads;
+    }
+
+    ModelDecoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
         this->W = size;

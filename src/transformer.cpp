@@ -65,29 +65,40 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
         K  = new Linear<T>(this->W, this->bias);
         V  = new Linear<T>(this->W, this->bias);
         Wo = new Linear<T>(this->M, this->bias);
+        if (this->masked) { // Apply Mask only for first multihead of decoder in transformer.
+            T negative_infinity = -std::numeric_limits<T>::infinity();
+            this->Mask = aimatrix<T>::Zero(this->N, this->N);    // Mask Kernel (NxN)
+            for (int i = 0; i < this->N; i++) {
+                for (int j = i; j < this->N; j++) {
+                    this->Mask(i,j) = negative_infinity;
+                }
+            }
+        }
+        log_detail("Mask Kernel:");
+        log_matrix(this->Mask);
     }
 
     // Perform Linear Transformation.
     log_info( "Q Linear forward pass ..." );
-    this->Qout = Q->forward(input_data);
+
+    if (this->decoder_data.size() != 0) { 
+        // expect  the input_data is the encoder which therefore is not to be
+        // used as Q. Instead, a decoder data is fed into the second multihead.
+        this->Qout = Q->forward(decoder_data);
+    } else {
+        this->Qout = Q->forward(input_data); 
+    }
     log_detail( "Q Linear output" );
     log_matrix( this->Qout );
 
     log_info( "K Linear forward pass ..." );
-    if (this->encoder_data.size() != 0) {
-        this->Kout = K->forward(encoder_data); 
-    } else {
-        this->Kout = K->forward(input_data);
-    }
+    this->Kout = K->forward(input_data);
     log_detail( "K Linear output" );
     log_matrix( this->Kout );
 
     log_info( "V Linear forward pass ..." );
-    if (this->encoder_data.size() != 0) {
-        this->Vout = V->forward(encoder_data);
-    } else {  
-        this->Vout = V->forward(input_data);
-    }
+    this->Vout = V->forward(input_data);
+
     log_detail( "V Linear output" );
     log_matrix( this->Vout );
 
@@ -95,13 +106,17 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
 
     aimatrix<T> mQout, mKout, mVout, QKscore, QKscale, mQKweight, mQKweightV, QKweightV;
 
+    log_detail( "Proceeding with main Attention steps (matmul, scale, softmax) ..." );
+
+
+
     for (int i = 0; i < this->B; ++i) {
 
         mQout = this->Qout.at(i); // NxW
         mKout = this->Kout.at(i); // NxW
         mVout = this->Vout.at(i); // NxW
 
-        log_detail("dimension of mQout {0}x{1}", mQout.rows(), mQout.cols());
+        log_detail( "dimension of mQout {0}x{1} at sequence {2}", mQout.rows(), mQout.cols(), i);
 
         // Computing the Attention Score - MatMul (QK^T)
         QKscore = BaseOperator::matmul(mQout, mKout.transpose()); // NxN
@@ -117,8 +132,10 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
         log_detail( "Scaling -> QKscore / sqrt(Dk)" );
         log_matrix( QKscale );
 
-        // Mask if required (for Decoder)
-        // ...
+        // Apply Mask Kernel if required (for Decoder)
+        if (this->masked) {
+            QKscale += this->Mask;
+        }
 
         // Computing the Attention WeightPerform via Softmax
         mQKweight = BaseOperator::softmax(QKscale);
@@ -243,10 +260,10 @@ const aitensor<T> Attention<T>::backward(const aitensor<T>& gradients) {
     // dInput = QdInput.data() + KdInput.data() + VdInput.data(); // BxNxM
 
     for (int i = 0; i < this->B; ++i) {
-        if (this->encoder_data.size() != 0) {
-            encoder_gradient.push_back(KdInput.at(i) + VdInput.at(i));
-            this->setEncoderGradient(encoder_gradient);
-            dInput.push_back(QdInput.at(i));
+        if (this->decoder_data.size() != 0) {
+            dInput.push_back(KdInput.at(i) + VdInput.at(i));
+            this->setDecoderGradient(dInput);
+            decoder_gradient.push_back(QdInput.at(i));
         } else {
             dInput.push_back(QdInput.at(i) +  KdInput.at(i) + VdInput.at(i));
         }
@@ -323,19 +340,19 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     std::vector<aitensor<T>> heads = head_split(input_data, this->H);
 
-    std::vector<aitensor<T>> encode_heads;
+    std::vector<aitensor<T>> decoder_heads;
 
-    if (this->encoder_data.size() != 0) {
-        std::vector<aitensor<T>> encode_heads = head_split(this->encoder_data, this->H);
+    if (this->decoder_data.size() != 0) {
+        std::vector<aitensor<T>> decoder_heads = head_split(this->decoder_data, this->H);
     }
 
     for (int i = 0; i < this->H; i++) {
         log_detail( "Multi Attention Forward at split ({0}) ...", i );
 
         // Before the call to forward,
-        // if we have an encoded data, pass it to the Attention layer as K and V input for the forward pass
-        if (this->encoder_data.size() != 0) {
-            M1[i]->setEncoderData(encode_heads[i]);
+        // if we have a target data, pass it to the Attention layer as Q for the forward pass
+        if (this->decoder_data.size() != 0) {
+            M1[i]->setDecoderData(decoder_heads[i]);
         }
 
         aitensor<T> head = M1[i]->forward(heads[i]);
@@ -371,23 +388,23 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
 
     log_detail( "Size of DK ...{:d}" , Dk );
 
-    aitensor<T> dInput, encoder_gradient;
+    aitensor<T> dInput, decoder_gradient;
 
-     aitensor<T> encoder_head;
+    aitensor<T> decoder_head;
     std::vector<aitensor<T>> heads = head_split(gradients, this->H);
 
     for (int i = 0; i < this->H; i++) {
         log_detail( "Multi Attention Backward at split ({0}) ...", i );
         aitensor<T> head = M1[i]->backward(heads[i]);
         // if we have an encoder input, then take care of the gradient also.
-        if (this->encoder_data.size() != 0) {
-            encoder_head = M1[i]->getEncoderGradient();
+        if (this->decoder_data.size() != 0) {
+            decoder_head = M1[i]->getDecoderGradient();
         }
         if (i == 0) {
             for (int j = 0; j < this->B; j++) {
                 dInput.push_back(head.at(j));
-                if (this->encoder_data.size() != 0) {
-                    encoder_gradient.push_back(encoder_head.at(j));
+                if (this->decoder_data.size() != 0) {
+                    decoder_gradient.push_back(decoder_head.at(j));
                 }
             }
         } else {
@@ -396,10 +413,10 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
                 C << dInput.at(j), head.at(j);
                 dInput.at(j) = C;
 
-                if (this->encoder_data.size() != 0) {
-                    aimatrix<T> C(encoder_gradient.at(j).rows(),encoder_gradient.at(j).cols() + encoder_head.at(j).cols());
-                    C << encoder_gradient.at(j), encoder_head.at(j);
-                    encoder_gradient.at(j) = C;
+                if (this->decoder_data.size() != 0) {
+                    aimatrix<T> C(decoder_gradient.at(j).rows(),decoder_gradient.at(j).cols() + decoder_head.at(j).cols());
+                    C << decoder_gradient.at(j), decoder_head.at(j);
+                    decoder_gradient.at(j) = C;
                 }
 
             }
@@ -407,8 +424,8 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
     }
 
     // if we have an encoder input, then take care of the gradient also.
-    if (this->encoder_data.size() != 0) {
-        this->setEncoderGradient(encoder_gradient);    
+    if (this->decoder_data.size() != 0) {
+        this->setDecoderGradient(decoder_gradient);    
     }
 
     return dInput;

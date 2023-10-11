@@ -141,18 +141,38 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
 }
   
 /**************************************************************************************************
-* ModelNode::setDataFloat
+* ModelNode::setDataFloat and setDecoderDataFloat
 * Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDataFloat(const py::array_t<float>& input_data, const bool normalize) {
+void ModelNode::setDataFloat(const py::array_t<float>& data, const bool normalize) {
     try {
         if (datatype == "double") {
             throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
         }
 
-        this->input_fdata = ConvertData::totensor(input_data);
+        this->input_fdata = ConvertData::totensor(data);
+        this->normalize   = normalize;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool normalize) {
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
+        }
+
+        this->decoder_fdata = ConvertData::totensor(data);
         this->normalize   = normalize;
 
     } catch (const AIException& e) {
@@ -167,19 +187,40 @@ void ModelNode::setDataFloat(const py::array_t<float>& input_data, const bool no
 }
 
 /**************************************************************************************************
-* MModelNode::setDataDouble
+* MModelNode::setDataDouble and setDecoderDataDouble
 * Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDataDouble(const py::array_t<double>& input_data, bool const normalize) {
+void ModelNode::setDataDouble(const py::array_t<double>& data, bool const normalize) {
 
     try {
         if (datatype == "float") {
             throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
         }
 
-        this->input_ddata = ConvertData::totensor(input_data);
+        this->input_ddata = ConvertData::totensor(data);
+        this->normalize   = normalize;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+void ModelNode::setDecoderDataDouble(const py::array_t<double>& data, bool const normalize) {
+
+    try {
+        if (datatype == "float") {
+            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+        }
+
+        this->decoder_ddata = ConvertData::totensor(data);
         this->normalize   = normalize;
 
     } catch (const AIException& e) {
@@ -316,6 +357,28 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                             encoder->getBias(),
                                                             encoder->getActivationType(),
                                                             encoder->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        } else   // Transformer Component
+        if (auto decoder = std::dynamic_pointer_cast<ModelDecoder>(op)) {
+            if (datatype == "float") {
+                Decoder<float>* newop = new Decoder<float>(
+                                                            decoder->getHead(),
+                                                            decoder->getSize(),
+                                                            decoder->getBias(),
+                                                            decoder->getActivationType(),
+                                                            decoder->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Decoder<double>* newop = new Decoder<double>(
+                                                            decoder->getHead(),
+                                                            decoder->getSize(),
+                                                            decoder->getBias(),
+                                                            decoder->getActivationType(),
+                                                            decoder->getAlpha()
                                                         );
                 this->operations.push_back(newop);
             }
@@ -495,6 +558,11 @@ void Model::seedNodes() {
     for (auto& node: nodes) {
         // First, let's seed with data
         ssize_t size = node->getDataSize();
+
+        // First, let's seed with decoder data (For Transformer Decoders)
+        ssize_t dsize = node->getDecoderDataSize();
+
+        // set Node Input Data
         if (size != 0) {
             if (datatype == "float") {
                 modelXf->getGraph()->setData(node->getName(), node->getDataFloat(), node->getNormalize());
@@ -503,6 +571,18 @@ void Model::seedNodes() {
                 modelXd->getGraph()->setData(node->getName(), node->getDataDouble(), node->getNormalize());
             }
         }
+
+        // set Node Decoder Data (For Transformer Decoders)
+        if (dsize != 0) {
+            if (datatype == "float") {
+                modelXf->getGraph()->setDecoderData(node->getName(), node->getDecoderDataFloat(), node->getNormalize());
+            } else
+            if (datatype == "double") {
+                modelXd->getGraph()->setDecoderData(node->getName(), node->getDecoderDataDouble(), node->getNormalize());
+            }
+        }
+
+
         std::cout << "(Operations) Node: " << node->getName() << std::endl;
         if (datatype == "float") {
             modelXf->getGraph()->setOperations(node->getName(), node->getOperations());

@@ -63,6 +63,31 @@ void Node<T>::setData(const aitensor<T> data, const bool normalize) {
     }
 }
 
+// For Transformer Decoders
+template <class T>
+void Node<T>::setDecoderData(const py::array_t<T>& data, const bool normalize) {
+    log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
+    this->decoder_data = ConvertData::totensor(data);
+    if (normalize == true) {
+        int input_size = this->decoder_data.size();
+        for (int i=0; i < input_size; i++) {
+            this->decoder_data.at(i).array() = BaseOperator::standardize(this->decoder_data.at(i));
+        }   
+    }
+}
+ 
+// For Transformer Decoders
+template <class T>
+void Node<T>::setDecoderData(const aitensor<T> data, const bool normalize) {
+    this->decoder_data =  data;
+    if (normalize == true) {
+        int input_size = this->decoder_data.size();
+        for (int i=0; i < input_size; i++) {
+            this->decoder_data.at(i).array() = BaseOperator::standardize(this->decoder_data.at(i));
+        }   
+    }
+}
+
 template <class T>
 const aitensor<T>& Node<T>::getInput() {
     return this->input_data;
@@ -571,18 +596,34 @@ Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& input_data, const bool normalize) {
+void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setData(input_data, normalize);
+        node->setData(data, normalize);
     }
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const aitensor<T>& input_data, const bool normalize) {
+void Graph<T>::setData(const std::string& nodename, const aitensor<T>& data, const bool normalize) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setData(input_data, normalize);
+        node->setData(data, normalize);
+    }
+}
+
+template <class T>
+void Graph<T>::setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize) {
+    Node<T>* node = this->findNode(nodename);
+    if (node != nullptr) {
+        node->setDecoderData(data, normalize);
+    }
+}
+
+template <class T>
+void Graph<T>::setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize) {
+    Node<T>* node = this->findNode(nodename);
+    if (node != nullptr) {
+        node->setDecoderData(data, normalize);
     }
 }
 

@@ -647,7 +647,6 @@ PYBIND11_MODULE(genai, m) {
         .def("backwardPropagation", &Graph<float>::backwardPropagation)
         .def("generateDotFormat", &Graph<float>::generateDotFormat);
     */
-
    
     py::class_<SampleClass, std::shared_ptr<SampleClass>>(m, "SampleClass")
         .def(py::init<float>())
@@ -658,6 +657,10 @@ PYBIND11_MODULE(genai, m) {
         .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDataFloat, 
                 py::arg("data"), py::arg("normalize") = false, "Function with float argument")
         .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, "Function with double argument")
+        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDecoderDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, "Function with float argument")
+        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDecoderDataDouble, 
                 py::arg("data"), py::arg("normalize") = false, "Function with double argument");
     
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
@@ -678,6 +681,13 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("size") = 3, py::arg("bias") = true,
                 py::arg("type") = "relu", py::arg("alpha") = 0.01);
     py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
+        .def(py::init<int, int, bool, const std::string&, const float>(), 
+                py::arg("heads") = 1,
+                py::arg("size") = 3, 
+                py::arg("bias") = true,
+                py::arg("type") = "relu", 
+                py::arg("alpha") = 0.01);
+    py::class_<ModelDecoder, BaseOperator, std::shared_ptr<ModelDecoder>>(m, "Decoder")
         .def(py::init<int, int, bool, const std::string&, const float>(), 
                 py::arg("heads") = 1,
                 py::arg("size") = 3, 

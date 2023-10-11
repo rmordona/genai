@@ -104,15 +104,11 @@ private:
     std::unordered_set<Node<T>*> inputs;
     std::vector<BaseOperator*> operations;
     aitensor<T> input_data;
+    aitensor<T> decoder_data;
     aitensor<T> output_data;
     aitensor<T> gradients;
     ssize_t repeat = 1;
     std::string reduce = "add";
-
-    // Handles Tensor
-    aitensor<T> input_data_tensor;
-    std::vector<aitensor<T>> dInput_vector;
-    // bool tensor = false;
 
     // If Node has other input sources, count the number of sources.
     T suminputs = 0.0;
@@ -136,6 +132,11 @@ public:
 
     // Invoked by Graph.setData from Model.setData class
     void setData(const aitensor<T> data, const bool normalize);
+
+    void setDecoderData(const py::array_t<T>& data, const bool normalize);
+
+    // Invoked by Graph.setData from Model.setData class
+    void setDecoderData(const aitensor<T> data, const bool normalize);
 
     // Let's handle Tensors
     //void setDataTensor(const py::array_t<T>& embedding);
@@ -224,7 +225,11 @@ public:
 
     void setData(const std::string& nodename, const aitensor<T>& data, const bool normalize);
 
-    void setData(const std::string& nodename, const py::array_t<T>& input_data, const bool normalize);
+    void setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize);
+
+    void setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize);
+
+    void setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize);
 
     void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
 

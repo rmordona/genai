@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <limits>
 #include "operators.h"
 
 #ifndef TRANSFORMER_H
@@ -54,6 +55,7 @@ static std::vector<aitensor<T>> head_split(const aitensor<T>& tensor, int splits
             aimatrix<T> input = tensor.at(j).block(0, start, dim1, splitSize);
             head.push_back(input);
             log_detail("Split matrix i={0} j={1}: {2} x {3}", i, j, input.rows(), input.cols());
+            log_matrix(input);
         }
         heads.push_back(head);
     }
@@ -66,13 +68,16 @@ template <class T>
 class Attention : public BaseOperator {
 private:
     aitensor<T> input_data;   // Input Dimention: BxNxM
-    aitensor<T> encoder_data;  // If we are passing an encoded input to a decoder
-    aitensor<T> encoder_gradient;  // If we are passing an encoded input to a decoder
+    aitensor<T> decoder_data;      // If we are passing an encoded input to a decoder, then a separate target data is required
+    aitensor<T> decoder_gradient;  // If we are passing an encoded input to a decoder, then a separate target data is required
 
     Linear<T>* Q  = nullptr;  // BxNxW
     Linear<T>* K  = nullptr;  // BxNxW
     Linear<T>* V  = nullptr;  // BxNxW
     Linear<T>* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
+
+    aimatrix<T> Mask; // Mask Kernel for Decoder in Transformer
+    bool masked = false;
 
     aitensor<T> Qout;
     aitensor<T> Kout;
@@ -110,17 +115,17 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    // if passing encoded input to decoder, we take care of the K and V input.
-    void setEncoderData(const aitensor<T>& encoder_data) {
-        this->encoder_data = encoder_data;
+    // if passing encoded input to decoder, we take care of the Q input separately from target data.
+    void setDecoderData(const aitensor<T>& decoder_data) {
+        this->decoder_data = decoder_data;
     }
 
-    void setEncoderGradient(const aitensor<T>& encoder_gradient) {
-        this->encoder_gradient = encoder_gradient;
+    void setDecoderGradient(const aitensor<T>& decoder_gradient) {
+        this->decoder_gradient = decoder_gradient;
     }
 
-    const aitensor<T> getEncoderGradient() {
-        return this->encoder_gradient;
+    const aitensor<T> getDecoderGradient() {
+        return this->decoder_gradient;
     }
 
     void forwardPass() {}
@@ -136,8 +141,8 @@ template <class T>
 class MultiHeadAttention : public BaseOperator {
 private:
     aitensor<T> input_data; // NxW samples, by using & 
-    aitensor<T> encoder_data;  // If we are passing an encoded input to a decoder
-    aitensor<T> encoder_gradient;  // If we are passing an encoded input to a decoder
+    aitensor<T> decoder_data;  // If we are passing an encoded input to a decoder
+    aitensor<T> decoder_gradient;  // If we are passing an encoded input to a decoder
 
     std::vector<Attention<T>*> M1;
     bool bias = true;
@@ -175,13 +180,13 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    // if passing encoded input to decoder, we take care of the K and V input.
-    void setEncoderData(const aitensor<T>& encoder_data) {
-        this->encoder_data = encoder_data;
+    // if passing encoded input to decoder, we take care of the Q input separately from target data.
+    void setDecoderData(const aitensor<T>& decoder_data) {
+        this->decoder_data = decoder_data;
     }
 
-    void setEncoderGradient(const aitensor<T>& encoder_gradient) {
-        this->encoder_gradient = encoder_gradient;
+    void setDecoderGradient(const aitensor<T>& decoder_gradient) {
+        this->decoder_gradient = decoder_gradient;
     }
 
     void forwardPass() {}
