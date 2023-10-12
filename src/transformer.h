@@ -63,7 +63,20 @@ static std::vector<aitensor<T>> head_split(const aitensor<T>& tensor, int splits
     return heads;
 }
 
-
+/**********************************************************************************************************************
+* Unlike the RNN, note that the design of the Attention is based on using a matrix with dimension BxSxP
+* where B is the number of samples, S is the length of the sequence, and P is the embedding size (the dimension).
+* Here is a better illustration for an input matrix.
+* 
+* Input Data (5xP):
+* token     sample 1    sample 2    sample 3        sample B
+* token 1   word1_embed word1_embed word1_embed ... word1_embed  
+* token 2   word2_embed word2_embed word3_embed ... word2_embed  
+* ...
+* token N   wordN_embed wordN_embed wordN_embed ... wordN_embed  
+*
+* Sequences should be padded for consistent length.
+**********************************************************************************************************************/
 template <class T>
 class Attention : public BaseOperator {
 private:
@@ -96,9 +109,10 @@ private:
     bool bias = false;
 
 public:
-    Attention(int size = 3, bool bias = false)  {
+    Attention(int size = 3, bool bias = false, bool masked = false)  {
         this->W = size;
         this->bias = bias;
+        this->masked = masked;
         log_info( "**** Attention instance created ****" );
     }
 
@@ -155,14 +169,17 @@ private:
     int Dk = 0; // number of dimensions per head (M/H)
     int split = 0; // number of values in an array to jump.
 
+    bool masked = false; // for Decoder Transformer
+
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
 
 public:
-    MultiHeadAttention(int heads = 3, int size = 3, bool bias = false)  {
+    MultiHeadAttention(int heads = 3, int size = 3, bool bias = false, bool masked = true)  {
         this->W = size;
         this->H = heads;
         this->bias = bias;
+        this->masked = masked;
         // M1.setZero();
         log_info( "**** MultiHeadAttention instance created ****" );
     }

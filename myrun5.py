@@ -20,7 +20,7 @@ node1.setOperations([ai.Encoder(heads=2, size=6, bias=True, type="leakyrelu", al
 #node1.setOperations([ai.Dense(size=2, bias=True), ai.LayerNorm(), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 # MANY_TO_MANY
-#node1.setOperations([ai.RNN(hidden_size=6, output_size=5,  num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
+#node1.setOperations([ai.RNN(hidden_size=6, output_size=5,  num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="gelu", alpha=0.01)]);
 #node1.setOperations([ai.LSTM(hidden_size=6, output_size=5, num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.GRU(hidden_size=6, output_size=5, num_layers=1, bidirectional=True, rnntype=ai.RNNtype.MANY_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
@@ -30,7 +30,7 @@ node1.setOperations([ai.Encoder(heads=2, size=6, bias=True, type="leakyrelu", al
 #node1.setOperations([ai.GRU(hidden_size=6, output_size=5, output_sequence_length=3, num_layers=1, bidirectional=False, rnntype=ai.RNNtype.ONE_TO_MANY), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 node2  = modelgraph.addNode("node2", ai.NodeType.Input);
-#node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]) 
+#node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="gelu", alpha=0.01)]) 
 node2.setOperations([ai.Decoder(heads=2, size=6, bias=True, type="leakyrelu", alpha=0.01), ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 embedding1 = [
@@ -62,6 +62,6 @@ target = [
            [  [6.11,6.12,6.13,6.14],  [6.21,6.22,6.23,6.24], [6.31,6.32,6.33,6.34]  ]  # sequence 5 of batch 1,2,3
          ];
 modelgraph.setTarget(target);
-modelgraph.train(loss="mse", optimizer="adam", learnrate=0.1, iter=1);
+modelgraph.train(loss="mse", optimizer="adam", learnrate=0.1, iter=200);
 
 ai.print_string("Done.", True)

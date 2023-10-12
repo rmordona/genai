@@ -613,7 +613,7 @@ PYBIND11_MODULE(genai, m) {
         .value("GELU", ActivationType::GELU)
         .value("SOFTMAX", ActivationType::SOFTMAX)
         .export_values();
-
+ 
 /*
     py::class_<Graph<double>>(m, "Graph")
         .def(py::init<>())

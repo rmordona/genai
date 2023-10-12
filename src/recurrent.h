@@ -27,6 +27,26 @@
  *
  */
 
+ /************************************************************************************************************************
+* Note that the design of the Recurrent Network Cells is based on using a matrix with dimension SxNxP
+* where S is the length of the sequence, N is the number of samples in a batch, and P is the embedding size (the dimension).
+* Each word in B does not belong to one sequence, rather is a set of sequences.
+* Here is a better illustration for an input matrix. For example, step t has all the first words of all samples.
+* 
+* Input Data (TxNxP):
+* sample   step t      step t+1    step t+2        step t+T-1
+* sample 1 word1_embed word2_embed word3_embed ... wordT_embed  
+* sample 2 word1_embed word2_embed word3_embed ... wordT_embed  
+* ...
+* sample N word1_embed word2_embed word3_embed ... wordT_embed  
+*
+* This will allow us to process sequences in batches instead of just looping over one step at a time
+* for a single sequence. Now, if that's the case, we pad each sequence to achieve uniform sequence lengths.
+*
+* The output is in the form of SxNxO. Depending on the scenario, a MANY-TO-ONE will render one output per sequence,
+* and a ONE-TO-MANY or MANY-TO-MANY scenario will render MANY output per sequence.
+************************************************************************************************************************/
+
 #pragma once
 #ifndef RECURRENT_H
 #define RECURRENT_H
@@ -73,22 +93,7 @@ public:
 
 };
 
-/************************************************************************************************************
-* Note that the design of the Recurrent Network Cells is based on using a matrix with dimension NxP
-* where N is the number of words and P is the embedding size (the dimension).
-* Each word in N does does not belong to one sequence, rather is a set of sequences.
-* Here is a better illustration for an input matrix of 5xP:
-* 
-* Input Data (5xP):
-* step t      step t+1    step t+2        step t+P-1
-* word1_embed word2_embed word3_embed ... wordP_embed (sequence 1)
-* word1_embed word2_embed word3_embed ... wordP_embed (sequence 2)
-* ...
-* word1_embed word2_embed word3_embed ... wordP_embed (sequence 5)
-*
-* This will allow us to process sequences in batches instead of just looping over one step at a time
-* for a single sequence. Now, if that's the case, we pad each sequence to achieve uniform sequence lengths.
-*************************************************************************************************************/
+
 template <class T>
 class RNNCell : public CellBase<T> {
 private:
