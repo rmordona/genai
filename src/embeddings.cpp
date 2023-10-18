@@ -33,6 +33,26 @@ namespace py = pybind11;
 using namespace py::literals;
 
 /************************************************************************************************
+* Helper Function: strreplace
+* Function to replace a substring. Borrowed from stack-overflow (question: 3418231 - Michael Mrozek)
+*************************************************************************************************/
+bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+void replaceAll(std::string& str, const std::string& from, const std::string& to) {
+    if(from.empty())
+        return;
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+    }
+}
+/************************************************************************************************
 * Embeddings::initializeVectorDB
 * Function to initialize Vector dB
 *************************************************************************************************/
@@ -396,7 +416,10 @@ void Embeddings<T>::crossReferenceVocabularyinDBandCache(std::unordered_map<std:
     log_detail("Completed Cross Reference of Vocabulary between DB and Cache");
 }
 
-// Function to fetch the embeddings from the vector database for given tokens in the current corpus.
+/************************************************************************************************
+* Embeddings::prefetchVocabularyToCache
+* Function to fetch the embeddings from the vector database for given tokens in the current corpus.
+*************************************************************************************************/
 template <class T>
 void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std::wstring>>& corpus) {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
@@ -420,14 +443,13 @@ void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std:
     std::string query = "SELECT frequency, tokenIndex, token FROM vocabulary WHERE token IN (";
     for (const auto& sentence : corpus) {
         for (const auto& token : sentence) { 
-            std::string utf8Str = wstringToUtf8(token);
-            query += utf8Str + ",";
+            std::string utf8Str =  wstringToUtf8(token);
+            replaceAll( utf8Str, "'", "''"); // handle escape characters.
+            query += "'" + utf8Str + "',";
         }
     }
     query.pop_back(); // Remove the last comma
     query += ");";
-
-    log_detail("query: {0}", query);
 
     // Execute the query and fetch the embeddings
     rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
@@ -449,18 +471,22 @@ void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std:
 
         std::wstring token = utf8ToWstring(utf8Str);
 
-        std::wcout << "token it: " << token << std::endl;
-
         this->vocab[token] += frequency;
     }
 
     // Close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+
+    log_detail("Completed Prefetching of Vocabulary to Cache ...");
+
 }
 
-// Function to fetch the embeddings for tokens in the cached vocabulary (instead of corpus) 
-// from the vector database to cache
+/************************************************************************************************
+* Embeddings::prefetchEmbeddingsToCache
+* Function to fetch the embeddings for tokens in the cached vocabulary (instead of corpus) 
+* from the vector database to cache
+*************************************************************************************************/
 template <class T>
 void Embeddings<T>::prefetchEmbeddingsToCache() {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
@@ -492,6 +518,8 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
     query.pop_back(); // Remove the last comma
     query += ");";
 
+    log_detail("query: {0}", query);
+
     // Execute the query and fetch the embeddings
     rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
@@ -501,6 +529,8 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
         return;
     }
  
+    log_detail("Start to Cache token hash ...");
+
     // Fetch and store embeddings in the dynamic embeddings data structure
     // Also create a token hash index structure for fast lookup
     int currentIndex = 0;
@@ -532,14 +562,18 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
     // Close the database
     sqlite3_finalize(stmt);
     sqlite3_close(db);
+
+    log_detail("Completed Prefetching of Embedding to Cache ...");
+
 }
 
-// Update Embeddings in the Database
+/************************************************************************************************
+* Embeddings::updateEmbeddingsInDatabase
+* Update Embeddings in the Database
+*************************************************************************************************/
 template <class T>
 void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings,
                                            const aivector<T>& wordBiases) {
-
-
     log_tag("Embeddings");
     log_info( "==========================================" );
     log_info( "Entering Parameter Update in Embedding ...");
