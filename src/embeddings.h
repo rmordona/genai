@@ -28,7 +28,6 @@
 
 #include <sqlite3.h>
 
-
 template <class T>
 class Embeddings {
 private:
@@ -39,7 +38,7 @@ private:
     int embeddingSize = 5;
 
     const std::string dbFileName = "data.db";
-    sqlite3* db;
+    sqlite3* db = nullptr;
 
     struct Record {
 

@@ -20,7 +20,7 @@ class BuildExt(build_ext):
 ext_modules = [
     Extension(
         "genai",
-#        sources=["src/operators.cpp", "src/transformer.cpp", "src/recurrent.cpp", "src/topology.cpp", "src/model.cpp", "src/genai.cpp" ],
+#        sources=["src/tokenmodel.cpp", "src/operators.cpp",  "src/model.cpp", "src/genai.cpp" ],
 #         sources=[ "src/operators.cpp" ],
 #         sources=[ "src/model.cpp", "src/genai.cpp", "src/distributed.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp" ],
 #        sources=[ "src/operators.cpp", "src/transformer.cpp" ],

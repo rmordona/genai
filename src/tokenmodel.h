@@ -29,10 +29,16 @@
 #ifndef TOKENMODEL_H
 #define TOKENMODEL_H
 
+
+/*************************************************************************************************
+ * BaseTokenModel is the actual structure we use to perform tokenization.
+ * underlying operations needed to train a model.
+ *************************************************************************************************/
 template <class T>
-class TokenModel {
+class BaseTokenModel {
 private:
 
+    Embeddings<T>* embeddings;
     std::string losstype = "mse";
     std::string optimizertype = "adagrad";
     T learningRate = 0.01;
@@ -42,7 +48,7 @@ private:
 
 public:
 
-    Embeddings<T>* embeddings;
+    // Embeddings<T>* embeddings;
 
     std::unordered_map<std::wstring, int> vocab;
     aimatrix<T> wordEmbeddings;
@@ -65,7 +71,7 @@ public:
 
     };
 
-    TokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
+    BaseTokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
           const T learningRate = 0.01, T regularization = 1.0,
           const int maxIterations = 1,  T clipThreshold = 5.0) {
 
@@ -74,13 +80,9 @@ public:
         this->learningRate = learningRate;
         this->maxIterations = maxIterations;
         this->clipThreshold = clipThreshold;
+
+        this->embeddings = new Embeddings<T>();
     }
-
-    // Function to print the vocabulary
-    void printVocabulary(int rows);
-
-    // Function to print the word embedding
-    void printWordEmbeddings(int rows);
 
     // Helper function to split string into words.
     std::vector<std::wstring> splitString(const std::wstring& str);
@@ -94,10 +96,20 @@ public:
 
     // Now train a GloVe model
     void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, T learningRate = 0.01, int maxIteration = 1);
+
+    // Function to print the vocabulary
+    void printVocabulary(int rows);
+
+    // Function to print the word embedding
+    void printWordEmbeddings(int rows);
+
 };
 
+/************************************************************************************************
+* This is the actual BPE Tokenizer that we use to tokenize sentences.
+*************************************************************************************************/
 template <class T>
-class BPETokenizer : public TokenModel<T> {
+class BPETokenizer : public BaseTokenModel<T> {
 private:
     Embeddings<T>* embeddings;
     TrieNode* root;
@@ -123,6 +135,51 @@ public:
 
     // Train BPE Tokenizer
     void train(const std::vector<std::wstring>& sentences, int numMerges);
+
+};
+
+/************************************************************************************************
+* We use BPE Tokenizer  class as a meta model only for use  as entry point for python API.
+* The actual model is the BPETokenizer class.
+* All other meta models include the Model operations.
+*************************************************************************************************/
+class TokenModel {
+private:
+    std::string losstype = "mse";
+    std::string optimizertype = "adam";
+    int max_epoch = 1;
+    std::string datatype = "float";
+    double learningRate = 0.01;
+
+    std::string tokenizer = "bpetokenier";
+
+    std::shared_ptr<BaseTokenModel<float>> modelXf;
+    std::shared_ptr<BaseTokenModel<double>> modelXd;
+
+    std::shared_ptr<BPETokenizer<float>> tokenizerf;
+    std::shared_ptr<BPETokenizer<double>> tokenizerd;
+public: 
+
+    TokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
+          const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float");
+
+    // set Tokenizer
+    void setTokenizer(const std::string& name );
+
+    // Pretrain BPE Tokenizer
+    void pretrain(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize);
+
+    // Train BPE Tokenizer
+    void train(const std::vector<std::wstring>& sentences, int numMerges);
+
+    // tokenize: Function to tokenize a sentence
+    std::vector<std::wstring> tokenize(const std::wstring& sentence);
+
+    // tokenize: Function to tokenize sentences
+    std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
+
+    // trainGloVe: Function to train corpus using GloVe
+    void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, double learningRate = 0.01, int maxIteration = 1);
 
 };
 

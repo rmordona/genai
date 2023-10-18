@@ -292,16 +292,19 @@ class ModelAttention : public BaseOperator {
 private:
     int W = 0;  // number of weights (or number of features)
     int H = 1;  // number of heads
-    bool bias = true;
+    bool bias = false;
+    bool masked = false;
 public: 
-    ModelAttention(int size = 3, bool bias = false)  {
+    ModelAttention(int size = 3, bool bias = false, bool masked = false)  {
         this->H = 1;
         this->W = size;
         this->bias = bias;
+        this->masked = masked;
     }
 
     int getSize() { return this->W; }
     bool getBias() { return this->bias; }
+    bool getMasked() { return this->masked; }
 
     void forwardPass() {}
     void backwardPass() {}

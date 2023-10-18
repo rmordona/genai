@@ -2,10 +2,10 @@ import genai as ai
 import numpy as np
 ai.print_string("Hello", True)
 
-class MyModel(ai.Model):
-
-   def __init__(self, learningRate, datatype):
-     super().__init__(learningRate, datatype);
+#class MyModel(ai.Model):
+#
+#   def __init__(self, learningRate, datatype):
+#     super().__init__(learningRate, datatype);
 
 sample = ai.SampleClass(0.01);
 
@@ -16,7 +16,7 @@ node1  = modelgraph.addNode("node1", ai.NodeType.Input);
 #node1.setOperations([ ai.Dense(size=5), ai.Activation(type="leakyrelu", alpha=0.01) ]);
 node1.setOperations([ai.Encoder(heads=2, size=6, bias=True, type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.FeedForward(size=2, bias=True, type="leakyrelu", alpha=0.01)]);
-#node1.setOperations([ai.Attention(size=5, bias=False), ai.Activation(type="leakyrelu", alpha=0.01)]);
+#node1.setOperations([ai.Attention(size=5, bias=False, masked=False), ai.Activation(type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.Dense(size=2, bias=True), ai.LayerNorm(), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 # MANY_TO_MANY

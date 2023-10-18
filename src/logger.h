@@ -81,6 +81,7 @@ public:
         if (ltype == "WARN")         { log->warn(msg); } else
         if (ltype == "ERROR")        { log->error(msg); } else
         if (ltype == "CRITICAL")     { log->critical(msg); };
+        std::cout << msg << std::endl;
     }
 
     template <class T>

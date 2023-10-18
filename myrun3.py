@@ -4,13 +4,14 @@ from typing import List
 
 ai.print_string("Hello", True)
 
-class MyTokenModel(ai.BPETokenizer):
+#class MyTokenModel(ai.TokenModel):
+#   def __init__(self, learningRate, datatype):
+#     super().__init__(learningRate, datatype);
 
-   def __init__(self):
-     super().__init__();
+dtype = "float"
+tokenizer = ai.TokenModel(learningRate=0.02, datatype=dtype);
 
-
-tokenizer = MyTokenModel();
+tokenizer.setTokenizer(name = "bpetokenizer");
 
 #sentence = "I travel the world in search for the fountain of youth. Hello, 世界!"
 
@@ -57,9 +58,11 @@ sentences = [
         "This is the second sentence.",
         "This is ray's first sentence."]
 
+ai.print_string("Tokenize two sentences.", True)
+
 tokens = tokenizer.tokenize(sentences);
 
-print("Got the tokens:");
+print("Got the tokens ...");
 
 
 #for x in tokens:
@@ -69,3 +72,4 @@ print("Got the tokens:");
 tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 100);
 
 ai.print_string("Done.", True)
+

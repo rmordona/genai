@@ -314,7 +314,8 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             if (datatype == "double") {
                 Attention<double>* newop = new Attention<double>(
                                                             attention->getSize(),
-                                                            attention->getBias()
+                                                            attention->getBias(),
+                                                            attention->getMasked()
                                                         );
                 this->operations.push_back(newop);
             }
@@ -643,7 +644,7 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
 * Model::compile
 * This is where configuration begins.
 *************************************************************************************************/
-
+ 
 /************************************************************************************************
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.

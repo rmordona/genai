@@ -273,6 +273,7 @@
 #include "logger.h"
 #include "topology.h"
 #include "model.h"
+#include "tokenmodel.h"
 #include "scraper.h"
 
 // Define PY as the static member instance of PythonStream
@@ -675,7 +676,7 @@ PYBIND11_MODULE(genai, m) {
     py::class_<ModelActivation, BaseOperator, std::shared_ptr<ModelActivation>>(m, "Activation")
         .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
     py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
-        .def(py::init<int, bool>(), py::arg("size") = 3, py::arg("bias") = false); 
+        .def(py::init<int, bool, bool>(), py::arg("size") = 3, py::arg("bias") = false, py::arg("masked") = false); 
     py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")
         .def(py::init<int, bool, const std::string&, const float>(), 
                 py::arg("size") = 3, py::arg("bias") = true,
@@ -735,9 +736,8 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
                 py::arg("iter")=1, "Training a model");
      
-
+/*
     // Definitions for TokenModel APIs
-    /*
     py::class_<TokenModel<double>, std::shared_ptr<TokenModel<double>>>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&>(), py::arg("losstype") = "mse", py::arg("optimizer") = "adagrad")
         .def("tokenize",  (std::vector<std::wstring> (TokenModel<double>::*)(const std::wstring&)) &TokenModel<double>::tokenize, 
@@ -762,7 +762,45 @@ PYBIND11_MODULE(genai, m) {
         .def("trainGloVe", (void (TokenModel<float>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<float>::trainGloVe,
                   py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
                   py::arg("maxiteration"), "Train Word Embedding using GloVe");
-  
+  */
+ 
+    // Definitions for TokenModel APIs
+    py::class_<TokenModel>(m, "TokenModel")
+        .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
+            py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
+            py::arg("learningRate") = 0.01, py::arg("itermax") = 1, py::arg("datatype") = "float")
+     //   .def("getTokenizer", (std::shared_ptr<ModelBPETokenizer> (TokenModel::*)(const std::string&)) &TokenModel::getTokenizer, 
+     //       py::arg("name"),  "Get  a BPE tokenizer")
+        .def("setTokenizer", (void (TokenModel::*)(const std::string&)) &TokenModel::setTokenizer, 
+            py::arg("name"),  "Get  a BPE tokenizer")
+        .def("trainGloVe", (void (TokenModel::*)(const std::vector<std::wstring>&, int, double, int)) &TokenModel::trainGloVe,
+            py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
+            py::arg("maxiteration"), "Train Word Embedding using GloVe")
+   // py::class_<ModelBPETokenizer, std::shared_ptr<ModelBPETokenizer>>(m, "Tokenizer")
+        .def("tokenize",  (std::vector<std::wstring> (TokenModel::*)(const std::wstring&)) &TokenModel::tokenize, 
+                "Tokenize a Sentence")
+        .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::tokenize, 
+                "Tokenize a set of Sentences")
+        .def("pretrain", (void (TokenModel::*)(const std::vector<std::wstring>&, int, int)) &TokenModel::pretrain, 
+            py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
+        .def("train", (void (TokenModel::*)(const std::vector<std::wstring>&, int)) &TokenModel::train, 
+            py::arg("corpus"), py::arg("merges"), "Train a BPE tokenizer");
+
+       // .def("trainGloVe", (void (TokenModel<float>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<float>::trainGloVe,
+       //           py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
+       //           py::arg("maxiteration"), "Train Word Embedding using GloVe");
+
+/*
+        .def("tokenize",  (std::vector<std::wstring> (TokenModel<float>::*)(const std::wstring&)) &TokenModel<float>::tokenize, 
+                "Tokenize a Sentence")
+        .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel<float>::*)(const std::vector<std::wstring>&)) &TokenModel<float>::tokenize, 
+                "Tokenize a set of Sentences")
+        .def("printVocabulary",  &TokenModel<float>::printVocabulary, py::arg("rows") = 10, "Print vocabulary")
+        .def("printWordEmbeddings",  &TokenModel<float>::printWordEmbeddings, py::arg("rows") = 10, "Print Word Embedding")
+        .def("trainGloVe", (void (TokenModel<float>::*)(const std::vector<std::wstring>&, int, float, int)) &TokenModel<float>::trainGloVe,
+                  py::arg("corpus"),  py::arg("batchsize"), py::arg("learningrate"), 
+                  py::arg("maxiteration"), "Train Word Embedding using GloVe");
+
     py::class_<BPETokenizer<double>, TokenModel<double>, std::shared_ptr<BPETokenizer<double>>>(m, "BPETokenizer")
         .def(py::init<>())
         .def("pretrain", (void (BPETokenizer<double>::*)(const std::vector<std::wstring>&, int, int)) &BPETokenizer<double>::pretrain, 
