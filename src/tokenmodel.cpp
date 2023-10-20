@@ -488,7 +488,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
     log_detail("Tokenize the sentences 1c...");
 
-    this->maxIterations  = maxIterations;
+    this->maxIteration  = maxIteration;
 
     log_detail("Tokenize the sentences 1d...");
 
@@ -560,9 +560,9 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     log_detail("Iterate over the corpus in batches ...");
 
     // Iterate over the corpus in batches
-    for (int iteration = 0; iteration < this->maxIterations; ++iteration) {
+    for (int iteration = 0; iteration < this->maxIteration; ++iteration) {
 
-        log_detail("iteration: {0}", iteration);
+        log_detail("iteration: {0} Total: {1}", iteration, this->maxIteration);
 
         // Initialize the gradients for the batch
          aimatrix<T> batchGradients = aimatrix<T>::Zero(vocabSize, embeddingSize);

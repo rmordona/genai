@@ -39,7 +39,7 @@ class BaseTokenModel {
 private:
     std::string losstype      = "mse";
     std::string optimizertype = "adagrad";
-    int maxIterations = 1;
+    int maxIteration = 1;
     T learningRate    = 0.01;
     T regularization  = 1.0;
     T clipThreshold   = 5.0;
