@@ -461,7 +461,7 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 /*******************************************************************************************************************
 * BaseTokenModel::train
 * Function to train GloVe-like model using GloVe algorithm. We tokenize a sentence such that the tokenize function
-* requires already the existence of the constructed vocabulary.
+* requires already the existence of the constructed vocabulary via BPE (preload and merge functions).
 ********************************************************************************************************************/
 template <class T>
 void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSize, 
@@ -471,34 +471,13 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     log_info( "=================================" );
     log_info( "Entering GloVe-like Training  ..." );
 
-    log_detail("Tokenize the sentences 1...");
-
-    log_detail("Tokenize the sentences 1x...");
-
     // Preserve hyperparameters.
     this->losstype = losstype;
-
-    log_detail("Tokenize the sentences 1a...");
-
     this->optimizertype  = optimizertype;
-
-    log_detail("Tokenize the sentences 1b...");
-
     this->learningRate   = learningRate;
-
-    log_detail("Tokenize the sentences 1c...");
-
     this->maxIteration  = maxIteration;
-
-    log_detail("Tokenize the sentences 1d...");
-
     this->clipThreshold  = clipThreshold;
-
-    log_detail("Tokenize the sentences 1e...");
-
     this->regularization = regularization;
-
-    log_detail("Tokenize the sentences 2...");
 
     std::vector<std::vector<std::wstring>> corpus = tokenize(sentences);
 
