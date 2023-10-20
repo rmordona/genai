@@ -37,24 +37,22 @@
 template <class T>
 class BaseTokenModel {
 private:
+    std::string losstype      = "mse";
+    std::string optimizertype = "adagrad";
+    int maxIterations = 1;
+    T learningRate    = 0.01;
+    T regularization  = 1.0;
+    T clipThreshold   = 5.0;
 
     Embeddings<T>* embeddings;
-    std::string losstype = "mse";
-    std::string optimizertype = "adagrad";
-    T learningRate = 0.01;
-    int maxIterations = 1;
-    T regularization = 1.0;
-    T clipThreshold = 5.0;
+    int vocabSize     = 0;
+    int embeddingSize = 5;
+    aimatrix<T> wordEmbeddings;
+    aivector<T> wordBiases;
 
 public:
 
-    // Embeddings<T>* embeddings;
-
     std::unordered_map<std::wstring, int> vocab;
-    aimatrix<T> wordEmbeddings;
-    aivector<T> wordBiases;
-    int vocabSize = 0;
-    int embeddingSize = 5;
 
     bool resetVocab = false;
 
@@ -71,18 +69,19 @@ public:
 
     };
 
-    BaseTokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
-          const T learningRate = 0.01, T regularization = 1.0,
-          const int maxIterations = 1,  T clipThreshold = 5.0) {
+    BaseTokenModel() {}
 
-        this->losstype = losstype;
-        this->optimizertype = optimizertype;
-        this->learningRate = learningRate;
-        this->maxIterations = maxIterations;
-        this->clipThreshold = clipThreshold;
-
-        this->embeddings = new Embeddings<T>();
+    // Initialize Embeddings
+    void initializeEmbeddings(int embeddingSize) {
+        this->embeddingSize = embeddingSize;
+        this->embeddings = new Embeddings<T>(embeddingSize);
     }
+
+    // Get the Embedding
+    Embeddings<T>* getEmbeddings() { return this->embeddings; }
+
+    // set Vocabulary Size
+    void setVocabSize(int vocabSize) { this->vocabSize = vocabSize; }
 
     // Helper function to split string into words.
     std::vector<std::wstring> splitString(const std::wstring& str);
@@ -95,7 +94,9 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // Now train a GloVe model
-    void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, T learningRate = 0.01, int maxIteration = 1);
+    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
+            const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
+            T learningRate = 0.01, int maxIteration = 1, T clipThreshold = 5.0, T regularization = 1.0);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -111,8 +112,12 @@ public:
 template <class T>
 class BPETokenizer : public BaseTokenModel<T> {
 private:
-    Embeddings<T>* embeddings;
+    // Embeddings<T>* embeddings;
     TrieNode* root;
+
+    // std::unordered_map<std::wstring, int> vocab;
+    // int vocabSize = 0;
+
 public:
     BPETokenizer() {
         root = new TrieNode();
@@ -125,16 +130,16 @@ public:
     bool endsWith(const std::wstring& str, const std::wstring& suffix);
 
     // Tokenize the corpus. The result is fed to the mergeTokens to construct the vocabulary.
-    std::vector<std::wstring> tokenizeCorpus(const std::vector<std::wstring>& corpus);
+    std::vector<std::wstring> tokenize_to_char(const std::vector<std::wstring>& corpus);
 
     // Part of Byte Pair Encoding is to merge tokens that have the highest frequency.
     void mergeTokens(std::vector<std::wstring>& tokens, int numMerges);
 
-    // Pretrain BPE Tokenizer
-    void pretrain(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize);
+    // Preload BPE Tokenizer
+    void preload(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize = 0);
 
-    // Train BPE Tokenizer
-    void train(const std::vector<std::wstring>& sentences, int numMerges);
+    // Merge BPE Tokenizer
+    void merge(const std::vector<std::wstring>& sentences, int numMerges);
 
 };
 
@@ -150,27 +155,26 @@ private:
     int max_epoch = 1;
     std::string datatype = "float";
     double learningRate = 0.01;
+    double clipThreshold = 0.01;
+    double regularization = 0.01;
 
-    std::string tokenizer = "bpetokenier";
-
-    std::shared_ptr<BaseTokenModel<float>> modelXf;
-    std::shared_ptr<BaseTokenModel<double>> modelXd;
+    std::string tokenizer = "bpetokenizer";
 
     std::shared_ptr<BPETokenizer<float>> tokenizerf;
     std::shared_ptr<BPETokenizer<double>> tokenizerd;
+
 public: 
 
-    TokenModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float");
+    TokenModel(const std::string& tokenizer = "bpetokenizer", const std::string& datatype = "float");
 
     // set Tokenizer
-    void setTokenizer(const std::string& name );
+    // void setTokenizer(const std::string& name);
 
     // Pretrain BPE Tokenizer
-    void pretrain(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize);
+    void preload(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize);
 
-    // Train BPE Tokenizer
-    void train(const std::vector<std::wstring>& sentences, int numMerges);
+    // Merge BPE Tokenizer
+    void merge(const std::vector<std::wstring>& sentences, int numMerges);
 
     // tokenize: Function to tokenize a sentence
     std::vector<std::wstring> tokenize(const std::wstring& sentence);
@@ -178,8 +182,19 @@ public:
     // tokenize: Function to tokenize sentences
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
-    // trainGloVe: Function to train corpus using GloVe
-    void trainGloVe(std::vector<std::wstring>& sentences, int batchSize = 2, double learningRate = 0.01, int maxIteration = 1);
+    // train: Function to train corpus using GloVe
+    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
+            const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
+            double learningRate = 0.01, int maxIteration = 1, double clipThreshold = 5.0, double regularization = 1.0);
+
+/*
+    // Overload the train function
+    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
+            const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
+            double learningRate = 0.01, int maxIteration = 1) {
+        train(sentences, batchSize, losstype, optimizertype,  learningRate, maxIteration, (double) 5.0, (double) 1.0);
+    }
+*/
 
 };
 

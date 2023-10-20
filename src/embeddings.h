@@ -59,7 +59,10 @@ private:
 
 public:
 
-    Embeddings() {  initializeVectorDB();  }
+    Embeddings(int embeddingSize) {  
+        this->embeddingSize = embeddingSize;
+        initializeVectorDB();  
+    }
 
     // Initialize Vector DB
     void initializeVectorDB();
@@ -98,8 +101,9 @@ public:
     // Function to get the vocabulary
     const std::unordered_map<std::wstring, int>& getVocabulary() const { return this->vocab; }
 
-    // Function to seed the Vector and Vocabulary Tables
-    void initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary, int embeddingSize);
+    // Initialize Embeddings Cache
+    void initializeEmbeddings(int vocabSize);
+    void initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary);
 
     // Cross Reference Vocabulary
     void crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary);

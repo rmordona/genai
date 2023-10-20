@@ -83,6 +83,7 @@ void Embeddings<T>::seedVectorDB(std::unordered_map<std::wstring, int>& vocabula
 
         record.hashKey = sha256(entry.first);
         record.vectorValue = this->wordEmbeddings.row(currentIndex);
+        record.bias = 0.0;
         saveEmbeddings(record);
 
         record.token = entry.first;
@@ -374,15 +375,33 @@ bool Embeddings<T>::isInVocabulary(const std::wstring& token, Record& record)  {
 * constructed vocabulary
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary, int embeddingSize) {
-    this->vocab = vocabulary;
+void Embeddings<T>::initializeEmbeddings(int vocabSize) {
+
+    this->wordEmbeddings = aimatrix<T>::Random(vocabSize, this->embeddingSize);
+    this->wordBiases = aivector<T>::Zero(vocabSize);
+
+    // Initialize word Embeddings
+    BaseOperator::heInitMatrix(this->wordEmbeddings);
+
+}
+
+
+template <class T>
+void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary) {
+
     this->vocabSize = vocabulary.size();
+    this->vocab = vocabulary;
+
+    initializeEmbeddings(this->vocabSize);
+
+/*
     this->embeddingSize = embeddingSize;
     this->wordEmbeddings = aimatrix<T>::Random(this->vocabSize, embeddingSize);
     this->wordBiases = aivector<T>::Zero(this->vocabSize);
 
     // Initialize word Embeddings
     BaseOperator::heInitMatrix(this->wordEmbeddings);
+*/
 
     // Seed VectorDB
     this->seedVectorDB(this->vocab);
@@ -471,6 +490,8 @@ void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std:
 
         std::wstring token = utf8ToWstring(utf8Str);
 
+        std::wcout << "vocab token: " << token << std::endl;
+
         this->vocab[token] += frequency;
     }
 
@@ -531,17 +552,28 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
  
     log_detail("Start to Cache token hash ...");
 
+    // If cache is unitilialized, then let's initialize
+    if (this-wordEmbeddings.size() == 0) {
+        initializeEmbeddings(this->vocabSize);
+    }
+
+    log_detail("Size of Word Embedding and Bias: {0}x{1} {2}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols(), this->wordBiases.size());
+
     // Fetch and store embeddings in the dynamic embeddings data structure
     // Also create a token hash index structure for fast lookup
     int currentIndex = 0;
     this->tokenHashToIndex.clear();
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const unsigned char* tokenHashBytes = sqlite3_column_text(stmt, 0);
+
+        log_detail("1 ...");
         // Convert the token hash from const unsigned char* to std::string
         std::string tokenHash(reinterpret_cast<const char*>(tokenHashBytes));
 
         const void* embeddingBlob = sqlite3_column_blob(stmt, 1);
         int embeddingSizeBytes = sqlite3_column_bytes(stmt, 1);
+
+        log_detail("2 ...");
 
         // Convert the BLOB data to Eigen VectorXd (assuming float64 for the embeddings)
         aivector<T> embeddings(embeddingSizeBytes / sizeof(double));
@@ -549,13 +581,32 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 
         double bias = sqlite3_column_double(stmt, 2);
 
-        // Create the token hash-to-index mapping and index-to-token mapping
+        log_detail("3 ...");
+
+        // Find the token based on token hash.
         if (this->tokenHashToIndex.find(tokenHash) == this->tokenHashToIndex.end()) {
+
+            log_detail("3a ...");
+
+            // Create the token hash-to-index mapping
             this->tokenHashToIndex[tokenHash] = currentIndex;
+
+            log_detail("3b ...");
+
+            // Create index-to-token mapping
             this->wordEmbeddings.row(currentIndex) = embeddings;
+
+            log_detail("3c ...{0} {1}", currentIndex, this->wordBiases.size());
+
+            // Add some bias
             this->wordBiases(currentIndex) = bias;
+
+            log_detail("3d ... ");
+
             currentIndex++;
         }
+
+        log_detail("4 ...");
 
     }
 
@@ -585,8 +636,8 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
         int index = indexTokenPair.second;
         Record record;
         record.hashKey = tokenHash;
-        record.vectorValue = wordEmbeddings.row(index);
-        record.bias = wordBiases(index);
+        record.vectorValue = this->wordEmbeddings.row(index);
+        record.bias = this->wordBiases(index);
         saveEmbeddings(record);
     }
 

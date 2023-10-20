@@ -167,13 +167,13 @@ using namespace py::literals;
 
 
 /************************************************************************************************
-* BPETokenizer::tokenizeCorpus
+* BPETokenizer::tokenize_to_char
 * Function tokenizes corpus one character at a time. This function is different from the
 * BaseTokenModel::tokenize function which performs word-per-word validation of token in the
 * vocabulary.
 *************************************************************************************************/
 template <class T>
-std::vector<std::wstring> BPETokenizer<T>::tokenizeCorpus(const std::vector<std::wstring>& corpus) {
+std::vector<std::wstring> BPETokenizer<T>::tokenize_to_char(const std::vector<std::wstring>& corpus) {
     std::vector<std::wstring> tokens;
 
     log_info( "===========================" );
@@ -279,97 +279,60 @@ void BPETokenizer<T>::mergeTokens(std::vector<std::wstring>& tokens, int numMerg
 }
 
 /************************************************************************************************
-* BPETokenizer::pretrain
-* Function to pretrain the tokenizer on a corpus. 
-* This is where we construct the initial vocabulary.
-*************************************************************************************************/
-template <class T>
-void BPETokenizer<T>::pretrain(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize) {
-
-    log_info( "=======================================" );
-    log_info( "Entering Pre-training for BPETokenizer  ..." );
-
-    buildVocabulary(sentences, numMerges);
-    if (embeddingSize > 0) {
-        // Rebuild the Vector Metadata in DB.
-        this->embeddings = new Embeddings<T>();
-        this->embeddings->initializeVectorandVocabMetadata(this->vocab, embeddingSize);
-    } else {
-        // error handling
-    }
-}
-
-/************************************************************************************************
-* BPETokenizer::train
-* Function to train the tokenizer on a corpus.
-* This is where we fine-tune the vocabulary.
-*************************************************************************************************/
-template <class T>
-void BPETokenizer<T>::train(const std::vector<std::wstring>& sentences, int numMerges) {
-
-    log_info( "=======================================" );
-    log_info( "Entering Training for BPETokenizer  ..." );
-
-    buildVocabulary(sentences, numMerges);
-    // No need to rebuild the Vector Metadata in DB.
-    // We only need to sync new word from given sentences to the vocabulary; sort of train new words.
-    // For new words, the embeddings will be tuned during GloVe training.
-    this->embeddings->crossReferenceVocabularyinDBandCache(this->vocab);
-}
-
-/************************************************************************************************
 * BPETokenizer::buildVocabulary
 * Function to build the Vocabulary. This includes merging token pairs until certain threshold.
 * See Function BPETokenizer::mergeToken for the algorithm.
-* The call to tokenizeCorpus.
 *************************************************************************************************/
 template <class T>
 void BPETokenizer<T>::buildVocabulary(const std::vector<std::wstring>& sentences, int numMerges) {
-    std::vector<std::wstring> tokens = tokenizeCorpus(sentences);
+    std::vector<std::wstring> tokens = tokenize_to_char(sentences);
     mergeTokens(tokens, numMerges);
-    this->vocabSize = this->vocab.size();
+    this->setVocabSize(this->vocab.size());
 }
 
+/************************************************************************************************
+* BPETokenizer::merge
+* Function to merge the tokenizer on a corpus.
+* This is where we fine-tune the vocabulary.
+*************************************************************************************************/
 template <class T>
-std::vector<std::wstring> BaseTokenModel<T>::tokenize(const std::wstring& sentence) {
+void BPETokenizer<T>::merge(const std::vector<std::wstring>& sentences, int numMerges) {
 
-    log_info( "=================================" );
-    log_info( "Tokenizing a sentence  ..." );
+    log_info( "=======================================" );
+    log_info( "Entering Merge for BPETokenizer  ..." );
 
-    const std::unordered_map<std::wstring, int> vocabulary = this->vocab;
-    std::vector<std::wstring> tokens;
-    std::wstring currentToken;
+    buildVocabulary(sentences, numMerges);
 
-    std::vector<std::wstring> words;
-    words = splitString(sentence);
-
-    for (const auto& word : words) {
-        bool found = false;
-        std::wstring unit = word + TK_SPACE_;
-
-        if (embeddings->isInVocabulary(unit)) { 
-            found = true;
-            tokens.push_back(unit);
-        } else {
-           size_t start = 0;
-           size_t end = word.length();
-
-           for (size_t i = start + 1; i <= end; ++i) {
-               std::wstring token = unit.substr(start, end - start);
-               if (embeddings->isInVocabulary(token)) {
-                   found = true;
-                   tokens.push_back(unit);
-               }
-           }
-        }
-        if (!found) {  // unknown word
-            tokens.push_back(word + TK_UNK_);
-        }
-    }
-
-    return tokens;
-
+    // No need to rebuild the Vector Metadata in DB.
+    // We only need to sync new word from given sentences to the vocabulary; sort of train new words.
+    // For new words, the embeddings will be tuned during GloVe training.
+    this->getEmbeddings()->crossReferenceVocabularyinDBandCache(this->vocab);
 }
+
+/************************************************************************************************
+* BPETokenizer::preload
+* Function to preload the tokenizer on a corpus. 
+* This is where we construct the initial vocabulary. After this, we can begin to use
+* the BPETokenizer::merge function repeatedly for every new corpus.
+*************************************************************************************************/
+template <class T>
+void BPETokenizer<T>::preload(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize) {
+
+    log_info( "=======================================" );
+    log_info( "Entering Pre-load for BPETokenizer  ..." );
+
+    buildVocabulary(sentences, numMerges);
+
+    if (embeddingSize > 0) {
+        // Initializing  Vector Metadata in DB.
+        log_detail("Initializing Vector Metadata ...");
+        this->initializeEmbeddings(embeddingSize);
+        this->getEmbeddings()->initializeVectorandVocabMetadata(this->vocab);
+    } else {
+        this->merge(sentences, numMerges);
+    }
+}
+
 
 /************************************************************************************************
 * BaseTokenModel::splitString
@@ -394,13 +357,58 @@ std::vector<std::wstring> BaseTokenModel<T>::splitString(const std::wstring& str
     return words;
 }
 
-/************************************************************************************************
+/******************************************************************************************************
 * BaseTokenModel::tokenize
 * This Function splits sentences into words and searches the word from the vocabulary. 
 * By using this function, one will get word-per-word token from the vocabulary.
-* This is different from BPETokenizer::tokenizeCorpus in that, that function is the actual tokenizer.
+* This is different from BPETokenizer::tokenize_to_char in that, that function is the actual tokenizer.
 * It splits sentences into characters and the result is fed into a pair-merger.
-*************************************************************************************************/
+*******************************************************************************************************/
+template <class T>
+std::vector<std::wstring> BaseTokenModel<T>::tokenize(const std::wstring& sentence) {
+
+    log_info( "=================================" );
+    log_info( "Tokenizing a sentence  ..." );
+
+    const std::unordered_map<std::wstring, int> vocabulary = this->vocab;
+    std::vector<std::wstring> tokens;
+    std::wstring currentToken;
+
+    std::vector<std::wstring> words;
+    words = splitString(sentence);
+
+    for (const auto& word : words) {
+        bool found = false;
+        std::wstring unit = word + TK_SPACE_;
+
+        if (this->embeddings->isInVocabulary(unit)) { 
+            found = true;
+            tokens.push_back(unit);
+        } else {
+           size_t start = 0;
+           size_t end = word.length();
+
+           for (size_t i = start + 1; i <= end; ++i) {
+               std::wstring token = unit.substr(start, end - start);
+               if (this->embeddings->isInVocabulary(token)) {
+                   found = true;
+                   tokens.push_back(unit);
+               }
+           }
+        }
+        if (!found) {  // unknown word
+            tokens.push_back(word + TK_UNK_);
+        }
+    }
+
+    return tokens;
+
+}
+
+/****************************************************************************************************************
+* BaseTokenModel::tokenize
+* This function accepts a vector of sentences to be tokenized.
+****************************************************************************************************************/
 template <class T>
 std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::vector<std::wstring>& sentences) {
 
@@ -450,19 +458,47 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 
 }
 
-/************************************************************************************************
-* BaseTokenModel::trainGloVe
-* Function to train GloVe-like model. We tokenize a sentence such that the tokenize function
+/*******************************************************************************************************************
+* BaseTokenModel::train
+* Function to train GloVe-like model using GloVe algorithm. We tokenize a sentence such that the tokenize function
 * requires already the existence of the constructed vocabulary.
-*************************************************************************************************/
+********************************************************************************************************************/
 template <class T>
-void BaseTokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int batchSize, T learningRate, int maxIterations) {
-
-    this->learningRate = learningRate;
-    this->maxIterations = maxIterations;
-
+void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSize, 
+        const std::string& losstype, const std::string& optimizertype,
+        T learningRate, int maxIteration, T clipThreshold,  T regularization) {
+    
     log_info( "=================================" );
     log_info( "Entering GloVe-like Training  ..." );
+
+    log_detail("Tokenize the sentences 1...");
+
+    log_detail("Tokenize the sentences 1x...");
+
+    // Preserve hyperparameters.
+    this->losstype = losstype;
+
+    log_detail("Tokenize the sentences 1a...");
+
+    this->optimizertype  = optimizertype;
+
+    log_detail("Tokenize the sentences 1b...");
+
+    this->learningRate   = learningRate;
+
+    log_detail("Tokenize the sentences 1c...");
+
+    this->maxIterations  = maxIterations;
+
+    log_detail("Tokenize the sentences 1d...");
+
+    this->clipThreshold  = clipThreshold;
+
+    log_detail("Tokenize the sentences 1e...");
+
+    this->regularization = regularization;
+
+    log_detail("Tokenize the sentences 2...");
 
     std::vector<std::vector<std::wstring>> corpus = tokenize(sentences);
 
@@ -630,6 +666,7 @@ void BaseTokenModel<T>::trainGloVe(std::vector<std::wstring>& sentences, int bat
 *************************************************************************************************/
 template <class T>
 void BaseTokenModel<T>::printVocabulary(int rows) { 
+
     int count = 0;
     std::cout << "Size of Vocabulary: " << this->vocab.size() << std::endl;
     for (const auto& entry : this->vocab) {
@@ -637,6 +674,7 @@ void BaseTokenModel<T>::printVocabulary(int rows) {
         if (count >= rows) break;
         std::wcout << entry.first << L" : " << entry.second << std::endl;
     }
+
 }
 
 /************************************************************************************************
@@ -645,8 +683,10 @@ void BaseTokenModel<T>::printVocabulary(int rows) {
 *************************************************************************************************/
 template <class T>
 void BaseTokenModel<T>::printWordEmbeddings(int rows) { 
-    int count = 0;
+
     // Print the learned word embeddings
+
+    int count = 0;
     std::cout << "Size of Vocabulary: " << this->vocab.size() << std::endl;
     for (int i = 0; i < (int) this->vocab.size(); ++i) {
         count ++;
@@ -658,6 +698,7 @@ void BaseTokenModel<T>::printWordEmbeddings(int rows) {
         }
         std::cout << std::endl;
     }
+
 }
 
 
@@ -666,24 +707,33 @@ void BaseTokenModel<T>::printWordEmbeddings(int rows) {
 * This is the Model Constructor Implementation - Note that this is only a meta model.
 * The actual model is the BaseModel Class.
 *************************************************************************************************/
-TokenModel::TokenModel(const std::string& losstype, const std::string& optimizertype, 
-        const double learningRate, const int max_epoch, const std::string& datatype) {
+TokenModel::TokenModel(const std::string& tokenizer, const std::string& datatype) {
     try {
-        this->losstype = losstype;
-        this->optimizertype = optimizertype;
-        this->learningRate = learningRate;
-        this->max_epoch = max_epoch;
         this->datatype = datatype;
+        this->tokenizer = tokenizer;
+        /*
         if (datatype == "float") {
-            std::shared_ptr<BaseTokenModel<float>> bmodelf = 
-                std::make_shared<BaseTokenModel<float>>(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
+            std::shared_ptr<BaseTokenModel<float>> bmodelf =  std::make_shared<BPETokenizer<float>>();
             this->modelXf = bmodelf;
         } else if (datatype == "double") {
-            std::shared_ptr<BaseTokenModel<double>> bmodeld = 
-                std::make_shared<BaseTokenModel<double>>(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
+            std::shared_ptr<BaseTokenModel<double>> bmodeld =  std::make_shared<BaseTokenModel<double>>();
             this->modelXd = bmodeld;
         } else {
             throw std::invalid_argument("Unsupported datatype");
+        }
+        */
+
+        if (tokenizer == "bpetokenizer") {
+            if (datatype == "float") {
+                this->tokenizerf =  std::make_shared<BPETokenizer<float>>();
+            } else
+            if (datatype == "double") {
+                this->tokenizerd =  std::make_shared<BPETokenizer<double>>();
+            } else {
+                throw std::invalid_argument("Unsupported datatype");            
+            }
+        } else {
+            throw AIException("Unsupported Tokenizer ...");
         }
 
     } catch (const AIException& e) {
@@ -699,37 +749,21 @@ TokenModel::TokenModel(const std::string& losstype, const std::string& optimizer
     std::cout << "Got here :" << datatype << " learningRate " << learningRate << std::endl;
 }
 
+/*
 void TokenModel::setTokenizer(const std::string& name ) {
     this->tokenizer = name;
     if (datatype == "float") {
         if (name == "bpetokenizer") {
-            this->tokenizerf = std::make_shared<BPETokenizer<float>>();
+            this->tokenizerf = new BPETokenizer<float>();
         }
     } else
     if (datatype == "double") {
         if (name == "bpetokenizer") {
-            this->tokenizerd = std::make_shared<BPETokenizer<double>>();
+            this->tokenizerd = new BPETokenizer<double>();
         }
     }
 }
-
-void TokenModel::pretrain(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize) {
-    if (this->datatype == "float") {
-        this->tokenizerf->pretrain(sentences, numMerges, embeddingSize);
-    } else 
-    if (this->datatype == "double") {
-        this->tokenizerd->pretrain(sentences, numMerges, embeddingSize);
-    }
-}
-
-void TokenModel::train(const std::vector<std::wstring>& sentences, int numMerges) {
-    if (this->datatype == "float") {
-        this->tokenizerf->train(sentences, numMerges);
-    } else 
-    if (this->datatype == "double") {
-        this->tokenizerd->train(sentences, numMerges);
-    }
-}
+*/
 
 std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {
     std::vector<std::wstring> empty_vector;
@@ -753,12 +787,32 @@ std::vector<std::vector<std::wstring>> TokenModel::tokenize(const std::vector<st
     return empty_vector;
 }
 
-void TokenModel::trainGloVe(std::vector<std::wstring>& sentences, int batchSize, double learningRate, int maxIteration) {
+void TokenModel::preload(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize) {
     if (this->datatype == "float") {
-        this->modelXf->trainGloVe(sentences, batchSize, learningRate, maxIteration);
+        this->tokenizerf->preload(sentences, numMerges, embeddingSize);
     } else 
     if (this->datatype == "double") {
-        this->modelXd->trainGloVe(sentences, batchSize, learningRate, maxIteration);
+        this->tokenizerd->preload(sentences, numMerges, embeddingSize);
+    }
+}
+
+void TokenModel::merge(const std::vector<std::wstring>& sentences, int numMerges) {
+    if (this->datatype == "float") {
+        this->tokenizerf->merge(sentences, numMerges);
+    } else 
+    if (this->datatype == "double") {
+        this->tokenizerd->merge(sentences, numMerges);
+    }
+}
+
+void TokenModel::train(std::vector<std::wstring>& sentences, int batchSize , 
+        const std::string& losstype , const std::string& optimizertype,
+        double learningRate, int maxIteration, double clipThreshold ,double regularization ) {
+    if (this->datatype == "float") {
+        this->tokenizerf->train(sentences, batchSize, losstype, optimizertype, static_cast<float>(learningRate), maxIteration);
+    } else 
+    if (this->datatype == "double") {
+        this->tokenizerd->train(sentences, batchSize, losstype, optimizertype, static_cast<double>(learningRate), maxIteration);
     }
 }
 

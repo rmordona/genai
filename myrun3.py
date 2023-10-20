@@ -5,13 +5,11 @@ from typing import List
 ai.print_string("Hello", True)
 
 #class MyTokenModel(ai.TokenModel):
-#   def __init__(self, learningRate, datatype):
-#     super().__init__(learningRate, datatype);
+#   def __init__(self, tokenizer, datatype):
+#     super().__init__(tokenizer, datatype);
 
 dtype = "float"
-tokenizer = ai.TokenModel(learningRate=0.02, datatype=dtype);
-
-tokenizer.setTokenizer(name = "bpetokenizer");
+tokenizer = ai.TokenModel(tokenizer="bpetokenizer", datatype=dtype);
 
 #sentence = "I travel the world in search for the fountain of youth. Hello, 世界!"
 
@@ -47,11 +45,11 @@ new_corpus2 = [
 
 # Create a list of UTF-32 strings
 
-tokenizer.pretrain(corpus = corpus, merges = 10, size=5);
+tokenizer.preload(corpus = corpus, merges = 10, size=5);
 
-tokenizer.train(corpus = new_corpus1, merges = 10);
+tokenizer.merge(corpus = new_corpus1, merges = 10);
 
-tokenizer.train(corpus = new_corpus2, merges = 10);
+tokenizer.merge(corpus = new_corpus2, merges = 10);
 
 
 sentences = [
@@ -69,7 +67,7 @@ print("Got the tokens ...");
 #   for y in x:
 #      print(y)
 
-tokenizer.trainGloVe(corpus=sentences, batchsize=2, learningrate = 0.01, maxiteration = 100);
+tokenizer.train(corpus=sentences, batchsize=2, losstype = "mse", optimizertype = "adagrad", learningRate = 0.01, maxIteration = 100, clipTreshold = 5.0, regularization = 1.0);
 
 ai.print_string("Done.", True)
 
