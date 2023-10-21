@@ -641,6 +641,8 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<const std::string&>(), py::arg("type") = "sum");  
     py::class_<ModelActivation, BaseOperator, std::shared_ptr<ModelActivation>>(m, "Activation")
         .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
+    py::class_<ModelDropout, BaseOperator, std::shared_ptr<ModelDropout>>(m, "Dropout")
+        .def(py::init<const float>(), py::arg("probabilty") = 0.5);
     py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
         .def(py::init<int, bool, bool>(), py::arg("size") = 3, py::arg("bias") = false, py::arg("masked") = false); 
     py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")

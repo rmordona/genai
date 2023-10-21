@@ -464,11 +464,12 @@ void Optimizer<T>::stepDecay(T& learningRate, T decayRate, int currentEpoch, int
 }
 
 /**************************************************************************************************************************
- * Linear Class:
+* Linear Class:
+* This class offers the most fundamental layer of a neural network.  It is also considered as the Dense Layer.
+* This assumes that the input is defined with NxM dimensionality.
+* Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use;
+* The output will have NxW dimension.
 ***************************************************************************************************************************/
-// This assumes that the input is defined with NxM dimensionality.
-// Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use;
-// The output will have NxW dimension.
 template <class T>
 void Linear<T>::setInitialWeights(int M) {
 
@@ -1600,9 +1601,98 @@ std::string Activation<T>::generateDotFormat() {
 }
 
 /*****************************************************************************************************
+* Base Drop out Function:
+
+*****************************************************************************************************/
+// This assumes that the input is defined with NxM dimensionality.
+// Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
+template <class T>
+const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) { 
+
+    log_info("===============================================");
+    log_info("DropOut Forward Pass ...");
+
+    // Cache for later back propagation.
+    this->input_data = input_data;
+
+    if (input_data.size() == 0) {
+        return input_data;
+    }
+
+    this->batch_size = this->input_data.size();
+    this->input_size = this->input_data.at(0).rows();
+    this->embedding_size = this->input_data.at(0).cols();
+ 
+    aimatrix<T> input(this->input_size, this->W);
+
+    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", this->batch_size, this->input_size, this->W );
+
+    aitensor<T> output_data;
+
+    for (int i = 0; i < this->batch_size; ++i) {
+
+        input = this->input_data.at(i);  // input_size x embedding_size
+
+        log_detail( "Size of input: {0}", input.size() );
+
+        // Perform Drop Out Transformation.
+        aimatrix<T> output = maskedMatrix(this->input_size, this->embedding_size);  
+
+        output = output.array() * input.array();
+
+        log_detail( "Linear output Dimension: {0}x{1}", output.rows(), output.cols());
+
+        // output_data->chip(i, 0) = tensor_view(output);
+        output_data.push_back(output);
+
+    }
+
+    this->masked_data = output_data;
+
+    log_info( "End DropOut ....\n" );
+
+    return output_data; // this becomes input to the next Node or next Layer. It returns a copy of the output.
+}
+
+template <class T>
+const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
+
+    log_info("===============================================");
+    log_info("DropOut Backward Pass ...");
+
+    // The dimension is based on that of the output_data.  See Dropout<T>::forward()
+    aitensor<T> dInput; // (this->batch_size, this->input_size, this->W); 
+
+    aimatrix<T> gradient, masked_output;
+
+    for (int i = 0; i < this->batch_size; ++i) {
+
+        gradient = gradients.at(i); 
+        masked_output    = this->masked_data.at(i); 
+
+        gradient = gradient.array() * masked_output.array();
+
+        log_detail( "Computing Masked Dropouts now ..."  );
+        log_matrix(gradient);
+
+        // dInput.chip(i, 0) = tensor_view(gradient);
+        dInput.push_back(gradient);
+
+    }
+
+    log_detail( "Done with Gradients..." );
+    return dInput;
+
+}
+
+
+template <class T>
+void Dropout<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+}
+
+/*****************************************************************************************************
 * Base Loss Functions
 *****************************************************************************************************/
-
 // Mean Squared Error. Returns (scalar)
 // Expected input dimensions:  NxW ( N for input size, and W for feature size)
 // Expected overall loss: Average along dimensions B and N.

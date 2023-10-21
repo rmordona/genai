@@ -394,19 +394,9 @@ void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wst
 
     initializeEmbeddings(this->vocabSize);
 
-/*
-    this->embeddingSize = embeddingSize;
-    this->wordEmbeddings = aimatrix<T>::Random(this->vocabSize, embeddingSize);
-    this->wordBiases = aivector<T>::Zero(this->vocabSize);
-
-    // Initialize word Embeddings
-    BaseOperator::heInitMatrix(this->wordEmbeddings);
-*/
-
     // Seed VectorDB
     this->seedVectorDB(this->vocab);
 }
-
 
 /************************************************************************************************
 * Embeddings::crossReferenceVocabularyinDBandCache

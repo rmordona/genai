@@ -287,6 +287,13 @@ void Node<T>::forwardPass() {
             log_info("Returned Activation pass with the below output ...");
             log_matrix( output );
         } else
+        //if (auto dropout = std::dynamic_pointer_cast<Dropout<T>>(op)) {
+        if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
+            log_detail("Node [{0}] Dropout Operation (Forward Pass)", name );
+            output = dropout->forward(output);
+            log_info("Returned Dropout pass with the below output ...");
+            log_matrix( output );
+        } else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
@@ -380,7 +387,13 @@ void Node<T>::backwardPass() {
             log_detail("Node [{0}] Activation Operation (Backward Pass)", name );
             dInput = activate->backward(dInput);
             log_matrix( dInput );
-        } else        
+        } else      
+        //if (auto dropout = std::dynamic_pointer_cast<Dropout<T>>(op)) {
+        if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
+            log_detail("Node [{0}] Dropout Operation (Backward Pass)", name );
+            dInput = dropout->backward(dInput);
+            log_matrix( dInput );
+        } else     
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Backward Pass)", name );

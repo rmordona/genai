@@ -244,17 +244,13 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
 
     for (auto& op : operations) {
         // Check the dynamic type of the object using dynamic_cast
-        std::cout << "Entering linear operation set ..." << std::endl;
         if (auto linear = std::dynamic_pointer_cast<ModelLinear>(op)) {
             if (datatype == "float") {
-                std::cout << "Entering linear operation set 1 ..." << std::endl;
                 Linear<float>* newop = new Linear<float>(
                                                             linear->getSize(), 
                                                             linear->getBias()
                                                         );
-                std::cout << "Entering linear operation set 2 ..." << std::endl;
                 this->operations.push_back(newop);
-                std::cout << "Entering linear operation set 3 ..." << std::endl;
             } else 
             if (datatype == "double") {
                 Linear<double>* newop = new Linear<double>(
@@ -285,20 +281,31 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             } 
         } else
         if (auto activate = std::dynamic_pointer_cast<ModelActivation>(op)) {
-                std::cout << "Entering activation operation set 1 ..." << std::endl;
             if (datatype == "float") {
                 Activation<float>* newop = new Activation<float>(
                                                             activate->getActivationType(), 
                                                             activate->getAlpha()
                                                         );
-                std::cout << "Entering activation operation set 2 ..." << std::endl;
                 this->operations.push_back(newop);
-                std::cout << "Entering activation operation set 3 ..." << std::endl;
             } else 
             if (datatype == "double") {
                 Activation<double>* newop = new Activation<double>(
                                                             activate->getActivationType(), 
                                                             activate->getAlpha()
+                                                        );
+                this->operations.push_back(newop);
+            }
+        }  else  
+        if (auto dropout = std::dynamic_pointer_cast<ModelDropout>(op)) {
+            if (datatype == "float") {
+                Dropout<float>* newop = new Dropout<float>(
+                                                            dropout->getProbability()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Dropout<double>* newop = new Dropout<double>(
+                                                            dropout->getProbability()
                                                         );
                 this->operations.push_back(newop);
             }

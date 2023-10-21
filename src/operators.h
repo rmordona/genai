@@ -471,6 +471,73 @@ public:
 };
 
 /*****************************************************************************************************
+* Base Dropout Functions
+* set approximately P% of cells in the matrix to zero.
+*****************************************************************************************************/
+template <class T>
+class Dropout: public BaseOperator {
+private:
+    float probability = 0.5; // 50% dropout
+
+    aitensor<T> masked_data;
+
+    aimatrix<T> maskedMatrix(int rows, int cols) {
+
+        aimatrix<T> matrix = aimatrix<T>::Zero(rows, cols); 
+
+        // Calculate the number of cells to set to 1
+        int num_cells_to_set = static_cast<int>(rows * cols * probability);
+
+        // Create a random number generator
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> row_dist(0, rows - 1);
+        std::uniform_int_distribution<int> col_dist(0, cols - 1);
+
+        for (int i = 0; i < num_cells_to_set; i++) {
+            int random_row = row_dist(gen);
+            int random_col = col_dist(gen);
+            matrix(random_row, random_col) = 1;
+        }
+
+        return matrix;
+    }
+
+    
+public:
+    Dropout(const float probability = 0.5) {
+        this->probability = probability;
+    }
+
+    const aitensor<T> forward(const aitensor<T>& input_data);
+
+    const aitensor<T> backward(const aitensor<T>& gradients);
+
+    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    void forwardPass() {}
+    void backwardPass() {}
+
+};
+
+class Reduction : public BaseOperator {
+private:
+    Eigen::MatrixXd input_data;
+    std::string reducttype = "add";
+
+public:
+    Reduction(const std::string& reducttype = "add") {
+        this->reducttype = reducttype;
+    }
+
+    std::string getType();
+
+    void forwardPass() {}
+    void backwardPass() {}
+
+};
+
+/*****************************************************************************************************
 * Base Loss Functions
 *****************************************************************************************************/
 template <class T>
@@ -516,31 +583,6 @@ public:
     void backwardPass() {}
 };
 
-class Dropout: public BaseOperator {
-public:
-    Dropout(int size) {
-        // Initialize scaling and shifting parameters
-    }
 
-    void forwardPass() {}
-    void backwardPass() {}
-};
-
-class Reduction : public BaseOperator {
-private:
-    Eigen::MatrixXd input_data;
-    std::string reducttype = "add";
-
-public:
-    Reduction(const std::string& reducttype = "add") {
-        this->reducttype = reducttype;
-    }
-
-    std::string getType();
-
-    void forwardPass() {}
-    void backwardPass() {}
-
-};
 
 #endif

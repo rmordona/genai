@@ -270,6 +270,25 @@ public:
 };
 
 /************************************************************************************************
+* We use ModelDropout class as a meta model only for use  as entry point for python API.
+* The actual model is the Dropout  class.
+*************************************************************************************************/
+class ModelDropout : public BaseOperator {
+private:
+    float probability = 0.50;
+public: 
+    ModelDropout(const float probability = 0.50) {
+        this->probability = probability;
+    }
+
+    float getProbability() { return this->probability; }
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+
+/************************************************************************************************
 * We use ModelReduction class as a meta model only for use  as entry point for python API.
 * The actual model is the Reduction  class.
 *************************************************************************************************/
