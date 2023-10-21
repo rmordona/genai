@@ -197,8 +197,6 @@ private:
     aitensor<T> output_data;
 
     OperationParams<T> parameters; // Learnable Parameters. The core of AI.
-
-    // OperationParams gradients;  // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
     std::vector<OperationParams<T>> vgradients; // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
 
     int M = 0; // number of features (embedding vector size)
@@ -485,8 +483,9 @@ private:
 
         aimatrix<T> matrix = aimatrix<T>::Zero(rows, cols); 
 
-        // Calculate the number of cells to set to 1
-        int num_cells_to_set = static_cast<int>(rows * cols * probability);
+        // Calculate the number of cells to set to 1.
+        // If drop probability is 0.20, then  ( 1 - 0.20 ) will be set to 1.
+        int num_cells_to_set = static_cast<int>(rows * cols * (1 - probability));
 
         // Create a random number generator
         std::random_device rd;

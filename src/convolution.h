@@ -31,6 +31,13 @@
 
 #include "operators.h"
 
+/**************************************************************************************************************************
+* Convolution Class:
+* This class provides the convolution layer of a neural network. 
+* This assumes that the input is defined with BxNxM dimensionality.
+* Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use;
+* The output will have BxNxW dimension.
+***************************************************************************************************************************/
 template <class T>
 class Convolution : public BaseOperator {
 private:
@@ -38,14 +45,30 @@ private:
     int stride      = 0;
     int padding     = 0;
     int dilation    = 0;
+
+    bool bias = true; // Use bias by default.
+
+    aitensor<T> input_data;
+    aitensor<T> output_data;
+
+    OperationParams<T> kernel; // Learnable Parameters. The core of AI.
+    std::vector<OperationParams<T>> vgradients; // inputs to next backward-wise Nodes   (gradients with respect to weights & biases)
+
+    Optimizer<T>* opt_weights = nullptr; // for optimizer
+    Optimizer<T>* opt_biases = nullptr; // for optimizer
+
+
 public:
-    Convolution(int kernel_size = 3, int stride = 1, int padding = 1, int dilation = 1)   {
+    Convolution(int kernel_size = 3, int stride = 1, int padding = 1, int dilation = 1, bias = true)   {
         this->kernel_size = kernel_size;
         this->stride      = stride;
         this->padding     = padding;
-        this->dilation    = dilation;        
+        this->dilation    = dilation;   
+        this->bias        = bias;
+        setInitialWeights(this->kernel_size);     
     }
 
+    void Convolution<T>::setInitialWeights(int kernel_size);
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
