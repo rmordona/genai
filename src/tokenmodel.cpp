@@ -535,7 +535,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
             }
         }
     }
-
+ 
     log_detail("Iterate over the corpus in batches ...");
 
     // Iterate over the corpus in batches

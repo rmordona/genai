@@ -4,6 +4,7 @@ genai.egg-info/PKG-INFO
 genai.egg-info/SOURCES.txt
 genai.egg-info/dependency_links.txt
 genai.egg-info/top_level.txt
+src/convolution.cpp
 src/distributed.cpp
 src/embeddings.cpp
 src/genai.cpp

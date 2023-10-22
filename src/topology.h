@@ -26,6 +26,7 @@
 #include "operators.h"
 #include "transformer.h"
 #include "recurrent.h"
+#include "convolution.h"
 
 #ifndef TOPOLOGY_H
 #define TOPOLOGY_H

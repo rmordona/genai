@@ -309,6 +309,38 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
+        }  else
+        if (auto flatten = std::dynamic_pointer_cast<ModelFlatten>(op)) {
+            if (datatype == "float") {
+                Flatten<float>* newop = new Flatten<float>();
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Flatten<double>* newop = new Flatten<double>();
+                this->operations.push_back(newop);
+            }
+        }  else
+        if (auto convolution = std::dynamic_pointer_cast<ModelConvolution>(op)) {
+            if (datatype == "float") {
+                Convolution<float>* newop = new Convolution<float>(
+                                                            convolution->getKernelSize(),
+                                                            convolution->getStride(),
+                                                            convolution->getPadding(),
+                                                            convolution->getDilation(),
+                                                            convolution->getBias()                                                                                                                                                                                                                                             
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                Convolution<double>* newop = new Convolution<double>(
+                                                            convolution->getKernelSize(),
+                                                            convolution->getStride(),
+                                                            convolution->getPadding(),
+                                                            convolution->getDilation(),
+                                                            convolution->getBias()   
+                                                        );
+                this->operations.push_back(newop);
+            }
         }  else  // Transformer Component
         if (auto attention = std::dynamic_pointer_cast<ModelAttention>(op)) {
             if (datatype == "float") {

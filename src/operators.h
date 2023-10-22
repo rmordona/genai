@@ -43,6 +43,9 @@ public:
     }
 };
 
+/*****************************************************************************************************
+* Base Optimizer Class
+*****************************************************************************************************/
 template<class T>
 class Optimizer : public BaseOperator {
 private:
@@ -190,6 +193,9 @@ public:
     void backwardPass() {}
 };
 
+/*****************************************************************************************************
+* Base Linear Class
+*****************************************************************************************************/
 template <class T>
 class Linear : public BaseOperator {
 private:
@@ -255,6 +261,9 @@ public:
 
 };
 
+/*****************************************************************************************************
+* Base BatchNorm Class
+*****************************************************************************************************/
 template <class T>
 class BatchNorm : public BaseOperator {
 private:
@@ -313,6 +322,9 @@ public:
     std::string generateDotFormat(const std::string& name = "generic");
 };
 
+/*****************************************************************************************************
+* Base LayerNorm Class
+*****************************************************************************************************/
 template <class T>
 class LayerNorm : public BaseOperator {
 private:
@@ -369,6 +381,9 @@ public:
     std::string generateDotFormat(const std::string& name = "generic");
 };
 
+/*****************************************************************************************************
+* Base Activation Class
+*****************************************************************************************************/
 template <class T>
 class Activation : public BaseOperator {
 private:
@@ -408,7 +423,7 @@ public:
     void setInitSize(const aimatrix<T>& input_data);
 
     // Here, instead of using the term logits, let's just use x.
-    //const aimatrix<T>  sigmoid(const aimatrix<T>& x);
+    const aimatrix<T>  softmax(const aimatrix<T>& x);
 
     /*****************************************************************************************************
      * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
@@ -417,9 +432,21 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y)
      *****************************************************************************************************/
-    //const aimatrix<T>  sigmoidGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data);
+    const aimatrix<T>  softmaxGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data);
 
-    //const aimatrix<T>  tanh(const aimatrix<T>& x);
+    // Here, instead of using the term logits, let's just use x.
+    const aimatrix<T>  sigmoid(const aimatrix<T>& x);
+
+    /*****************************************************************************************************
+     * So, the gradient of the sigmoid function with respect to its input (z) can be expressed as follows:
+     * dy/dz = propagated_gradient * sigmoid(z) * (1 - sigmoid(z))
+     * Or if output (y) is cached, where y = sigmoid(z)
+     * then we use the output such that:
+     * dy/dz = propagated_gradient * y * (1 - y)
+     *****************************************************************************************************/
+    const aimatrix<T>  sigmoidGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data);
+
+    const aimatrix<T>  tanh(const aimatrix<T>& x);
 
     /*****************************************************************************************************
      * So, the gradient of the tanh function with respect to its input (z) can be expressed as follows:
@@ -428,7 +455,7 @@ public:
      * then we use the output such that:
      * dy/dz = propagated_gradient * y * (1 - y^2)
      *****************************************************************************************************/
-    //const aimatrix<T>  tanhGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data);
+    const aimatrix<T>  tanhGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data);
 
     const aimatrix<T> relu(const aimatrix<T>& x);
 
@@ -469,13 +496,17 @@ public:
 };
 
 /*****************************************************************************************************
-* Base Dropout Functions
+* Base Dropout Class
 * set approximately P% of cells in the matrix to zero.
 *****************************************************************************************************/
 template <class T>
 class Dropout: public BaseOperator {
 private:
     float probability = 0.5; // 50% dropout
+
+    int batch_size = 0;
+    int input_size = 0;
+    int param_size = 0;
 
     aitensor<T> masked_data;
 
@@ -512,13 +543,35 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+    void forwardPass() {}
+    void backwardPass() {}
+
+};
+
+/*****************************************************************************************************
+* Base Flatten Class
+*****************************************************************************************************/
+template <class T>
+class Flatten: public BaseOperator {
+private:
+    int input_height = 0;
+    int input_width  = 0;
+public:
+
+    Flatten() {}
+
+    const aitensor<T> forward(const aitensor<T>& input_data);
+
+    const aitensor<T> backward(const aitensor<T>& gradients);
 
     void forwardPass() {}
     void backwardPass() {}
 
 };
 
+/*****************************************************************************************************
+* Base Reduction Class
+*****************************************************************************************************/
 class Reduction : public BaseOperator {
 private:
     Eigen::MatrixXd input_data;
@@ -537,7 +590,7 @@ public:
 };
 
 /*****************************************************************************************************
-* Base Loss Functions
+* Base Loss Class
 *****************************************************************************************************/
 template <class T>
 class Loss : public BaseOperator {

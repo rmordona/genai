@@ -287,6 +287,51 @@ public:
     void backwardPass() {}
 };
 
+/************************************************************************************************
+* We use ModelFlatten class as a meta model only for use  as entry point for python API.
+* The actual model is the Flatten  class.
+*************************************************************************************************/
+class ModelFlatten : public BaseOperator {
+private:
+public: 
+    ModelFlatten() {}
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+/************************************************************************************************
+* We use ModelConvolution class as a meta model only for use  as entry point for python API.
+* The actual model is the Convolution  class.
+*************************************************************************************************/
+class ModelConvolution : public BaseOperator {
+private:
+    int kernel_size = 2;
+    int stride      = 1;
+    int padding     = 1;
+    int dilation    = 1;
+
+    bool bias = true; // Use bias by default.
+public: 
+    ModelConvolution(int kernel_size = 2, int stride = 1, int padding = 1, int dilation = 1, bool bias = true)   {
+        this->kernel_size = kernel_size;
+        this->stride      = stride;
+        this->padding     = padding;
+        this->dilation    = dilation;   
+        this->bias        = bias;  
+    }
+
+    int getKernelSize() { return this->kernel_size; } 
+    int getStride() { return this->stride; } 
+    int getPadding() { return this->padding; } 
+    int getDilation() { return this->dilation; } 
+    int getBias() { return this->bias; } 
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
+
+
 
 /************************************************************************************************
 * We use ModelReduction class as a meta model only for use  as entry point for python API.

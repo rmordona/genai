@@ -20,14 +20,14 @@ class BuildExt(build_ext):
 ext_modules = [
     Extension(
         "genai",
-#        sources=["src/tokenmodel.cpp", "src/operators.cpp",  "src/model.cpp", "src/genai.cpp" ],
+#        sources=["src/convolution.cpp", "src/tokenmodel.cpp", "src/operators.cpp",  "src/model.cpp", "src/genai.cpp" ],
 #         sources=[ "src/operators.cpp" ],
 #         sources=[ "src/model.cpp", "src/genai.cpp", "src/distributed.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp" ],
 #        sources=[ "src/operators.cpp", "src/transformer.cpp" ],
 #        sources=[  "src/operators.cpp", "src/transformer.cpp", "src/topology.cpp", "src/recurrent.cpp", "src/model.cpp", "src/genai.cpp" ],
 #        sources=["src/scraper.cpp", "src/operators.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp", 
 #         	 "src/transformer.cpp", "src/topology.cpp", "src/model.cpp", "src/recurrent.cpp", "src/genai.cpp"],
-        sources=["src/scraper.cpp", "src/operators.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp", 
+        sources=["src/scraper.cpp", "src/operators.cpp", "src/embeddings.cpp", "src/tokenmodel.cpp",  "src/convolution.cpp",
          	 "src/distributed.cpp", "src/transformer.cpp", "src/topology.cpp", "src/model.cpp", "src/recurrent.cpp", "src/genai.cpp"],
         include_dirs=['src', 
                     '/usr/local/Cellar/gcc/13.1.0/lib/gcc/current/gcc/x86_64-apple-darwin22/13/include',

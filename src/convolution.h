@@ -23,9 +23,9 @@
  *
  * Author: Raymond Michael O. Ordona
  *
- */
+*/
 
- #pragma once
+#pragma once
 #ifndef CONVOLUTION_H
 #define CONVOLUTION_H
 
@@ -41,10 +41,10 @@
 template <class T>
 class Convolution : public BaseOperator {
 private:
-    int kernel_size = 0;
-    int stride      = 0;
-    int padding     = 0;
-    int dilation    = 0;
+    int kernel_size = 2;
+    int stride      = 1;
+    int padding     = 1;
+    int dilation    = 1;
 
     bool bias = true; // Use bias by default.
 
@@ -59,7 +59,7 @@ private:
 
 
 public:
-    Convolution(int kernel_size = 3, int stride = 1, int padding = 1, int dilation = 1, bias = true)   {
+    Convolution(int kernel_size = 2, int stride = 1, int padding = 1, int dilation = 1, bool bias = true)   {
         this->kernel_size = kernel_size;
         this->stride      = stride;
         this->padding     = padding;
@@ -68,7 +68,7 @@ public:
         setInitialWeights(this->kernel_size);     
     }
 
-    void Convolution<T>::setInitialWeights(int kernel_size);
+    void setInitialWeights(int kernel_size);
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);

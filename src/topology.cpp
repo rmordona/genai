@@ -294,6 +294,20 @@ void Node<T>::forwardPass() {
             log_info("Returned Dropout pass with the below output ...");
             log_matrix( output );
         } else
+        //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
+        if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
+            log_detail("Node [{0}] Flatten Operation (Forward Pass)", name );
+            output = flatten->forward(output);
+            log_info("Returned Flatten pass with the below output ...");
+            log_matrix( output );
+        } else
+        //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
+        if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
+            log_detail("Node [{0}] Convolution Operation (Forward Pass)", name );
+            output = convolution->forward(output);
+            log_info("Returned Convolution pass with the below output ...");
+            log_matrix( output );
+        } else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Forward Pass)", name );
@@ -394,6 +408,18 @@ void Node<T>::backwardPass() {
             dInput = dropout->backward(dInput);
             log_matrix( dInput );
         } else     
+        //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
+        if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
+            log_detail("Node [{0}] Flatten Operation (Backward Pass)", name );
+            dInput = flatten->backward(dInput);
+            log_matrix( dInput );
+        } else    
+        //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
+        if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
+            log_detail("Node [{0}] Convolution Operation (Backward Pass)", name );
+            dInput = convolution->backward(dInput);
+            log_matrix( dInput );
+        } else   
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Backward Pass)", name );
@@ -468,7 +494,12 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
         if (LayerNorm<T>* layernorm = dynamic_cast<LayerNorm<T>*>(op)) {
             log_detail("Node [{0}] Layer Normal Operation (Update Params)", name );
             layernorm->updateParameters(optimizertype, learningRate, iter);
-        } else      
+        } else     
+        //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
+        if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
+            log_detail("Node [{0}] Convolution Operation (Update Params)", name );
+            convolution->updateParameters(optimizertype, learningRate, iter);
+        } else       
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             log_detail("Node [{0}] Attention Operation (Update Params)", name );

@@ -27,7 +27,6 @@
 */
 
 #include "genai.h"
-#include "logger.h"
 #include "operators.h"
 
 namespace py = pybind11;
@@ -482,15 +481,10 @@ void Linear<T>::setInitialWeights(int M) {
     parameters.weights.resize(M, this->W); // allocates memory
     parameters.biases.resize(this->W); // allocates memory
 
-        log_detail( "manual: input Dimension: {0}x{1}",  parameters.weights.rows(),  parameters.weights.cols());
-
     // Initialize Weights & Biases
     heInitMatrix(parameters.weights);
     // heInitialization(parameters.biases);
     parameters.biases.setConstant(T(0.01));
-
-    log_detail( "manual: input Dimension: {0}x{1}",  parameters.weights.rows(),  parameters.weights.cols());
-
 
 }
 
@@ -1396,6 +1390,50 @@ std::string LayerNorm<T>::generateDotFormat(const std::string& name) {
 
 /*****************************************************************************************************
 * Base Activation Functions
+* These functions applies non-linearity.
+*****************************************************************************************************/
+
+/*****************************************************************************************************
+* Softmax Activation Functions
+*****************************************************************************************************/
+template <class T>
+const aimatrix<T> Activation<T>::softmax(const aimatrix<T>& x) {
+    return BaseOperator::softmax(x);
+}
+
+template <class T>
+ const aimatrix<T>  Activation<T>::softmaxGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
+    return BaseOperator::softmaxGradient(gradients, output_data);
+}
+
+/*****************************************************************************************************
+* Sigmoid Activation Functions
+*****************************************************************************************************/
+template <class T>
+const aimatrix<T> Activation<T>::sigmoid(const aimatrix<T>& x) {
+    return BaseOperator::sigmoid(x);
+}
+
+template <class T>
+ const aimatrix<T>  Activation<T>::sigmoidGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
+    return BaseOperator::sigmoidGradient(gradients, output_data);
+}
+
+/*****************************************************************************************************
+* Tanh Activation Functions
+*****************************************************************************************************/
+template <class T>
+const aimatrix<T> Activation<T>::tanh(const aimatrix<T>& x) {
+    return BaseOperator::tanh(x);
+}
+
+template <class T>
+const aimatrix<T>  Activation<T>::tanhGradient(const aimatrix<T>& gradients, const aimatrix<T>& output_data) {
+    return BaseOperator::tanhGradient(gradients, output_data);
+}
+
+/*****************************************************************************************************
+* Relu Activation Functions
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Activation<T>::relu(const aimatrix<T>& x) {
@@ -1413,6 +1451,9 @@ const aimatrix<T> Activation<T>::reluGradient(const aimatrix<T>& gradients, cons
     return dInput;
 }
 
+/*****************************************************************************************************
+* LeakyRelu Activation Functions
+*****************************************************************************************************/
 template <class T>
 const aimatrix<T> Activation<T>::leakyReLU(const aimatrix<T>& x, float alpha) {
     return x.array().max(alpha * x.array());
@@ -1429,6 +1470,9 @@ const aimatrix<T> Activation<T>::leakyReluGradient(const aimatrix<T>& gradients,
     return dInput;
 }
 
+/*****************************************************************************************************
+* Gelu Activation Functions
+*****************************************************************************************************/
 template <class T>
 const aimatrix<T> Activation<T>::gelu(const aimatrix<T>& x) {
     return 0.5 * x.array() * (1.0 + ((x.array() * std::sqrt(2.0 / M_PI)).tanh()));
@@ -1601,11 +1645,11 @@ std::string Activation<T>::generateDotFormat() {
 }
 
 /*****************************************************************************************************
-* Base Drop out Function:
-
+* Base Dropout Function:
+* This assumes that the input is defined with NxM dimensionality.
+* Therefore the size of the parameters and thus gradients will be based on MxW where W is the 
+* number of weights to use.
 *****************************************************************************************************/
-// This assumes that the input is defined with NxM dimensionality.
-// Therefore the size of the parameters and thus gradients will be based on MxW where W is the number of weights to use.
 template <class T>
 const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) { 
 
@@ -1613,30 +1657,30 @@ const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) {
     log_info("DropOut Forward Pass ...");
 
     // Cache for later back propagation.
-    this->input_data = input_data;
+    //this->input_data = input_data;
 
     if (input_data.size() == 0) {
         return input_data;
     }
 
-    this->batch_size = this->input_data.size();
-    this->input_size = this->input_data.at(0).rows();
-    this->embedding_size = this->input_data.at(0).cols();
+    this->batch_size = input_data.size();
+    this->input_size = input_data.at(0).rows();
+    this->param_size = input_data.at(0).cols();
  
-    aimatrix<T> input(this->input_size, this->W);
+    aimatrix<T> input(this->input_size, this->param_size);
 
-    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", this->batch_size, this->input_size, this->W );
+    log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", this->batch_size, this->input_size, this->param_size );
 
     aitensor<T> output_data;
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        input = this->input_data.at(i);  // input_size x embedding_size
+        input = input_data.at(i);  // input_size x embedding_size
 
         log_detail( "Size of input: {0}", input.size() );
 
         // Perform Drop Out Transformation.
-        aimatrix<T> output = maskedMatrix(this->input_size, this->embedding_size);  
+        aimatrix<T> output = maskedMatrix(this->input_size, this->param_size);  
 
         output = output.array() * input.array();
 
@@ -1686,16 +1730,66 @@ const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
 }
 
 
+/*****************************************************************************************************
+* Base Flatten Function:
+* This assumes that the input is defined with NxM dimensionality.
+* Therefore the size of the parameters and thus gradients will be based on MxW where W is the 
+* number of weights to use.
+*****************************************************************************************************/
 template <class T>
-void Dropout<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+const aitensor<T> Flatten<T>::forward(const aitensor<T>& input_data) { 
+
+    log_info("===============================================");
+    log_info("Flatten Forward Pass ...");
+
+    int batch_size  = input_data.size();
+    this->input_height = input_data.at(0).rows();
+    this->input_width  = input_data.at(0).cols();
+
+    aitensor<T> output_data;
+
+    for (int i = 0; i < batch_size; i++) {
+
+        aimatrix<T> input = input_data.at(i);
+
+        aimatrix<T> flattened(1, this->input_height * this->input_width);
+        flattened.array() = input.array();
+
+        output_data.push_back(flattened);
+    }
+
+    return output_data;
+}
+
+template <class T>
+const aitensor<T> Flatten<T>::backward(const aitensor<T>& gradients) {
+
+    log_info("===============================================");
+    log_info("Flatten Backward Pass ...");
+
+    int batch_size  = gradients.size();
+
+    aitensor<T> dInput;
+
+    for (int i = 0; i < batch_size; i++) {
+
+        aimatrix<T> input = gradients.at(i);
+
+        aimatrix<T> unflattened(this->input_height, this->input_width);
+        unflattened.array() = input.array();
+
+        dInput.push_back(unflattened);
+    }
+
+    return dInput;
 }
 
 /*****************************************************************************************************
 * Base Loss Functions
+* Mean Squared Error. Returns (scalar)
+* Expected input dimensions:  NxW ( N for input size, and W for feature size)
+* Expected overall loss: Average along dimensions B and N.
 *****************************************************************************************************/
-// Mean Squared Error. Returns (scalar)
-// Expected input dimensions:  NxW ( N for input size, and W for feature size)
-// Expected overall loss: Average along dimensions B and N.
 template <class T>
 const aiscalar<T> Loss<T>::mse(const aimatrix<T>& predicted, const aimatrix<T>& target) { 
 
@@ -1893,6 +1987,12 @@ template class LayerNorm<double>;  // Instantiate with double
 
 template class Activation<float>;  // Instantiate with float
 template class Activation<double>;  // Instantiate with double
+
+template class Dropout<float>;  // Instantiate with float
+template class Dropout<double>;  // Instantiate with double
+
+template class Flatten<float>;  // Instantiate with float
+template class Flatten<double>;  // Instantiate with double
 
 template class Loss<float>;  // Instantiate with float
 template class Loss<double>;  // Instantiate with double
