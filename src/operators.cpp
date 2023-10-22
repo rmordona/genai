@@ -1752,11 +1752,20 @@ const aitensor<T> Flatten<T>::forward(const aitensor<T>& input_data) {
 
         aimatrix<T> input = input_data.at(i);
 
-        aimatrix<T> flattened(1, this->input_height * this->input_width);
-        flattened.array() = input.array();
 
-        output_data.push_back(flattened);
+        log_detail("Input Before flattening ... (batch {0} shape {1}x{2})", i, input.rows(), input.cols());
+        log_matrix(input);
+
+        // Create a Flattened View of the input.
+        Eigen::Map<aimatrix<T>> input_view(input.data(), 1, this->input_height * this->input_width);
+
+        log_detail("Flatten Matrix Before flattening ... (batch {0} shape {1}x{2})", i, input.rows(), input.cols());
+
+        output_data.push_back(input_view);
+
     }
+
+
 
     return output_data;
 }
@@ -1773,12 +1782,12 @@ const aitensor<T> Flatten<T>::backward(const aitensor<T>& gradients) {
 
     for (int i = 0; i < batch_size; i++) {
 
-        aimatrix<T> input = gradients.at(i);
+        aimatrix<T> gradient = gradients.at(i);
 
-        aimatrix<T> unflattened(this->input_height, this->input_width);
-        unflattened.array() = input.array();
+        // Create a Flattened View of the gradient.
+        Eigen::Map<aimatrix<T>> gradient_view(gradient.data(), this->input_height, this->input_width);
 
-        dInput.push_back(unflattened);
+        dInput.push_back(gradient_view);
     }
 
     return dInput;

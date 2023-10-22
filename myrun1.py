@@ -31,7 +31,9 @@ node1.setOperations([ai.Convolution(kernel_size=2, stride=1, padding=1, dilation
 
 node2  = modelgraph.addNode("node2", ai.NodeType.Input);
 node2.setOperations([ai.Convolution(kernel_size=2, stride=1, padding=1, dilation=1, bias=True), 
-                     ai.Flatten(), ai.Dense(size=4, bias=True), ai.Activation(type="softmax", alpha=0.01)]);
+                     ai.Flatten(), 
+                     ai.Dense(size=4, bias=True), 
+                     ai.Activation(type="softmax", alpha=0.01)]);
 #node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="gelu", alpha=0.01)]) 
 #node2.setOperations([ai.Decoder(heads=2, size=6, bias=True, type="leakyrelu", alpha=0.01), ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
