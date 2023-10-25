@@ -642,7 +642,7 @@ PYBIND11_MODULE(genai, m) {
     py::class_<ModelActivation, BaseOperator, std::shared_ptr<ModelActivation>>(m, "Activation")
         .def(py::init<const std::string&, const float>(), py::arg("type") = "relu", py::arg("alpha") = 0.01);
     py::class_<ModelDropout, BaseOperator, std::shared_ptr<ModelDropout>>(m, "Dropout")
-        .def(py::init<const float>(), py::arg("probabilty") = 0.5);
+        .def(py::init<const float>(), py::arg("probability") = 0.05);
     py::class_<ModelFlatten, BaseOperator, std::shared_ptr<ModelFlatten>>(m, "Flatten")
         .def(py::init<>());
     py::class_<ModelConvolution, BaseOperator, std::shared_ptr<ModelConvolution>>(m, "Convolution")
@@ -707,7 +707,8 @@ PYBIND11_MODULE(genai, m) {
         .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, "Function with double argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  
                 py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
-                py::arg("iter")=1, "Training a model");
+                py::arg("maxiteration")=1, "Training a model")
+        .def("generateDotFormat", (std::string (Model::*)()) &Model::generateDotFormat);
      
     // Definitions for TokenModel APIs
     py::class_<TokenModel>(m, "TokenModel")
@@ -723,8 +724,8 @@ PYBIND11_MODULE(genai, m) {
         .def("train", (void (TokenModel::*)(const std::vector<std::wstring>&, int, const std::string&, const std::string&,
                              double, int, double, double)) &TokenModel::train,
             py::arg("corpus"),  py::arg("batchsize"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-            py::arg("learningRate") = 0.01, py::arg("maxIteration") = 1, 
-            py::arg("clipTreshold"), py::arg("regularization"), "Train Word Embedding using GloVe");
+            py::arg("learningrate") = 0.01, py::arg("maxiteration") = 1, 
+            py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe");
 
     // Definitions for Scraper APIs
     py::class_<Scraper>(m, "Scraper")

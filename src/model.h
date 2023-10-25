@@ -199,6 +199,8 @@ public:
 
     void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 
+    std::string generateDotFormat();
+
 };
 
 /************************************************************************************************
@@ -275,9 +277,9 @@ public:
 *************************************************************************************************/
 class ModelDropout : public BaseOperator {
 private:
-    float probability = 0.50;
+    float probability = 0.05;
 public: 
-    ModelDropout(const float probability = 0.50) {
+    ModelDropout(const float probability = 0.05) {
         this->probability = probability;
     }
 

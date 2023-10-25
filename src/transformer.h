@@ -206,9 +206,10 @@ public:
         this->decoder_gradient = decoder_gradient;
     }
 
+    std::string generateDotFormat(const std::string& name = "generic");
+
     void forwardPass() {}
-    void backwardPass() {}
-    std::string generateDotFormat();
+    void backwardPass() {} 
 };
 
 /*****************************************************************************************************
@@ -263,9 +264,10 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic");
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat();
 };
 
 /*****************************************************************************************************

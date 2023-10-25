@@ -579,6 +579,10 @@ const aitensor<T> Linear<T>::forward(const aitensor<T>& input_data) {
 
     }
 
+    // Capture Dimension for graphing.
+    this->outputHeight = output_data.at(0).rows();
+    this->outputWidth  = output_data.at(0).cols();
+
     log_info( "End Linear transformation ....\n" );
 
     return output_data; // this becomes input to the next Node or next Layer. It returns a copy of the output.
@@ -766,8 +770,13 @@ std::string Linear<T>::generateDotFormat(const std::string& name) {
         min_biases = parameters.biases.minCoeff();
         max_biases = parameters.biases.maxCoeff();
     } catch (...) {};
+    dot += "{Parameters=" + std::to_string(parameters.weights.rows() * parameters.weights.cols() + parameters.biases.size()) + "|" +
+             "BatchSize=" + std::to_string(batch_size) + "}|";
+    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(embedding_size) + ")|"; 
+    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     dot += "{Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
     dot += "{Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+
     return dot;
 }
 
@@ -902,6 +911,10 @@ const aitensor<T> BatchNorm<T>::forward(const aitensor<T>& input_data) {
         normalizedOutput.push_back(normOutput.transpose()); 
 
     }
+
+    // Capture Dimension for graphing.
+    this->outputHeight = normalizedOutput.at(0).rows();
+    this->outputWidth  = normalizedOutput.at(0).cols();
 
     return normalizedOutput; // this becomes input to the next Node or next Layer.
 }
@@ -1084,6 +1097,10 @@ std::string BatchNorm<T>::generateDotFormat(const std::string& name) {
         max_shift = shift.maxCoeff();
         min_shift = shift.minCoeff();
     } catch (...) {};
+    dot += "{Parameters=" + std::to_string(scale.size() + shift.size()) + "|" +
+             "BatchSize=" + std::to_string(batch_size) + "}|";
+    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
+    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
     dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
     return dot;
@@ -1213,6 +1230,10 @@ const aitensor<T> LayerNorm<T>::forward(const aitensor<T>& input_data) {
         normalizedOutput.push_back(normOutput); //   normalizedOutput.chip(i, 0) = tensor_view(normOutput);
 
     }
+
+    // Capture Dimension for graphing.
+    this->outputHeight = normalizedOutput.at(0).rows();
+    this->outputWidth  = normalizedOutput.at(0).cols();
 
     return normalizedOutput; // this becomes input to the next Node or next Layer.
 }
@@ -1383,6 +1404,10 @@ std::string LayerNorm<T>::generateDotFormat(const std::string& name) {
         max_shift = shift.maxCoeff();
         min_shift = shift.minCoeff();
     } catch (...) {};
+    dot += "{Parameters=" + std::to_string(scale.size() + shift.size()) + "|" +
+             "BatchSize=" + std::to_string(batch_size) + "}|";
+    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
+    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
     dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
     return dot;   
@@ -1593,7 +1618,7 @@ const aitensor<T> Activation<T>::forward(const aitensor<T>& input_data) {
         this->output_data.push_back(computeActivation(input)); 
     }
 
-    log_detail("Activation Result" );
+    log_detail("Activation Result (show first matrix only)" );
     log_matrix(this->output_data.at(0));
 
     return this->output_data; // this becomes input to the next Node or next Layer.
@@ -1613,7 +1638,7 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
         output   = this->output_data.at(i);
         
         input    = this->input_data.at(i); 
-
+ 
         gradient = gradients.at(i); 
 
         // Perform Gradient
@@ -1629,7 +1654,7 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
     this->min_dInput = dInput.at(0).minCoeff();
 
     return dInput; // this becomes input to the next Node or next Layer.
-}
+} 
  
 template <class T>
 std::string Activation<T>::generateDotFormat() {
@@ -1654,13 +1679,10 @@ template <class T>
 const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("===============================================");
-    log_info("DropOut Forward Pass ...");
+    log_info("DropOut Forward Pass ..."); 
 
-    // Cache for later back propagation.
-    //this->input_data = input_data;
-
-    if (input_data.size() == 0) {
-        return input_data;
+    if (input_data.size() == 0) { 
+        return input_data; 
     }
 
     this->batch_size = input_data.size();
@@ -1671,7 +1693,7 @@ const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) {
 
     log_detail( "Batch Size: {0}, Row: {1}, Col: {2}", this->batch_size, this->input_size, this->param_size );
 
-    aitensor<T> output_data;
+    aitensor<T> filter, output_data;
 
     for (int i = 0; i < this->batch_size; ++i) {
 
@@ -1680,18 +1702,22 @@ const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) {
         log_detail( "Size of input: {0}", input.size() );
 
         // Perform Drop Out Transformation.
-        aimatrix<T> output = maskedMatrix(this->input_size, this->param_size);  
+        aimatrix<T> mask = maskedMatrix(this->input_size, this->param_size);  
 
-        output = output.array() * input.array();
+        filter.push_back(mask);
 
-        log_detail( "Linear output Dimension: {0}x{1}", output.rows(), output.cols());
+        input = input.array() * mask.array();
 
-        // output_data->chip(i, 0) = tensor_view(output);
-        output_data.push_back(output);
+        log_detail( "Linear output Dimension: {0}x{1}", input.rows(), input.cols());
+
+
+        output_data.push_back(input);
 
     }
 
-    this->masked_data = output_data;
+    this->mask_filter = filter;
+
+    // this->masked_data = output_data;
 
     log_info( "End DropOut ....\n" );
 
@@ -1707,19 +1733,18 @@ const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
     // The dimension is based on that of the output_data.  See Dropout<T>::forward()
     aitensor<T> dInput; // (this->batch_size, this->input_size, this->W); 
 
-    aimatrix<T> gradient, masked_output;
+    aimatrix<T> gradient, filter;
 
     for (int i = 0; i < this->batch_size; ++i) {
 
         gradient = gradients.at(i); 
-        masked_output    = this->masked_data.at(i); 
+        filter    = this->mask_filter.at(i); 
 
-        gradient = gradient.array() * masked_output.array();
+        gradient = gradient.array() * filter.array();
 
         log_detail( "Computing Masked Dropouts now ..."  );
         log_matrix(gradient);
 
-        // dInput.chip(i, 0) = tensor_view(gradient);
         dInput.push_back(gradient);
 
     }
@@ -1729,6 +1754,13 @@ const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
 
 }
 
+
+template <class T>
+std::string Dropout<T>::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Dropout Layer (" + name + ") *}|";  
+    dot += "{Probability=" + std::to_string(this->probability) + "}";   
+    return dot;
+}
 
 /*****************************************************************************************************
 * Base Flatten Function:
@@ -1793,6 +1825,14 @@ const aitensor<T> Flatten<T>::backward(const aitensor<T>& gradients) {
     return dInput;
 }
 
+template <class T>
+std::string Flatten<T>::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Flatten Layer (" + name + ") *}|";  
+    dot += "{Original=( " + std::to_string(this->input_height) + " x " + std::to_string(this->input_width) + ")|";    
+    dot += "Flattened=(1 x " + std::to_string(this->input_height * this->input_width) + ")}"; 
+    return dot;
+}
+
 /*****************************************************************************************************
 * Base Loss Functions
 * Mean Squared Error. Returns (scalar)
@@ -1847,11 +1887,11 @@ template <class T>
 const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& target) {
 
     // Calculate the CCE loss for each batch and instance (log likelihood)
-    aimatrix<T> cce_loss = -predicted.array() * predicted.array().log();
-
+    aimatrix<T> cce_loss = target.array() * predicted.array().log();
+    
     // Calculate the overall CCE loss by averaging along the class dimension (C)
     // aimatrix<T> overall_cce_loss = cce_loss.mean(Eigen::array<int, 1>({2}));
-    airowvector<T> overall_cce_loss = cce_loss.rowwise().mean();
+    airowvector<T> overall_cce_loss =  - cce_loss.rowwise().sum();
 
     // Calculate the mean loss along the batch (B)
     // aiscalar<T> batch_mean_cce_loss = overall_cce_loss.mean(Eigen::array<int, 1>({0, 1}))(0);
@@ -1863,7 +1903,7 @@ const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& 
 
 template <class T>
 const aimatrix<T> Loss<T>::cceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target) {
-    aimatrix<T> gradient = ( predicted.array() - target.array() );
+    aimatrix<T> gradient =   ( predicted.array() - target.array() );
     return gradient;
 }
 
@@ -1963,16 +2003,16 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
 
-        if (losstype == "mse") {
+        if (this->losstype == "mse") {
             dInput.push_back(mseGradient(batch_predicted, batch_target));
         } else
-        if (losstype == "bce") {
+        if (this->losstype == "bce") {
             dInput.push_back(bceGradient(batch_predicted, batch_target));
         } else
-        if (losstype == "cce") {
+        if (this->losstype == "cce") {
             dInput.push_back(cceGradient(batch_predicted, batch_target));
         } else
-        if (losstype == "hingeLoss") {
+        if (this->losstype == "hingeLoss") {
             dInput.push_back(hingeLossGradient(batch_predicted, batch_target));
         } 
     }
@@ -1980,7 +2020,7 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
     return dInput; // this becomes input to the next Node or next Layer backward.
 }
   
-/************ Basic Operators initialize templates ************/
+/************ Basic Core Operators initialize templates ************/
  
 template class Optimizer<float>;  // Instantiate with float
 template class Optimizer<double>;  // Instantiate with double

@@ -48,6 +48,14 @@ private:
 
     bool bias = true; // Use bias by default.
 
+    int batch_size    = 0;
+    int inputHeight   = 0;
+    int inputWidth    = 0;
+    int kernelHeight  = 0;
+    int kernelWidth   = 0;
+    int outputHeight = 0;
+    int outputWidth   = 0;
+
     aitensor<T> input_data;
     aitensor<T> output_data;
 
@@ -72,6 +80,8 @@ public:
     const aitensor<T> forward(const aitensor<T>& input_data);
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    std::string generateDotFormat(const std::string& name = "generic");
 
     void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
     void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)

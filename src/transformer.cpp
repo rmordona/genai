@@ -443,13 +443,13 @@ void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& lear
 }
 
 template <class T>
-std::string MultiHeadAttention<T>::generateDotFormat() {   
-    std::string dot = "{* MultiHeadAttention *}|";  
-    int cnt = 1;
+std::string MultiHeadAttention<T>::generateDotFormat(const std::string& name) {
+    std::string dot = "{* MultiHeadAttention (" + name + ") *}|";  
     for (int i = 0; i < this->H; i++) {
-        dot +=  M1[i]->generateDotFormat();
-        if (++cnt < (int) this->H) { dot += "|"; }
+        dot += "{* Head " + std::to_string(i) + " *}|";  
+        dot +=  M1[i]->generateDotFormat() + "|";
     }
+    dot.pop_back(); // Remove the last comma
     return dot; 
 }
 
@@ -537,8 +537,8 @@ void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRat
 }
 
 template <class T>
-std::string FeedForward<T>::generateDotFormat() {
-    std::string dot = "{* FeedForward *}|";  
+std::string FeedForward<T>::generateDotFormat(const std::string& name) {
+    std::string dot = "{* FeedForward (" + name + ") *}|";  
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
         dot += "{- No training done yet -}";
     } else {
@@ -900,14 +900,23 @@ template <class T>
 void Decoder<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info("=====================================================");
-    log_info( "Entering Encoder Update Parameter ..." );
+    log_info( "Entering Decoder Update Parameter ..." );
+
+    log_detail("LN3 Linear parameter update");
+    LN3->updateParameters(optimizertype, learningRate, iter);
+
+    log_detail("F1 Linear parameter update");
+    F1->updateParameters(optimizertype, learningRate, iter);
+
+    log_detail("LN2 Linear parameter update");
+    LN2->updateParameters(optimizertype, learningRate, iter);
+
+    log_detail("M1 Linear parameter update");
+    M2->updateParameters(optimizertype, learningRate, iter);
 
     log_detail("LN1 Linear parameter update");
     LN1->updateParameters(optimizertype, learningRate, iter);
-    log_detail("LN2 Linear parameter update");
-    LN2->updateParameters(optimizertype, learningRate, iter);
-    log_detail("F1 Linear parameter update");
-    F1->updateParameters(optimizertype, learningRate, iter);
+
     log_detail("M1 Linear parameter update");
     M1->updateParameters(optimizertype, learningRate, iter);
 
@@ -915,15 +924,18 @@ void Decoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 
 template <class T>
 std::string Decoder<T>::generateDotFormat() {
-    std::string dot = "{* Encoder *}|";
+    std::string dot = "{* Decoder *}|";
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {
         dot += "{- No training done yet -}";
     } else {
-        dot +=  M1->generateDotFormat() + "|";
+        dot +=  M1->generateDotFormat("Masked") + "|";
         dot +=  LN1->generateDotFormat("add_norm1") + "|";
+        dot +=  M2->generateDotFormat() + "|";
+        dot +=  LN2->generateDotFormat("add_norm2") + "|";
         dot +=  F1->generateDotFormat() + "|";
-        dot +=  LN2->generateDotFormat("add_norm2");
+        dot +=  LN3->generateDotFormat("add_norm3");
+
     }
     return dot; 
 }

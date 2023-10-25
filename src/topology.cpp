@@ -329,6 +329,13 @@ void Node<T>::forwardPass() {
             log_info("Returned Encoder pass with the below output ...");
             log_matrix( output );
         } else
+        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
+        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+            log_detail("Node [{0}] Decoder Operation (Forward Pass)", name );
+            output = decoder->forward(output);
+            log_info("Returned Decoder pass with the below output ...");
+            log_matrix( output );
+        } else
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Forward Pass)", name );
@@ -437,7 +444,13 @@ void Node<T>::backwardPass() {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
             dInput = encoder->backward(dInput);
             log_matrix( dInput );
-        } else       
+        } else      
+        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
+        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+            log_detail("Node [{0}] Decoder Operation (Backward Pass)", name );
+            dInput = decoder->backward(dInput);
+            log_matrix( dInput );
+        } else     
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Backward Pass)", name );
@@ -514,7 +527,12 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
         if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             encoder->updateParameters(optimizertype, learningRate, iter);
-        }  else         
+        }  else 
+        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
+        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+            log_detail("Node [{0}] Decoder Operation (Update Params)", name );
+            decoder->updateParameters(optimizertype, learningRate, iter);
+        }  else    
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
         if (RNN<T>* rnn = dynamic_cast<RNN<T>*>(op)) {
             log_detail("Node [{0}] RNN Operation (Update Params)", name );
@@ -571,6 +589,18 @@ std::string Node<T>::generateDotFormat() {
         if (Activation<T>* activation = dynamic_cast<Activation<T>*>(op)) {
             dot_ += activation->generateDotFormat();
         }  else
+        //if (auto dropout = std::dynamic_pointer_cast<Dropout<T>>(op)) {
+        if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
+            dot_ += dropout->generateDotFormat();
+        }  else
+        //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
+        if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
+            dot_ += flatten->generateDotFormat();
+        }  else
+        //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
+        if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
+            dot_ += convolution->generateDotFormat();
+        }  else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
             dot_ += attention->generateDotFormat();
@@ -583,9 +613,13 @@ std::string Node<T>::generateDotFormat() {
         if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
             dot_ += encoder->generateDotFormat();
         } 
+        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
+        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+            dot_ += decoder->generateDotFormat();
+        } 
         if (++cnt < (int) operations.size()) { dot_ += "|"; }
     }
-    dot_ = nodelabel + " [shape=record, label=\"" + dot_ + "\"]; ";
+    dot_ = nodelabel + " [shape=record, fontsize=11, label=\"" + dot_ + "\"]; ";
     dot_ += nodename + "->" + nodelabel + ";";
     return dot_;
 }
@@ -764,20 +798,11 @@ const aitensor<T> Graph<T>::forwardPropagation() {
 
     aitensor<T> output;
  
-    std::cout << "Entering queue ...." << std::endl;
     while (!q.empty()) {
-
-    std::cout << "Entered 1 ...." << std::endl;
 
         const auto& node = q.front();
 
-    std::cout << "Entered 2 ...." << std::endl;
-
         std::string nodename = node->getName();
-
-    std::cout << "Entered 3 ...." << std::endl;
-
-    std::cout << "*** Graph: Entering forward pass for {0} ***" << nodename << std::endl;
 
         log_detail( "*** Graph: Entering forward pass for {0} ***", nodename );
  
@@ -929,8 +954,11 @@ void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, int
 
 template <class T>
 std::string Graph<T>::generateDotFormat() {
+
+    log_detail("Plotting Graph Format ...");
+
     std::string dot = 
-        "digraph G {  node [shape=circle]; rankdir=LR; ";
+        "digraph G {  node [shape=circle, fontsize=11]; rankdir=LR; ";
 
     for (auto& node: nodes) {
         dot += removeSpace(node) + "; ";
@@ -948,6 +976,7 @@ std::string Graph<T>::generateDotFormat() {
     }
 
     dot += "}";
+
     return dot;
 }
 

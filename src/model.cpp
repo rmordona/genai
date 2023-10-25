@@ -103,10 +103,10 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         log_detail( "Predicted Result: Tensor Size {0}", this->predicted.size() );
         log_matrix( this->predicted );
 
-        log_detail( "Compute Loss ..." );
+        log_detail( "Computing Loss ..." );
         this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
 
-        log_detail( "Compute Gradient ..." );
+        log_detail( "Computing Loss Gradient ..." );
         this->gradients = this->graph->computeGradients(this->predicted, this->target);
         log_matrix( this->gradients );
 
@@ -121,13 +121,13 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        py_cout << "-------> Compute Loss:";
+        py_cout << "-------> Computed Loss:";
         py_cout << this->loss;
         py_cout << " ... elapsed " <<  elapsed_seconds.count();
         py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Compute Loss ... {:8.5f} ... Elapsed {} at {}", this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
+        log_detail( "Computed Loss ... {:8.5f} ... Elapsed {} at {}", this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
 
         if (abs(old_loss - this->loss) <= epsilon) break;
 
@@ -235,7 +235,7 @@ void ModelNode::setDecoderDataDouble(const py::array_t<double>& data, bool const
 }
 
 /**************************************************************************************************
-* MModelNode::setOperations
+* ModelNode::setOperations
 * Captures operations for the node and temporarily caches into the ModelNode instance. Later, it will
 * be transfered to the main Node class as part of preparation for Model.train().
 **************************************************************************************************/
@@ -685,22 +685,31 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
 *************************************************************************************************/
  
 /************************************************************************************************
+* Model::generateDotFormat
+* Show the graph of the neural network in Dot Format
+*************************************************************************************************/
+std::string Model::generateDotFormat() {
+        if (datatype == "float") {
+            return this->modelXf->getGraph()->generateDotFormat();
+        } else
+        if (datatype == "double") {
+            return this->modelXd->getGraph()->generateDotFormat();
+        }
+        return "none";
+}
+
+/************************************************************************************************
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
 void Model::train(std::string& losstype, std::string& optimizertype, double learningRate,  int max_epoch) {
     try {
-            std::cout << "Hello 1 ..." << std::endl;
         this->seedNodes();
         if (datatype == "float") {
-            std::cout << "Hello 2 ..." << std::endl;
             this->modelXf->train(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
-            std::cout << "Hello 2a ..." << std::endl;
-        }
+        } else
         if (datatype == "double") {
-            std::cout << "Hello 4 ..." << std::endl;
             this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
-            std::cout << "Hello 6 ..." << std::endl;
         }
     } catch (const AIException& e) {
         std::cerr << "(Model::train) Error: " << e.what() << std::endl;

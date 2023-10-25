@@ -59,13 +59,13 @@ const aitensor<T> Convolution<T>::forward(const aitensor<T>& input_data) {
     log_info("Convolution Forward Pass ...");
 
     this->input_data = input_data;
-    int batch_size   = input_data.size();
-    int inputHeight  = input_data.at(0).rows();
-    int inputWidth   = input_data.at(0).cols();
-    int kernelHeight = kernel.weights.rows();
-    int kernelWidth  = kernel.weights.cols();
-    int outputHeight = ((inputHeight + 2 * padding - dilation * (kernelHeight - 1) - 1) / stride) + 1;
-    int outputWidth  = ((inputWidth + 2 * padding - dilation * (kernelWidth - 1) - 1) / stride) + 1;
+    this->batch_size   = input_data.size();
+    this->inputHeight  = input_data.at(0).rows();
+    this->inputWidth   = input_data.at(0).cols();
+    this->kernelHeight = kernel.weights.rows();
+    this->kernelWidth  = kernel.weights.cols();
+    this->outputHeight = (inputHeight - ((kernelHeight - 1) * dilation + 1) + 2 * padding)/stride + 1;
+    this->outputWidth = (inputHeight - ((kernelWidth - 1) * dilation + 1) + 2 * padding)/stride + 1;
 
     aimatrix<T> input;
     aimatrix<T> output(outputHeight, outputWidth);
@@ -218,9 +218,30 @@ void Convolution<T>::updateParameters(std::string& optimizertype, T& learningRat
 
 
     }
-
     this->vgradients.clear();
     this->output_data.clear();
+}
+
+template <class T>
+std::string Convolution<T>::generateDotFormat(const std::string& name) {
+    std::string dot = "{* Convolution (" + name + ") *}|";  
+    T min_weights = 0.0, max_weights = 0.0;
+    T min_biases = 0.0, max_biases = 0.0;
+    try {
+        min_weights = kernel.weights.minCoeff();
+        max_weights = kernel.weights.maxCoeff();
+        min_biases = kernel.biases.minCoeff();
+        max_biases = kernel.biases.maxCoeff();
+    } catch (...) {};
+
+    dot += "{Parameters=" + std::to_string(kernel.weights.rows() * kernel.weights.cols() + kernel.biases.size()) + "|" +
+             "BatchSize=" + std::to_string(batch_size) + "}|";
+    dot += "{Input=(" + std::to_string(inputHeight) + " x " + std::to_string(inputWidth) + ")|";  
+    dot += "Kernel=(" + std::to_string(kernelHeight) + " x " + std::to_string(kernelWidth) + ")|";  
+    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|";  
+    dot += "{Kernel Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
+    dot += "{Kernel Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+    return dot;
 }
 
 /**********  Convolution Network initialize templates *****************/

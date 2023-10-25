@@ -212,9 +212,11 @@ private:
     Optimizer<T>* opt_weights = nullptr; // for optimizer
     Optimizer<T>* opt_biases = nullptr; // for optimizer
 
-    int batch_size;
-    int input_size;
-    int embedding_size;
+    int batch_size      = 0;
+    int input_size      = 0;
+    int embedding_size  = 0;
+    int outputHeight    = 0;
+    int outputWidth     = 0;
 
 public:
     Linear(int size, bool bias = true)  {
@@ -255,9 +257,11 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic");
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat(const std::string& name = "generic");
+
 
 };
 
@@ -289,9 +293,12 @@ private:
     Optimizer<T>* opt_scale = nullptr; // for optimizer
     Optimizer<T>* opt_shift = nullptr; // for optimizer
 
-    int batch_size;
-    int input_size;
-    int param_size;
+
+    int batch_size      = 0;
+    int input_size      = 0;
+    int param_size      = 0;
+    int outputHeight    = 0;
+    int outputWidth     = 0;
 
 public:
     BatchNorm() {
@@ -348,9 +355,11 @@ private:
     Optimizer<T>* opt_scale = nullptr; // for optimizer
     Optimizer<T>* opt_shift = nullptr; // for optimizer
 
-    int batch_size;
-    int input_size;
-    int param_size;
+    int batch_size      = 0;
+    int input_size      = 0;
+    int param_size      = 0;
+    int outputHeight    = 0;
+    int outputWidth     = 0;
 
 public:
     LayerNorm() {
@@ -502,32 +511,49 @@ public:
 template <class T>
 class Dropout: public BaseOperator {
 private:
-    float probability = 0.5; // 50% dropout
+    float probability = 0.05; // 50% dropout
 
     int batch_size = 0;
     int input_size = 0;
     int param_size = 0;
 
-    aitensor<T> masked_data;
+    aitensor<T> mask_filter;
 
+    // Using the Fisher-Yates shuffle algorithm
     aimatrix<T> maskedMatrix(int rows, int cols) {
 
         aimatrix<T> matrix = aimatrix<T>::Zero(rows, cols); 
 
-        // Calculate the number of cells to set to 1.
-        // If drop probability is 0.20, then  ( 1 - 0.20 ) will be set to 1.
-        int num_cells_to_set = static_cast<int>(rows * cols * (1 - probability));
+        // Create a vector containing numbers from 1 to 10
+        std::vector<int> numbers;
+        for (int i = 1; i <= rows * cols; ++i) {
+            numbers.push_back(i);
+        }
 
         // Create a random number generator
         std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> row_dist(0, rows - 1);
-        std::uniform_int_distribution<int> col_dist(0, cols - 1);
+        std::mt19937 generator(rd());
+        std::shuffle(numbers.begin(), numbers.end(), generator);
 
-        for (int i = 0; i < num_cells_to_set; i++) {
-            int random_row = row_dist(gen);
-            int random_col = col_dist(gen);
-            matrix(random_row, random_col) = 1;
+        // Calculate the number of cells to set to 1.
+        // If drop probability is 0.20, then  ( 1 - 0.20 ) will be set to 1.
+        int num_cells_to_set = static_cast<int>(rows * cols * (1 - this->probability));
+
+        log_detail("probability: {0} size: {1} out of {2}", this->probability, num_cells_to_set, rows * cols );
+
+        // Take the first 'sequenceSize' elements from the shuffled vector
+        std::vector<int> sequence(numbers.begin(), numbers.begin() + num_cells_to_set);
+
+        int target = 0;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                target ++ ;
+                // Use std::find to search for the element
+                auto it = std::find(sequence.begin(), sequence.end(), target);
+                if (it != sequence.end()) {
+                    matrix(i, j) = 1.0;
+                }
+            }
         }
 
         return matrix;
@@ -535,13 +561,15 @@ private:
 
     
 public:
-    Dropout(const float probability = 0.5) {
+    Dropout(const float probability = 0.05) {
         this->probability = probability;
     }
 
     const aitensor<T> forward(const aitensor<T>& input_data);
 
     const aitensor<T> backward(const aitensor<T>& gradients);
+
+    std::string generateDotFormat(const std::string& name = "generic");
 
     void forwardPass() {}
     void backwardPass() {}
@@ -563,6 +591,8 @@ public:
     const aitensor<T> forward(const aitensor<T>& input_data);
 
     const aitensor<T> backward(const aitensor<T>& gradients);
+
+    std::string generateDotFormat(const std::string& name = "generic");
 
     void forwardPass() {}
     void backwardPass() {}
