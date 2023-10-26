@@ -121,13 +121,13 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        py_cout << "-------> Computed Loss:";
+        py_cout << "Epoch " << iter << "/" << max_epoch << " .... Loss: ";
         py_cout << this->loss;
         py_cout << " ... elapsed " <<  elapsed_seconds.count();
         py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Computed Loss ... {:8.5f} ... Elapsed {} at {}", this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
+        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Elapsed {} at {}", iter, max_epoch, this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
 
         if (abs(old_loss - this->loss) <= epsilon) break;
 
