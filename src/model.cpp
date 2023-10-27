@@ -69,7 +69,7 @@ void BaseModel<T>::useCrossEntropy() {
 }
 
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, const T learningRate , const int max_epoch) {
+void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate , const int max_epoch) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -91,7 +91,7 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
     auto start_time = std::chrono::system_clock::now();
 
     std::cout << "Starting Iteration ..." << std::endl;
-
+ 
     for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
@@ -116,18 +116,23 @@ void BaseModel<T>::train(std::string& losstype, std::string& optimizertype, cons
         log_detail( "Updating Parameters ..." );
         this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
 
+        log_detail( "Calculate Performance Metrics ...");
+        this->metrics = this->graph->computeMetrics(this->metricstype, this->predicted, this->target);
+
         // Calculate Time, then display loss
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        py_cout << "Epoch " << iter << "/" << max_epoch << " .... Loss: ";
-        py_cout << this->loss;
+        py_cout << "Epoch " << iter << "/" << max_epoch << " ...";
+        py_cout << "Loss: " << this->loss;
+        // py_cout << "Accuracy: " << this->metrics;
         py_cout << " ... elapsed " <<  elapsed_seconds.count();
         py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Elapsed {} at {}", iter, max_epoch, this->loss,  elapsed_seconds.count(), std::ctime(&next_time) );
+        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Accuracy: {:8.5f} ... Elapsed {} at {}", iter, max_epoch, 
+                this->loss, this->metrics, elapsed_seconds.count(), std::ctime(&next_time) );
 
         if (abs(old_loss - this->loss) <= epsilon) break;
 
@@ -590,6 +595,12 @@ void Model::connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::sha
     }
 }
 
+void Model::connect(std::shared_ptr<ModelNode> from, std::vector<std::shared_ptr<ModelNode>> to_nodes) {
+    for (auto& to : to_nodes) {
+        this->connect(from, to);
+    }
+}
+
 /************************************************************************************************
 * Model::seedNodes
 * Here, we begin to fill the nodes with data and operations as assigned to them.
@@ -688,12 +699,12 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
 * Model::generateDotFormat
 * Show the graph of the neural network in Dot Format
 *************************************************************************************************/
-std::string Model::generateDotFormat() {
+std::string Model::generateDotFormat(bool operators, bool weights) {
         if (datatype == "float") {
-            return this->modelXf->getGraph()->generateDotFormat();
+            return this->modelXf->getGraph()->generateDotFormat(operators, weights);
         } else
         if (datatype == "double") {
-            return this->modelXd->getGraph()->generateDotFormat();
+            return this->modelXd->getGraph()->generateDotFormat(operators, weights);
         }
         return "none";
 }
@@ -702,14 +713,14 @@ std::string Model::generateDotFormat() {
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
-void Model::train(std::string& losstype, std::string& optimizertype, double learningRate,  int max_epoch) {
+void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate,  int max_epoch) {
     try {
         this->seedNodes();
         if (datatype == "float") {
-            this->modelXf->train(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
+            this->modelXf->train(losstype, metricstype, optimizertype, static_cast<float>(learningRate), max_epoch);
         } else
         if (datatype == "double") {
-            this->modelXd->train(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
+            this->modelXd->train(losstype, metricstype, optimizertype, static_cast<double>(learningRate), max_epoch);
         }
     } catch (const AIException& e) {
         std::cerr << "(Model::train) Error: " << e.what() << std::endl;

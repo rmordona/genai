@@ -18,7 +18,8 @@ node1.setOperations([ai.Convolution(kernel_size=2, stride=1, padding=1, dilation
 node2  = modelgraph.addNode("node2", ai.NodeType.Input);
 node2.setOperations([ai.Convolution(kernel_size=2, stride=1, padding=1, dilation=1, bias=True), 
                      ai.Flatten(), 
-                     ai.Dropout(probability = 0.05),
+                     ai.Dense(size=20, bias=True), 
+                     ai.Activation(type="leakyrelu", alpha=0.01),
                      ai.Dense(size=4, bias=True), 
                      ai.Activation(type="softmax", alpha=0.01)]);
 
@@ -43,7 +44,7 @@ target = [
          ];
 modelgraph.setTarget(target);
 
-modelgraph.train(loss="cce", optimizer="adam", learnrate=0.1, maxiteration=1);
+modelgraph.train(loss="cce", optimizer="adam", learnrate=0.01, maxiteration=100);
 
 ai.print_string("Show Graph ...", True);
 p = modelgraph.generateDotFormat();

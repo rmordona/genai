@@ -142,9 +142,10 @@ public:
         return this->decoder_gradient;
     }
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat();
 
 };
 
@@ -206,7 +207,7 @@ public:
         this->decoder_gradient = decoder_gradient;
     }
 
-    std::string generateDotFormat(const std::string& name = "generic");
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {} 
@@ -264,7 +265,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic");
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -328,9 +329,11 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat();
+
 };
 
 
@@ -396,9 +399,10 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat();
 };
 
 

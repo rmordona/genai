@@ -41,13 +41,15 @@ private:
     aitensor<T> predicted;
     aitensor<T> gradients;
     aiscalar<T> loss;
+    PerfMetrics<T> metrics;
     std::string losstype = "mse";
+    std::vector<std::string> metricstype;
     std::string optimizertype = "adam";
     T learningRate = 0.01;
     int max_epoch = 1;
 public:
     BaseModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const T learningRate = 0.01, const int max_epoch = 1) {
+        const T learningRate = 0.01, const int max_epoch = 1) {
         this->losstype = losstype;
         this->optimizertype = optimizertype;
         this->learningRate = learningRate;
@@ -68,7 +70,7 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
+    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
 
     void test() {}
 
@@ -157,6 +159,7 @@ public:
 class Model {
 private:
     std::string losstype = "mse";
+    std::vector<std::string> metricstype; // precision, recall, f1score
     std::string optimizertype = "adam";
     int max_epoch = 1;
     std::string datatype = "float";
@@ -195,11 +198,13 @@ public:
 
     void connect(std::vector<std::shared_ptr<ModelNode>> from_nodes, std::shared_ptr<ModelNode> to);
 
+    void connect(std::shared_ptr<ModelNode> from, std::vector<std::shared_ptr<ModelNode>> to_nodes);
+
     void seedNodes();
 
-    void train(std::string& losstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
+    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 
-    std::string generateDotFormat();
+    std::string generateDotFormat(bool operators = false, bool weights = false);
 
 };
 
@@ -481,7 +486,7 @@ private:
     std::string activationtype = "leakyrelu";
     int W = 0;  // number of weights (or number of features)
     int H = 1;  // number of heads
-    bool bias = true;
+    bool  bias = true;
     float alpha = 0.01;
 public: 
     ModelDecoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {

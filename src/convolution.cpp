@@ -223,7 +223,7 @@ void Convolution<T>::updateParameters(std::string& optimizertype, T& learningRat
 }
 
 template <class T>
-std::string Convolution<T>::generateDotFormat(const std::string& name) {
+std::string Convolution<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Convolution (" + name + ") *}|";  
     T min_weights = 0.0, max_weights = 0.0;
     T min_biases = 0.0, max_biases = 0.0;
@@ -239,8 +239,12 @@ std::string Convolution<T>::generateDotFormat(const std::string& name) {
     dot += "{Input=(" + std::to_string(inputHeight) + " x " + std::to_string(inputWidth) + ")|";  
     dot += "Kernel=(" + std::to_string(kernelHeight) + " x " + std::to_string(kernelWidth) + ")|";  
     dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|";  
+    if (weights == true) {
     dot += "{Kernel Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
     dot += "{Kernel Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+    } else {
+        dot.pop_back(); // Remove dangling | character
+    }
     return dot;
 }
 

@@ -257,7 +257,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic");
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -324,9 +324,11 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat(const std::string& name = "generic");
+
 };
 
 /*****************************************************************************************************
@@ -385,9 +387,10 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat(const std::string& name = "generic");
 };
 
 /*****************************************************************************************************
@@ -499,9 +502,10 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+
     void forwardPass() {}
     void backwardPass() {}
-    std::string generateDotFormat();
 };
 
 /*****************************************************************************************************
@@ -569,7 +573,7 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    std::string generateDotFormat(const std::string& name = "generic");
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -592,7 +596,7 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    std::string generateDotFormat(const std::string& name = "generic");
+    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -666,5 +670,64 @@ public:
 };
 
 
+/*****************************************************************************************************
+* Base Metrics Class
+*****************************************************************************************************/
+template <class T>
+class Metrics : public BaseOperator {
+private:
+    std::vector<std::string> metricstype;
+
+    int batch_size;
+    int input_size;
+    int param_size;
+
+    std::tuple<T, T, T> calculateMetrics(const aimatrix<T>& prediction, const aimatrix<T>& target) {
+        int rows = target.rows();
+        int cols = target.cols();
+
+        int TP = 0;
+        int FP = 0;
+        int FN = 0;
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                T actual = target(i, j);
+                T predicted = prediction(i, j);
+
+                actual = (actual > 0.5) ? 1.0 : 0.0;
+                predicted = (predicted > 0.5) ? 1.0 : 0.0;
+
+                if (actual == 1.0 && predicted == 1.0) {
+                    TP++;
+                } else if (actual == 0.0 && predicted == 1.0) {
+                    FP++;
+                } else if (actual == 1.0 && predicted == 0.0) {
+                    FN++;
+                }
+            }
+        }
+
+        T precision = static_cast<T>(TP) / (TP + FP);
+        T recall = static_cast<T>(TP) / (TP + FN);
+        T f1score = (2.0 * precision * recall) / (precision + recall);
+
+        return std::make_tuple(precision, recall, f1score);
+    }
+
+public:
+
+    Metrics(const std::vector<std::string>& metricstype) {
+        this->metricstype = metricstype;
+    }
+
+    const PerfMetrics<T> computeMetrics(const aitensor<T>& predicted, const aitensor<T>& target);
+
+    // AUC-ROC. Returns 1x1 matrix (scalar)
+    const aiscalar<T> aucroc(const aimatrix<T>& predicted, const aimatrix<T>& target);
+
+    void forwardPass() {}
+    void backwardPass() {}
+};
 
 #endif

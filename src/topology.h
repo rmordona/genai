@@ -34,7 +34,8 @@
 enum class NodeType {
     Input,
     Hidden,
-    Output
+    Output,
+    Generic
 };
 
 
@@ -176,7 +177,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat();
+    std::string generateDotFormat(bool operators = false, bool weights = false);
 
 
 };
@@ -211,8 +212,10 @@ private:
     aitensor<T> predicted;
     aitensor<T> target;
     aiscalar<T> loss;
+    aiscalar<T> metrics;
 
     Loss<T>* lossobj;
+    Metrics<T>* metricsobj;
 
 public:
 
@@ -247,6 +250,8 @@ public:
 
     void connect(std::vector<Node<T>*> from_nodes, Node<T>* to);
 
+    void connect(Node<T>* from, std::vector<Node<T>*> to_nodes);
+
     void connect(std::vector<Node<T>*> from_nodes, Node<T>* to, std::vector<BaseOperator*>& operations);
 
     void addConnection(std::shared_ptr<Connection<T>> connection);
@@ -256,7 +261,9 @@ public:
 
     const aitensor<T> backwardPropagation(const aitensor<T>& gradients);
 
-    const aiscalar<T> computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target);
+    const aiscalar<T> computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target);
+
+    const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
     const aitensor<T> computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
 
@@ -266,7 +273,7 @@ public:
 
     const std::unordered_map<Node<T>*, int>& getIndegree() const;
 
-    std::string generateDotFormat();
+    std::string generateDotFormat(bool operators = false, bool weights = false);
 
 };
 

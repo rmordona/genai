@@ -450,6 +450,16 @@ struct OperationParams {
     airowvector<T> biases;  // 1xW
 };
 
+// Add more metrics if necessary. 
+// Then create API functions in Metrics Class under operators.h/operators.cpp
+template <class T>
+struct PerfMetrics {
+    T precision;   
+    T recall;   
+    T f1score; 
+    T aucroc;  
+};
+
 /******* Initiate Operation param template */
 
 template struct OperationParams<float>;   // Instantiate with float

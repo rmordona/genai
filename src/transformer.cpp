@@ -289,7 +289,7 @@ void Attention<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string Attention<T>::generateDotFormat() {   
+std::string Attention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) { 
     std::string dot = "{* Attention *}|";  
     if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
         dot += "{- No training done yet -}";
@@ -443,7 +443,7 @@ void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& lear
 }
 
 template <class T>
-std::string MultiHeadAttention<T>::generateDotFormat(const std::string& name) {
+std::string MultiHeadAttention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* MultiHeadAttention (" + name + ") *}|";  
     for (int i = 0; i < this->H; i++) {
         dot += "{* Head " + std::to_string(i) + " *}|";  
@@ -537,7 +537,7 @@ void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRat
 }
 
 template <class T>
-std::string FeedForward<T>::generateDotFormat(const std::string& name) {
+std::string FeedForward<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* FeedForward (" + name + ") *}|";  
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
         dot += "{- No training done yet -}";
@@ -707,7 +707,7 @@ void Encoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 }
 
 template <class T>
-std::string Encoder<T>::generateDotFormat() {
+std::string Encoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Encoder *}|";
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {
@@ -923,7 +923,7 @@ void Decoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 }
 
 template <class T>
-std::string Decoder<T>::generateDotFormat() {
+std::string Decoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Decoder *}|";
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {

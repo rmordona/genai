@@ -759,7 +759,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
 }
 
 template <class T>
-std::string Linear<T>::generateDotFormat(const std::string& name) {
+std::string Linear<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Linear Transformation (" + name + ") *}|";  
     T min_weights = 0.0, max_weights = 0.0;
     T min_biases = 0.0, max_biases = 0.0;
@@ -774,8 +774,12 @@ std::string Linear<T>::generateDotFormat(const std::string& name) {
              "BatchSize=" + std::to_string(batch_size) + "}|";
     dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(embedding_size) + ")|"; 
     dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
-    dot += "{Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
-    dot += "{Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+    if (weights == true) {
+        dot += "{Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
+        dot += "{Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+    } else {
+        dot.pop_back(); // Remove dangling | character
+    }
 
     return dot;
 }
@@ -1086,7 +1090,7 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string BatchNorm<T>::generateDotFormat(const std::string& name) {
+std::string BatchNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Batch Normalization (" + name + ") *}|";  
     T min_scale = 0.0, max_scale = 0.0;
     T min_shift = 0.0, max_shift = 0.0;
@@ -1101,8 +1105,13 @@ std::string BatchNorm<T>::generateDotFormat(const std::string& name) {
              "BatchSize=" + std::to_string(batch_size) + "}|";
     dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
     dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
+    if (weights == true) {
     dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
     dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
+    } else {
+        dot.pop_back(); // Remove dangling | character
+    }
+
     return dot;
 }
 
@@ -1393,7 +1402,7 @@ void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string LayerNorm<T>::generateDotFormat(const std::string& name) {
+std::string LayerNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Layer Normalization (" + name + ") *}|"; 
     T min_scale = 0.0, max_scale = 0.0;
     T min_shift = 0.0, max_shift = 0.0;
@@ -1408,8 +1417,12 @@ std::string LayerNorm<T>::generateDotFormat(const std::string& name) {
              "BatchSize=" + std::to_string(batch_size) + "}|";
     dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
     dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
+    if (weights == true) {
     dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
     dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
+    } else {
+        dot.pop_back(); // Remove dangling | character
+    }
     return dot;   
 }
 
@@ -1657,7 +1670,7 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
 } 
  
 template <class T>
-std::string Activation<T>::generateDotFormat() {
+std::string Activation<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Activation (" + activationtype + ")*}|";
     T min_input = 0.0, max_input = 0.0;
     if (this->N != 0 || this->M != 0) 
@@ -1754,9 +1767,8 @@ const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
 
 }
 
-
 template <class T>
-std::string Dropout<T>::generateDotFormat(const std::string& name) {
+std::string Dropout<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Dropout Layer (" + name + ") *}|";  
     dot += "{Probability=" + std::to_string(this->probability) + "}";   
     return dot;
@@ -1826,7 +1838,7 @@ const aitensor<T> Flatten<T>::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-std::string Flatten<T>::generateDotFormat(const std::string& name) {
+std::string Flatten<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
     std::string dot = "{* Flatten Layer (" + name + ") *}|";  
     dot += "{Original=( " + std::to_string(this->input_height) + " x " + std::to_string(this->input_width) + ")|";    
     dot += "Flattened=(1 x " + std::to_string(this->input_height * this->input_width) + ")}"; 
@@ -1982,7 +1994,7 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
 
     total_output = total_output / this->batch_size;
 
-    return total_output; // this becomes input to the next Node or next Layer forward.
+    return total_output; 
 }
 
 template <class T>
@@ -2019,6 +2031,76 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
 
     return dInput; // this becomes input to the next Node or next Layer backward.
 }
+
+
+/*****************************************************************************************************
+* Base Metrics Functions
+* Expected input dimensions:  NxW ( N for input size, and W for feature size)
+*****************************************************************************************************/
+template <class T>
+const PerfMetrics<T> Metrics<T>::computeMetrics(const aitensor<T>& predicted, const aitensor<T>& target) { 
+    // aiscalar<T> output  = 0.0, total_output = 0.0;
+
+    PerfMetrics<T> metrics;
+
+    T total_precision = 0.0;
+    T total_recall    = 0.0; // Sensitivity == Recall
+    T total_f1score   = 0.0;
+    T precision       = 0.0;
+    T recall          = 0.0;
+    T f1score         = 0.0;
+
+    // if input_data is from linear transform, then dimension is BxNxW
+    this->batch_size = predicted.size();
+    this->input_size = predicted.at(0).rows();
+    this->param_size = predicted.at(0).cols();
+
+    aimatrix<T> batch_predicted, batch_target;
+
+    int p_size = predicted.size();
+    int p_row  = predicted.at(0).rows();
+    int p_col  = predicted.at(0).cols();
+    int t_size = target.size();
+    int t_row  = target.at(0).rows();
+    int t_col  = target.at(0).cols();
+
+    if (p_size != t_size || p_row != t_row || p_col != t_col) {
+        log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
+                     p_size, p_row, p_col, t_size, t_row, t_col);
+
+        throw AIException("Dimension of Prediction and Target do not match");
+
+    }
+
+    auto q_precision = std::find(metricstype.begin(), metricstype.end(), "precision");
+    auto q_recall = std::find(metricstype.begin(), metricstype.end(), "recall");
+    auto q_f1score = std::find(metricstype.begin(), metricstype.end(), "f1score");
+
+    for (int i = 0; i < this->batch_size; ++i) {
+
+        batch_predicted = predicted.at(i); 
+        batch_target    = target.at(i); 
+
+        if (q_precision != metricstype.end() || q_recall != metricstype.end() || q_f1score != metricstype.end()) {
+            std::tie(precision, recall, f1score) = calculateMetrics(batch_predicted, batch_target);
+            total_precision += precision;
+            total_recall += recall;
+            total_f1score += f1score;
+        } 
+    }
+
+    // Calculate average metrics
+    metrics.precision = total_precision / this->batch_size;
+    metrics.recall    = total_recall    / this->batch_size;
+    metrics.f1score   = total_f1score   / this->batch_size;
+
+    return metrics; 
+}
+
+template <class T>
+const aiscalar<T> Metrics<T>::aucroc(const aimatrix<T>& predicted, const aimatrix<T>& target) { 
+    return aiscalar<T>();
+}
   
 /************ Basic Core Operators initialize templates ************/
  
@@ -2045,3 +2127,6 @@ template class Flatten<double>;  // Instantiate with double
 
 template class Loss<float>;  // Instantiate with float
 template class Loss<double>;  // Instantiate with double
+
+template class Metrics<float>;  // Instantiate with float
+template class Metrics<double>;  // Instantiate with double

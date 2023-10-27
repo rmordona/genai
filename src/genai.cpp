@@ -588,6 +588,7 @@ PYBIND11_MODULE(genai, m) {
         .value("Input", NodeType::Input)
         .value("Hidden", NodeType::Hidden)
         .value("Output", NodeType::Output)
+        .value("Generic", NodeType::Generic)
         .export_values();
 
     py::enum_<RNNType>(m, "RNNtype")
@@ -702,13 +703,15 @@ PYBIND11_MODULE(genai, m) {
         .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
                   py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
-        .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to multiple nodes")
+        .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node from multiple nodes")
+        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, "Connects this node to multiple nodes")
         .def("setTarget", (void (Model::*)(const py::array_t<float>&)) &Model::setTargetFloat, "Function with float argument")
         .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, "Function with double argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  
-                py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
-                py::arg("maxiteration")=1, "Training a model")
-        .def("generateDotFormat", (std::string (Model::*)()) &Model::generateDotFormat);
+                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
+                py::arg("max_epoch")=1, "Training a model")
+        .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
+                py::arg("operators") = true, py::arg("weights") = true);
      
     // Definitions for TokenModel APIs
     py::class_<TokenModel>(m, "TokenModel")

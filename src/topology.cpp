@@ -413,7 +413,7 @@ void Node<T>::backwardPass() {
         if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
             log_detail("Node [{0}] Dropout Operation (Backward Pass)", name );
             dInput = dropout->backward(dInput);
-            log_matrix( dInput );
+            log_matrix( dInput ); 
         } else     
         //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
         if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
@@ -566,7 +566,7 @@ std::string replaceSpace(Node<T>* node) {
 }
 
 template <class T>
-std::string Node<T>::generateDotFormat() {
+std::string Node<T>::generateDotFormat(bool operators, bool weights) {
     std::string nodename = replaceSpace((Node<T>*) this);
     std::string nodelabel = nodename + "_label";
     std::string dot_ = "";
@@ -575,52 +575,55 @@ std::string Node<T>::generateDotFormat() {
             // Check the dynamic type of the object using dynamic_cast
         //if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
         if (Linear<T>* linear = dynamic_cast<Linear<T>*>(op)) {
-            dot_ +=  linear->generateDotFormat();
+            dot_ +=  linear->generateDotFormat("", operators, weights);
         } else
         //if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
         if (BatchNorm<T>* batchnorm = dynamic_cast<BatchNorm<T>*>(op)) {
-            dot_ +=  batchnorm->generateDotFormat();
+            dot_ +=  batchnorm->generateDotFormat("", operators, weights);
         } else            
         //if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
         if (LayerNorm<T>* layernorm = dynamic_cast<LayerNorm<T>*>(op)) {
-            dot_ += layernorm->generateDotFormat();
+            dot_ += layernorm->generateDotFormat("", operators, weights);
         } else               
         //if (auto activation = std::dynamic_pointer_cast<Activation<T>>(op)) {
         if (Activation<T>* activation = dynamic_cast<Activation<T>*>(op)) {
-            dot_ += activation->generateDotFormat();
+            dot_ += activation->generateDotFormat("", operators, weights);
         }  else
         //if (auto dropout = std::dynamic_pointer_cast<Dropout<T>>(op)) {
         if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
-            dot_ += dropout->generateDotFormat();
+            dot_ += dropout->generateDotFormat("", operators, weights);
         }  else
         //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
         if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
-            dot_ += flatten->generateDotFormat();
+            dot_ += flatten->generateDotFormat("", operators, weights);
         }  else
         //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
         if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
-            dot_ += convolution->generateDotFormat();
+            dot_ += convolution->generateDotFormat("", operators, weights);
         }  else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
-            dot_ += attention->generateDotFormat();
+            dot_ += attention->generateDotFormat("", operators, weights);
         } else            
         //if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
         if (FeedForward<T>* feedforward = dynamic_cast<FeedForward<T>*>(op)) {
-            dot_ += feedforward->generateDotFormat();
+            dot_ += feedforward->generateDotFormat("", operators, weights);
         } else            
         //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
         if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
-            dot_ += encoder->generateDotFormat();
+            dot_ += encoder->generateDotFormat("", operators, weights);
         } 
         //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
         if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
-            dot_ += decoder->generateDotFormat();
+            dot_ += decoder->generateDotFormat("", operators, weights);
         } 
         if (++cnt < (int) operations.size()) { dot_ += "|"; }
     }
     dot_ = nodelabel + " [shape=record, fontsize=11, label=\"" + dot_ + "\"]; ";
-    dot_ += nodename + "->" + nodelabel + ";";
+
+    if (operators == true) {
+        dot_ += nodename + "->" + nodelabel + ";";
+    }
     return dot_;
 }
 
@@ -734,6 +737,13 @@ void Graph<T>::connect(Node<T>* from, Node<T>* to, std::vector<BaseOperator*>& o
 template <class T>
 void Graph<T>::connect(std::vector<Node<T>*> from_nodes, Node<T>* to) {
     for (auto& from : from_nodes) {
+        addConnection(std::make_unique<Connection<T>>(from, to));
+    }
+}
+
+template <class T>
+void Graph<T>::connect(Node<T>* from, std::vector<Node<T>*> to_nodes) {
+    for (auto& to : to_nodes) {
         addConnection(std::make_unique<Connection<T>>(from, to));
     }
 }
@@ -895,17 +905,13 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
 }
 
 template <class T>
-const aiscalar<T> Graph<T>::computeLoss(std::string losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
+const aiscalar<T> Graph<T>::computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "***************************************************" );
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    std::cout << "Entering Graph computeLoss 1 ..." << std::endl;
-
     this->lossobj = new Loss<T>(losstype);
-
-    std::cout << "Entering Graph computeLoss 2 ..." << std::endl;
 
     aiscalar<T> loss = this->lossobj->computeLoss(predicted, target);
 
@@ -930,8 +936,6 @@ const aitensor<T> Graph<T>::computeGradients(const aitensor<T>& predicted, const
 
     aitensor<T> gradients = this->lossobj->computeGradients(predicted, target);
 
-    log_detail( "Loss Gradient calculated ..." );
-
     log_matrix( gradients );
 
     return gradients;
@@ -953,8 +957,24 @@ void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, int
 }
 
 template <class T>
-std::string Graph<T>::generateDotFormat() {
+const PerfMetrics<T> Graph<T>::computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
+    log_info( "***************************************************" );
+    log_info( "*****    Graph: Processing Loss Function  *********" );
+    log_info( "***************************************************" );
+
+    this->metricsobj = new Metrics<T>(metricstype);
+
+    PerfMetrics<T> metrics = this->metricsobj->computeMetrics(predicted, target);
+
+    log_detail( "Performance metrics calculated: " );
+    log_scalar( metrics );
+
+    return metrics;
+}
+
+template <class T>
+std::string Graph<T>::generateDotFormat(bool operators, bool weights) {
     log_detail("Plotting Graph Format ...");
 
     std::string dot = 
@@ -972,7 +992,7 @@ std::string Graph<T>::generateDotFormat() {
     }
 
     for (auto& node: nodes) {
-        dot += node->generateDotFormat();
+        dot += node->generateDotFormat(operators, weights);
     }
 
     dot += "}";
