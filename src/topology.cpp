@@ -911,9 +911,11 @@ const aiscalar<T> Graph<T>::computeLoss(const std::string& losstype, const aiten
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    this->lossobj = new Loss<T>(losstype);
+    // this->lossobj = new Loss<T>(losstype);
 
-    aiscalar<T> loss = this->lossobj->computeLoss(predicted, target);
+    // aiscalar<T> loss = this->lossobj->computeLoss(losstype, predicted, target);
+
+    aiscalar<T> loss = Loss<T>::computeLoss(losstype, predicted, target);
 
     log_detail( "Loss calculated: " );
     log_scalar( loss );
@@ -922,7 +924,7 @@ const aiscalar<T> Graph<T>::computeLoss(const std::string& losstype, const aiten
 }
 
 template <class T>
-const aitensor<T> Graph<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) {
+const aitensor<T> Graph<T>::computeGradients(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
     log_info( "*********************************************" );
     log_info( "*****    Graph: Processing Gradient *********" );
@@ -934,7 +936,8 @@ const aitensor<T> Graph<T>::computeGradients(const aitensor<T>& predicted, const
     log_detail("Target:");
     log_matrix(target);
 
-    aitensor<T> gradients = this->lossobj->computeGradients(predicted, target);
+    // aitensor<T> gradients = this->lossobj->computeGradients(losstype, predicted, target);
+    aitensor<T> gradients = Loss<T>::computeGradients(losstype, predicted, target);
 
     log_matrix( gradients );
 
@@ -963,9 +966,9 @@ const PerfMetrics<T> Graph<T>::computeMetrics(const std::vector<std::string>& me
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    this->metricsobj = new Metrics<T>(metricstype);
+    // this->metricsobj = new Metrics<T>(metricstype);
 
-    PerfMetrics<T> metrics = this->metricsobj->computeMetrics(predicted, target);
+    PerfMetrics<T> metrics = Metrics<T>::computeMetrics(metricstype, predicted, target);
 
     log_detail( "Performance metrics calculated: " );
     log_scalar( metrics );

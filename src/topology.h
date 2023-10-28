@@ -263,9 +263,9 @@ public:
 
     const aiscalar<T> computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
+    const aitensor<T> computeGradients(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor<T> computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
+    const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 

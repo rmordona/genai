@@ -107,7 +107,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
 
         log_detail( "Computing Loss Gradient ..." );
-        this->gradients = this->graph->computeGradients(this->predicted, this->target);
+        this->gradients = this->graph->computeGradients(this->losstype, this->predicted, this->target);
         log_matrix( this->gradients );
 
         log_detail( "Entering Backward Propagation ..." );

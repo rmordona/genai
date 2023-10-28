@@ -629,41 +629,37 @@ public:
 template <class T>
 class Loss : public BaseOperator {
 private:
-    std::string losstype = "mse";
+    // std::string losstype = "mse";
 
-    int batch_size;
-    int input_size;
-    int param_size;
+    // int batch_size;
+    // int input_size;
+    // int param_size;
 
 public:
 
-    Loss(const std::string& losstype = "mse") {
-        this->losstype = losstype;
-    }
-
     // Mean Squared Error. Returns 1x1 matrix (scalar)
-    const aiscalar<T> mse(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aiscalar<T> mse(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
-    const aimatrix<T> mseGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aimatrix<T> mseGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
     // Binary Cross Entropy.  Returns 1x1 matrix (scalar)
-    const aiscalar<T> bce(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aiscalar<T> bce(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
-    const aimatrix<T> bceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aimatrix<T> bceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
     // For Loss Categorial Cross Entropy. Usually, we use Softmax.
-    const aiscalar<T> cce(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aiscalar<T> cce(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
-    const aimatrix<T> cceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aimatrix<T> cceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
     // For Support Vectors (not necessarily for Neural)
-    const aiscalar<T> hingeLoss(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aiscalar<T> hingeLoss(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
-    const aimatrix<T> hingeLossGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aimatrix<T> hingeLossGradient(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
-    const aiscalar<T> computeLoss(const aitensor<T>& predicted, const aitensor<T>& target);
+    static const aiscalar<T> computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    const aitensor<T> computeGradients(const aitensor<T>& predicted, const aitensor<T>& target);
+    static const aitensor<T> computeGradients(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -676,13 +672,18 @@ public:
 template <class T>
 class Metrics : public BaseOperator {
 private:
+/*
     std::vector<std::string> metricstype;
+    bool q_precision = false;
+    bool q_recall    = false;
+    bool q_f1score   = false;
+*/
 
-    int batch_size;
-    int input_size;
-    int param_size;
+   // int batch_size;
+   //int input_size;
+    // int param_size;
 
-    std::tuple<T, T, T> calculateMetrics(const aimatrix<T>& prediction, const aimatrix<T>& target) {
+    static std::tuple<T, T, T> calculateMetrics(const aimatrix<T>& prediction, const aimatrix<T>& target) {
         int rows = target.rows();
         int cols = target.cols();
 
@@ -715,16 +716,22 @@ private:
         return std::make_tuple(precision, recall, f1score);
     }
 
+    static bool findMetrics(const std::vector<std::string>& metricstype, const std::string& target) {
+        auto it =  std::find(metricstype.begin(), metricstype.end(), target);
+        return (it != metricstype.end());
+    }
+
 public:
 
+/*
     Metrics(const std::vector<std::string>& metricstype) {
         this->metricstype = metricstype;
     }
-
-    const PerfMetrics<T> computeMetrics(const aitensor<T>& predicted, const aitensor<T>& target);
+*/
+    static const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
     // AUC-ROC. Returns 1x1 matrix (scalar)
-    const aiscalar<T> aucroc(const aimatrix<T>& predicted, const aimatrix<T>& target);
+    static const aiscalar<T> aucroc(const aimatrix<T>& predicted, const aimatrix<T>& target);
 
     void forwardPass() {}
     void backwardPass() {}

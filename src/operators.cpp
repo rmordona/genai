@@ -1946,13 +1946,13 @@ const aimatrix<T> Loss<T>::hingeLossGradient(const aimatrix<T>& predicted, const
 }
 
 template <class T>
-const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aitensor<T>& target) { 
+const aiscalar<T> Loss<T>::computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target) { 
     aiscalar<T> output  = 0.0, total_output = 0.0;
 
     // if input_data is from linear transform, then dimension is BxNxW
-    this->batch_size = predicted.size();
-    this->input_size = predicted.at(0).rows();
-    this->param_size = predicted.at(0).cols();
+    int batch_size = predicted.size();
+    //int input_size = predicted.at(0).rows();
+    //int param_size = predicted.at(0).cols();
 
     aimatrix<T> batch_predicted, batch_target;
 
@@ -1971,7 +1971,7 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
 
     }
 
-    for (int i = 0; i < this->batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
@@ -1992,39 +1992,39 @@ const aiscalar<T> Loss<T>::computeLoss(const aitensor<T>& predicted, const aiten
 
     }
 
-    total_output = total_output / this->batch_size;
+    total_output = total_output / batch_size;
 
     return total_output; 
 }
 
 template <class T>
-const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const aitensor<T>& target) { 
+const aitensor<T> Loss<T>::computeGradients(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target) { 
     aitensor<T> gradients;
 
     // if input_data is from linear transform, then dimension is BxNxW
-    this->batch_size = predicted.size();
-    this->input_size = predicted.at(0).rows();
-    this->param_size = predicted.at(0).cols();
+    int batch_size = predicted.size();
+    //int input_size = predicted.at(0).rows();
+    //int param_size = predicted.at(0).cols();
 
     aitensor<T> dInput; // (this->batch_size, this->input_size, this->param_size);
 
     aimatrix<T> batch_predicted, batch_target;
 
-    for (int i = 0; i < this->batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
 
-        if (this->losstype == "mse") {
+        if (losstype == "mse") {
             dInput.push_back(mseGradient(batch_predicted, batch_target));
         } else
-        if (this->losstype == "bce") {
+        if (losstype == "bce") {
             dInput.push_back(bceGradient(batch_predicted, batch_target));
         } else
-        if (this->losstype == "cce") {
+        if (losstype == "cce") {
             dInput.push_back(cceGradient(batch_predicted, batch_target));
         } else
-        if (this->losstype == "hingeLoss") {
+        if (losstype == "hingeLoss") {
             dInput.push_back(hingeLossGradient(batch_predicted, batch_target));
         } 
     }
@@ -2038,22 +2038,25 @@ const aitensor<T> Loss<T>::computeGradients(const aitensor<T>& predicted, const 
 * Expected input dimensions:  NxW ( N for input size, and W for feature size)
 *****************************************************************************************************/
 template <class T>
-const PerfMetrics<T> Metrics<T>::computeMetrics(const aitensor<T>& predicted, const aitensor<T>& target) { 
-    // aiscalar<T> output  = 0.0, total_output = 0.0;
+const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target) { 
 
     PerfMetrics<T> metrics;
 
-    T total_precision = 0.0;
+    T total_precision = 0.0; 
     T total_recall    = 0.0; // Sensitivity == Recall
     T total_f1score   = 0.0;
     T precision       = 0.0;
     T recall          = 0.0;
     T f1score         = 0.0;
 
+    bool q_precision = false;
+    bool q_recall    = false;
+    bool q_f1score   = false;
+
     // if input_data is from linear transform, then dimension is BxNxW
-    this->batch_size = predicted.size();
-    this->input_size = predicted.at(0).rows();
-    this->param_size = predicted.at(0).cols();
+    int batch_size = predicted.size();
+    //input_size = predicted.at(0).rows();
+    //param_size = predicted.at(0).cols();
 
     aimatrix<T> batch_predicted, batch_target;
 
@@ -2072,16 +2075,16 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const aitensor<T>& predicted, co
 
     }
 
-    auto q_precision = std::find(metricstype.begin(), metricstype.end(), "precision");
-    auto q_recall = std::find(metricstype.begin(), metricstype.end(), "recall");
-    auto q_f1score = std::find(metricstype.begin(), metricstype.end(), "f1score");
+    q_precision = findMetrics(metricstype, "precision"); // std::find(metricstype.begin(), metricstype.end(), "precision");
+    q_recall    = findMetrics(metricstype, "recall");  // std::find(metricstype.begin(), metricstype.end(), "recall");
+    q_f1score   = findMetrics(metricstype, "f1score"); // std::find(metricstype.begin(), metricstype.end(), "f1score");
 
-    for (int i = 0; i < this->batch_size; ++i) {
+    for (int i = 0; i < batch_size; ++i) {
 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
 
-        if (q_precision != metricstype.end() || q_recall != metricstype.end() || q_f1score != metricstype.end()) {
+        if (q_precision || q_recall || q_f1score ) {
             std::tie(precision, recall, f1score) = calculateMetrics(batch_predicted, batch_target);
             total_precision += precision;
             total_recall += recall;
@@ -2090,9 +2093,9 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const aitensor<T>& predicted, co
     }
 
     // Calculate average metrics
-    metrics.precision = total_precision / this->batch_size;
-    metrics.recall    = total_recall    / this->batch_size;
-    metrics.f1score   = total_f1score   / this->batch_size;
+    metrics.precision = total_precision / batch_size;
+    metrics.recall    = total_recall    / batch_size;
+    metrics.f1score   = total_f1score   / batch_size;
 
     return metrics; 
 }

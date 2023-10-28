@@ -44,7 +44,7 @@ target = [
          ];
 modelgraph.setTarget(target);
 
-modelgraph.train(loss="cce", optimizer="adam", learnrate=0.01, maxiteration=100);
+modelgraph.train(loss="cce", metrics=["precision"], optimizer="adam", learnrate=0.01, max_epoch=100);
 
 ai.print_string("Show Graph ...", True);
 p = modelgraph.generateDotFormat();
