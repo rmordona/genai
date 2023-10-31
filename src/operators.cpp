@@ -1621,8 +1621,6 @@ const aitensor<T> Activation<T>::forward(const aitensor<T>& input_data) {
     this->input_size = this->input_data.at(0).rows();
     this->param_size = this->input_data.at(0).cols();
 
-    std::cout << "Batch Size:" <<  this->batch_size  << " Row: " << this->input_size << " Col:" << this->param_size << std::endl;
-
     for (int i = 0; i < this->batch_size; ++i) {
 
         aimatrix<T> input = this->input_data.at(i); 
@@ -1877,10 +1875,8 @@ const aiscalar<T> Loss<T>::bce(const aimatrix<T>& predicted, const aimatrix<T>& 
     aimatrix<T> bce_loss = -target.array() * predicted.array().log() - (1.0 - target.array()) * (1.0 - predicted.array()).log();
 
     // Sum along the W dimension for each combination of B and N
-    // aimatrix<T> overall_bce_loss = bce_loss.mean(Eigen::array<int, 1>({2})); // Average along dimension W (axis 2)
     airowvector<T> overall_bce_loss = bce_loss.rowwise().mean();
 
-    // aiscalar<T> batch_mean_bce_loss = overall_bce_loss.mean(Eigen::array<int, 1>({0, 1})); // Average along dimensions B and N
     aiscalar<T> batch_mean_bce_loss = overall_bce_loss.mean();
 
     // aimatrix<T> averageLoss = loss.mean();
@@ -2049,10 +2045,6 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
     T recall          = 0.0;
     T f1score         = 0.0;
 
-    bool q_precision = false;
-    bool q_recall    = false;
-    bool q_f1score   = false;
-
     // if input_data is from linear transform, then dimension is BxNxW
     int batch_size = predicted.size();
     //input_size = predicted.at(0).rows();
@@ -2072,30 +2064,43 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
                      p_size, p_row, p_col, t_size, t_row, t_col);
 
         throw AIException("Dimension of Prediction and Target do not match");
+    } 
+ 
+    metrics.isprecision = findMetrics(metricstype, "precision"); 
+    metrics.isrecall    = findMetrics(metricstype, "recall");   
+    metrics.isf1score   = findMetrics(metricstype, "f1score");  
 
-    }
+    std::cout << "Batch size: " << batch_size << std::endl;
 
-    q_precision = findMetrics(metricstype, "precision"); // std::find(metricstype.begin(), metricstype.end(), "precision");
-    q_recall    = findMetrics(metricstype, "recall");  // std::find(metricstype.begin(), metricstype.end(), "recall");
-    q_f1score   = findMetrics(metricstype, "f1score"); // std::find(metricstype.begin(), metricstype.end(), "f1score");
+    std::cout << "isPrecision " << metrics.isprecision << std::endl;
 
     for (int i = 0; i < batch_size; ++i) {
 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
 
-        if (q_precision || q_recall || q_f1score ) {
+            std::cout << "Precision 1:" << precision << std::endl;
+
+        if ( metrics.isprecision || metrics.isrecall  || metrics.isf1score ) {
             std::tie(precision, recall, f1score) = calculateMetrics(batch_predicted, batch_target);
             total_precision += precision;
             total_recall += recall;
             total_f1score += f1score;
+
+             std::cout << "Precision 2:" << precision << std::endl;
+
         } 
     }
+
+
+    std::cout << "Precision 3:" << total_precision << std::endl;
 
     // Calculate average metrics
     metrics.precision = total_precision / batch_size;
     metrics.recall    = total_recall    / batch_size;
     metrics.f1score   = total_f1score   / batch_size;
+
+    std::cout << "Precision 4:" << metrics.precision << std::endl;
 
     return metrics; 
 }

@@ -381,7 +381,7 @@ void Node<T>::backwardPass() {
 
     // Reverse the elements in the copied vector
     std::reverse(reversedOperations.begin(), reversedOperations.end());
-
+ 
     // Here, dInput is assumed to have already been propagated
     // through setGradients or propagatGradients.
     for (const auto& op : reversedOperations ) {
@@ -619,9 +619,8 @@ std::string Node<T>::generateDotFormat(bool operators, bool weights) {
         } 
         if (++cnt < (int) operations.size()) { dot_ += "|"; }
     }
-    dot_ = nodelabel + " [shape=record, fontsize=11, label=\"" + dot_ + "\"]; ";
-
     if (operators == true) {
+        dot_ = nodelabel + " [shape=record, fontsize=11, label=\"" + dot_ + "\"]; ";
         dot_ += nodename + "->" + nodelabel + ";";
     }
     return dot_;
@@ -668,11 +667,8 @@ Node<T>* Graph<T>::findNode(const std::string& nodename) {
 // Create a node with two arguments: name and type (no initial values)
 template <class T>
 Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
-    std::cout << "Creating Node 1 ..." << std::endl;
     Node<T>* node = new Node<T>(name, type); 
-    std::cout << "Creating Node 2 ..." << std::endl;
     this->nodes.push_back(node);
-    std::cout << "Creating Node 3 ..." << std::endl;
     return node;
 }
 
@@ -780,11 +776,9 @@ void Graph<T>::addConnection(std::shared_ptr<Connection<T>> connection) {
 template <class T>
 const aitensor<T> Graph<T>::forwardPropagation() {
 
-    log_detail( "Entered forward pass in Graph 1 ..." );
+    log_detail( "Entered forward pass in Graph ..." );
 
     std::queue<Node<T>*> q;
-
-    log_detail( "Entered forward pass in Graph 2 ..." );
 
     std::unordered_map<Node<T>*, int> indegree_(indegree); 
 

@@ -86,12 +86,10 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     aiscalar<T> epsilon = 1e-3;
     aiscalar<T> old_loss = inf();
 
-    std::cout << "Setting Training Time ..." << std::endl;
-
     auto start_time = std::chrono::system_clock::now();
 
-    std::cout << "Starting Iteration ..." << std::endl;
- 
+    py_cout << "Fitting the model ...";
+
     for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
@@ -116,23 +114,36 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         log_detail( "Updating Parameters ..." );
         this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
 
-        log_detail( "Calculate Performance Metrics ...");
-        this->metrics = this->graph->computeMetrics(this->metricstype, this->predicted, this->target);
+        if (this->losstype == "bce" || this->losstype == "cce") {
+            log_detail( "Calculate Performance Metrics ...");
+            this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
+        }
 
         // Calculate Time, then display loss
         auto end_time = std::chrono::system_clock::now();
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        py_cout << "Epoch " << iter << "/" << max_epoch << " ...";
+        py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
         py_cout << "Loss: " << this->loss;
-        // py_cout << "Accuracy: " << this->metrics;
-        py_cout << " ... elapsed " <<  elapsed_seconds.count();
+
+        if (this->losstype == "bce" || this->losstype == "cce") {
+            if (this->metrics.isprecision) {
+                py_cout << " ... Acc (P): " << this->metrics.precision;
+            }
+            if (this->metrics.isrecall) {
+                py_cout << "... Acc (R): " << this->metrics.recall;
+            }
+            if (this->metrics.isf1score) {
+                py_cout << "... Acc (F1): " << this->metrics.f1score;
+            }
+        }
+        py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << " us";
         py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Accuracy: {:8.5f} ... Elapsed {} at {}", iter, max_epoch, 
-                this->loss, this->metrics, elapsed_seconds.count(), std::ctime(&next_time) );
+        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {} us at {}", iter, max_epoch, 
+                this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
 
         if (abs(old_loss - this->loss) <= epsilon) break;
 
@@ -192,7 +203,7 @@ void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool n
 }
 
 /**************************************************************************************************
-* MModelNode::setDataDouble and setDecoderDataDouble
+* ModelNode::setDataDouble and setDecoderDataDouble
 * Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
@@ -522,7 +533,6 @@ Model::Model(const std::string& losstype, const std::string& optimizertype,
     } else {
         throw std::invalid_argument("Unsupported datatype");
     }
-    std::cout << "Got here :" << datatype << " learningRate " << learningRate << std::endl;
 }
 
 /************************************************************************************************
@@ -532,15 +542,10 @@ Model::Model(const std::string& losstype, const std::string& optimizertype,
 *************************************************************************************************/
 std::shared_ptr<ModelNode> Model::addNode(std::string name, NodeType ntype) {
     if (datatype == "float") {
-        std::cout << "Entering add Node ..." << std::endl;
         if (!isNode(name)) { 
-              std::cout << "Entering add Node 1..." << std::endl;
             std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
-              std::cout << "Entering add Node 2..." << std::endl;
             this->modelXf->getGraph()->createNode(name, ntype);
-              std::cout << "Entering add Node 3 ..." << std::endl;
             this->nodes.push_back(node);
-            std::cout << "Entering add Node 4 ..." << std::endl;
             return node;
         } else {
             std::cerr << "Node already exists. Use another name ..." << std::endl;
@@ -689,6 +694,54 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
         std::cerr << "(Model:setTargetDouble) Unknown Error:" << std::endl;
     }
 }
+
+/************************************************************************************************
+* Model::getPredictions
+* We use modelXd.setTarget to convert the python array to aitensor<double> and store
+* the tensor inside the model.
+*************************************************************************************************/
+py::array_t<float> Model::getPredictionsFloat() {
+    py_cout << "Entering Prediction Float ...";
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
+        } 
+        aitensor<float> tensor = modelXf->getPredictions();
+        return ConvertData::topyarray(tensor); 
+
+    } catch (const AIException& e) {
+        std::cerr << "(Model:getPredictionsFloat) Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "(Model:getPredictionsFloat)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "(Model:getPredictionsFloat) Unknown Error:" << std::endl;
+    }
+    return py::array_t<float>();
+}
+  
+py::array_t<double> Model::getPredictionsDouble() {
+    py_cout << "Entering Prediction Double ...";
+    try {
+        if (datatype == "float") {
+            throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
+        }
+        aitensor<double> tensor = modelXd->getPredictions();
+        return ConvertData::topyarray(tensor); 
+
+    } catch (const AIException& e) {
+        std::cerr << "(Model:getPredictionsDouble) Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "(Model:getPredictionsDouble)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "(Model:getPredictionsDouble) Unknown Error:" << std::endl;
+    }
+    return py::array_t<double>();
+}
+
 
 /************************************************************************************************
 * Model::compile

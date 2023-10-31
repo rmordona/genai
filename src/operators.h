@@ -668,33 +668,29 @@ public:
 
 /*****************************************************************************************************
 * Base Metrics Class
+* Operational only for classifications where loss function is either BCE or CCE
 *****************************************************************************************************/
 template <class T>
 class Metrics : public BaseOperator {
 private:
-/*
-    std::vector<std::string> metricstype;
-    bool q_precision = false;
-    bool q_recall    = false;
-    bool q_f1score   = false;
-*/
-
-   // int batch_size;
-   //int input_size;
-    // int param_size;
 
     static std::tuple<T, T, T> calculateMetrics(const aimatrix<T>& prediction, const aimatrix<T>& target) {
         int rows = target.rows();
         int cols = target.cols();
 
-        int TP = 0;
-        int FP = 0;
-        int FN = 0;
+        T TP = 0.0;
+        T FP = 0.0;
+        T FN = 0.0;
+
+        std::cout << "Precision Entering Calculation" << std::endl;
+        std::cout << "Precision TP:" << TP << " FP:" << FP << " FN:" << FN << std::endl;
 
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 T actual = target(i, j);
                 T predicted = prediction(i, j);
+
+                std::cout << "Precision Entering Calculation:(" << actual << "):(" << predicted << ")" << std::endl;
 
                 actual = (actual > 0.5) ? 1.0 : 0.0;
                 predicted = (predicted > 0.5) ? 1.0 : 0.0;
@@ -706,12 +702,16 @@ private:
                 } else if (actual == 1.0 && predicted == 0.0) {
                     FN++;
                 }
+                std::cout << "Precision TP:" << TP << " FP:" << FP << " FN:" << FN << std::endl;
+
             }
         }
 
-        T precision = static_cast<T>(TP) / (TP + FP);
-        T recall = static_cast<T>(TP) / (TP + FN);
+        T precision = (TP) / (TP + FP);
+        T recall = (TP) / (TP + FN);
         T f1score = (2.0 * precision * recall) / (precision + recall);
+
+        std::cout << "Precision then: " << precision << std::endl;
 
         return std::make_tuple(precision, recall, f1score);
     }
@@ -723,11 +723,7 @@ private:
 
 public:
 
-/*
-    Metrics(const std::vector<std::string>& metricstype) {
-        this->metricstype = metricstype;
-    }
-*/
+
     static const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
     // AUC-ROC. Returns 1x1 matrix (scalar)

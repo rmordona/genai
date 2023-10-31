@@ -454,6 +454,10 @@ struct OperationParams {
 // Then create API functions in Metrics Class under operators.h/operators.cpp
 template <class T>
 struct PerfMetrics {
+    bool isprecision = false; // is precision required in training?
+    bool isrecall = false;    // is recall required in training?
+    bool isf1score = false;   // is f1score required in training?
+    bool isaucroc = false;     // is aucroc required in training?
     T precision;   
     T recall;   
     T f1score; 

@@ -68,6 +68,10 @@ public:
 
     aitensor<T> getTarget();
 
+    aitensor<T> getPredictions() { 
+        return this->predicted;
+    } 
+
     void useCrossEntropy();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
@@ -182,13 +186,13 @@ private:
 
 public:
     Model(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const double learningRate = 0.01, const int itermax = 1, const std::string& datatype = "float");
+          const double learningRate = 0.01, const int max_epoch = 1, const std::string& datatype = "float");
 
     std::shared_ptr<ModelNode> addNode(std::string name, NodeType ntype);
 
-    void unpackData();
+    // void unpackData();
 
-    void unpackOperations();
+    // void unpackOperations();
 
     void setTargetFloat(const py::array_t<float>& target);
     
@@ -201,6 +205,10 @@ public:
     void connect(std::shared_ptr<ModelNode> from, std::vector<std::shared_ptr<ModelNode>> to_nodes);
 
     void seedNodes();
+
+    py::array_t<float> getPredictionsFloat();
+
+    py::array_t<double> getPredictionsDouble();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 

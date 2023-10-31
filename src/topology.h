@@ -90,6 +90,28 @@ public:
         return eigenMatrices;
     }
 
+    template <class T>
+    static py::array_t<T> topyarray(const aitensor<T>& matrices) {
+        // Determine the shape and size of the NumPy array
+        size_t num_matrices = matrices.size();
+        size_t matrix_rows = matrices[0].rows();
+        size_t matrix_cols = matrices[0].cols();
+
+        // Create a NumPy array with the same shape
+        auto result = py::array_t<T>({num_matrices, matrix_rows, matrix_cols});
+        auto buffer_info = result.request();
+        double* ptr = static_cast<double*>(buffer_info.ptr);
+
+        // Copy data from Eigen matrices to NumPy array
+        for (size_t i = 0; i < num_matrices; i++) {
+            Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(ptr, matrix_rows, matrix_cols) = matrices[i].template cast<double>();
+            ptr += matrix_rows * matrix_cols;
+        }
+
+        return result;
+    }
+
+
 };
 
 /*****************************************************************************************************

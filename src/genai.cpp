@@ -617,19 +617,21 @@ PYBIND11_MODULE(genai, m) {
         .export_values();
    
     py::class_<SampleClass, std::shared_ptr<SampleClass>>(m, "SampleClass")
-        .def(py::init<float>())
-        .def(py::init<double>());
+        .def(py::init<double>())
+        .def(py::init<float>());
+
 
     py::class_<ModelNode, std::shared_ptr<ModelNode>>(m, "Node")
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
-        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, "Function with float argument")
         .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDataDouble, 
                 py::arg("data"), py::arg("normalize") = false, "Function with double argument")
-        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDecoderDataFloat, 
+        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDataFloat, 
                 py::arg("data"), py::arg("normalize") = false, "Function with float argument")
-        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDecoderDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, "Function with double argument");
+            .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDecoderDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, "Function with double argument")
+        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDecoderDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, "Function with float argument");
+
     
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
     py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Dense")
@@ -699,16 +701,18 @@ PYBIND11_MODULE(genai, m) {
     py::class_<Model>(m, "Model")
         .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
                 py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-                py::arg("learningRate") = 0.01, py::arg("itermax") = 1, py::arg("datatype") = "float")
+                py::arg("learning_rate") = 0.01, py::arg("max_epoch") = 1, py::arg("datatype") = "float")
         .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
                   py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
         .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node from multiple nodes")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, "Connects this node to multiple nodes")
-        .def("setTarget", (void (Model::*)(const py::array_t<float>&)) &Model::setTargetFloat, "Function with float argument")
-        .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, "Function with double argument")
+        .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, py::arg("data"), "Function with double argument")
+        .def("setTarget", (void (Model::*)(const py::array_t<float>&)) &Model::setTargetFloat, py::arg("data"), "Function with float argument")
+        .def("getPredictions", (py::array_t<double> (Model::*)()) &Model::getPredictionsDouble, "Function with double argument")
+        .def("getPredictions", (py::array_t<float> (Model::*)()) &Model::getPredictionsFloat, "Function with float argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  
-                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("learnrate") = 0.01, 
+                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("learn_rate") = 0.01, 
                 py::arg("max_epoch")=1, "Training a model")
         .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
                 py::arg("operators") = true, py::arg("weights") = true);
