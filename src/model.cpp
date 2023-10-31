@@ -78,6 +78,8 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->optimizertype = optimizertype;
     this->learningRate = learningRate;
 
+    int mod_epoch = max_epoch / 0.10;
+
     log_info( "******************************************************************************************" );
     log_info( "********************************* Start Training *****************************************")
     log_info( "******************************************************************************************" );
@@ -124,25 +126,29 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         std::chrono::duration<double> elapsed_seconds = end_time - start_time;
         std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
         start_time = end_time;
-        py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
-        py_cout << "Loss: " << this->loss;
 
-        if (this->losstype == "bce" || this->losstype == "cce") {
-            if (this->metrics.isprecision) {
-                py_cout << " ... Acc (P): " << this->metrics.precision;
+        // Print Progress
+        if (iter == 1 || mod_epoch % iter == 0) {
+            py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
+            py_cout << "Loss: " << this->loss;
+
+            if (this->losstype == "bce" || this->losstype == "cce") {
+                if (this->metrics.isprecision) {
+                    py_cout << " ... Acc (P): " << this->metrics.precision;
+                }
+                if (this->metrics.isrecall) {
+                    py_cout << "... Acc (R): " << this->metrics.recall;
+                }
+                if (this->metrics.isf1score) {
+                    py_cout << "... Acc (F1): " << this->metrics.f1score;
+                }
             }
-            if (this->metrics.isrecall) {
-                py_cout << "... Acc (R): " << this->metrics.recall;
-            }
-            if (this->metrics.isf1score) {
-                py_cout << "... Acc (F1): " << this->metrics.f1score;
-            }
+            py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
+            py_cout << " at " << std::ctime(&next_time) << std::endl;
         }
-        py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << " us";
-        py_cout << " at " << std::ctime(&next_time) << std::endl;
 
         // Also, log the result if Logging INFO is enabled
-        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {} us at {}", iter, max_epoch, 
+        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
                 this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
 
         if (abs(old_loss - this->loss) <= epsilon) break;
