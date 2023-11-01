@@ -36,17 +36,17 @@ template <class T>
 class BaseModel {
 private:
     std::shared_ptr<Graph<T>> graph;
-
     aitensor<T> target;
     aitensor<T> predicted;
     aitensor<T> gradients;
     aiscalar<T> loss;
     PerfMetrics<T> metrics;
     std::string losstype = "mse";
-    std::vector<std::string> metricstype;
     std::string optimizertype = "adam";
     T learningRate = 0.01;
     int max_epoch = 1;
+    std::vector<std::string> metricstype;
+
 public:
     BaseModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
         const T learningRate = 0.01, const int max_epoch = 1) {
@@ -68,13 +68,11 @@ public:
 
     aitensor<T> getTarget();
 
-    aitensor<T> getPredictions() { 
-        return this->predicted;
-    } 
-
     void useCrossEntropy();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
+
+    aitensor<T> predict();
 
     void test() {}
 
@@ -204,11 +202,11 @@ public:
 
     void connect(std::shared_ptr<ModelNode> from, std::vector<std::shared_ptr<ModelNode>> to_nodes);
 
-    void seedNodes();
+    void seedNodes(bool setOps = false);
 
-    py::array_t<float> getPredictionsFloat();
+    py::array_t<float> predictFloat();
 
-    py::array_t<double> getPredictionsDouble();
+    py::array_t<double> predictDouble();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
 

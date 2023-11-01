@@ -709,8 +709,8 @@ PYBIND11_MODULE(genai, m) {
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, "Connects this node to multiple nodes")
         .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, py::arg("data"), "Function with double argument")
         .def("setTarget", (void (Model::*)(const py::array_t<float>&)) &Model::setTargetFloat, py::arg("data"), "Function with float argument")
-        .def("getPredictions", (py::array_t<double> (Model::*)()) &Model::getPredictionsDouble, "Function with double argument")
-        .def("getPredictions", (py::array_t<float> (Model::*)()) &Model::getPredictionsFloat, "Function with float argument")
+        .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
+        .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  
                 py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("learn_rate") = 0.01, 
                 py::arg("max_epoch")=1, "Training a model")

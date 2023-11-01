@@ -68,6 +68,11 @@ void BaseModel<T>::useCrossEntropy() {
 
 }
 
+/**************************************************************************************************
+* BaseModel::train
+* This is the core function to fit a model
+* Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
+**************************************************************************************************/
 template <class T>
 void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate , const int max_epoch) {
 
@@ -77,6 +82,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->losstype = losstype;
     this->optimizertype = optimizertype;
     this->learningRate = learningRate;
+    this->metricstype = metricstype;
 
     int mod_epoch = max_epoch / 0.10;
 
@@ -156,6 +162,77 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     }
 
     log_detail( "Training done ..." );
+
+    // Finalize MPI
+    //MPI_Finalize();
+
+}
+
+/**************************************************************************************************
+* BaseModel::predict
+* Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
+* Upon prediction entry, the double pointer will be transformed to an aitensor and handed over
+* to the Node class.
+**************************************************************************************************/
+template <class T>
+aitensor<T> BaseModel<T>::predict() {
+
+    // Initialize MPI
+    //MPI_Init(NULL, NULL);
+
+    log_info( "******************************************************************************************" );
+    log_info( "********************************* Start Training *****************************************")
+    log_info( "******************************************************************************************" );
+    log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
+
+    auto start_time = std::chrono::system_clock::now();
+
+    py_cout << "Model Inference ...";
+
+    this->predicted = this->graph->forwardPropagation();
+
+    log_detail( "Predicted Result: Tensor Size {0}", this->predicted.size() );
+    log_matrix( this->predicted );
+
+    log_detail( "Computing Loss ..." );
+    this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
+
+    if (this->losstype == "bce" || this->losstype == "cce") {
+        log_detail( "Calculate Performance Metrics ...");
+        this->metrics = this->graph->computeMetrics(this->metricstype, this->predicted, this->target);
+    }
+
+    // Calculate Time, then display loss
+    auto end_time = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+    std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
+    start_time = end_time;
+
+    // Print Progress
+    py_cout << "Loss: " << this->loss;
+
+    if (this->losstype == "bce" || this->losstype == "cce") {
+        if (this->metrics.isprecision) {
+            py_cout << " ... Acc (P): " << this->metrics.precision;
+        }
+        if (this->metrics.isrecall) {
+            py_cout << "... Acc (R): " << this->metrics.recall;
+        }
+        if (this->metrics.isf1score) {
+            py_cout << "... Acc (F1): " << this->metrics.f1score;
+        }
+    }
+    py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
+    py_cout << " at " << std::ctime(&next_time) << std::endl;
+
+
+    // Also, log the result if Logging INFO is enabled
+    log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
+            this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+
+    log_detail( "Training done ..." );
+
+    return this->predicted;
 
     // Finalize MPI
     //MPI_Finalize();
@@ -616,7 +693,7 @@ void Model::connect(std::shared_ptr<ModelNode> from, std::vector<std::shared_ptr
 * Model::seedNodes
 * Here, we begin to fill the nodes with data and operations as assigned to them.
 *************************************************************************************************/
-void Model::seedNodes() {
+void Model::seedNodes(bool setOps) {
     for (auto& node: nodes) {
         // First, let's seed with data
         ssize_t size = node->getDataSize();
@@ -644,13 +721,13 @@ void Model::seedNodes() {
             }
         }
 
-
-        std::cout << "(Operations) Node: " << node->getName() << std::endl;
-        if (datatype == "float") {
-            modelXf->getGraph()->setOperations(node->getName(), node->getOperations());
-        } else
-        if (datatype == "double") {
-            modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
+        if (setOps == true) {
+            if (datatype == "float") {
+                modelXf->getGraph()->setOperations(node->getName(), node->getOperations());
+            } else
+            if (datatype == "double") {
+                modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
+            }
         }
     } 
 }
@@ -702,48 +779,52 @@ void Model::setTargetDouble(const py::array_t<double>& target) {
 }
 
 /************************************************************************************************
-* Model::getPredictions
+* Model::predictFloat
 * We use modelXd.setTarget to convert the python array to aitensor<double> and store
 * the tensor inside the model.
 *************************************************************************************************/
-py::array_t<float> Model::getPredictionsFloat() {
+py::array_t<float> Model::predictFloat() {
     py_cout << "Entering Prediction Float ...";
     try {
         if (datatype == "double") {
             throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
         } 
-        aitensor<float> tensor = modelXf->getPredictions();
+
+        this->seedNodes(false);
+        aitensor<float> tensor = this->modelXf->predict();
         return ConvertData::topyarray(tensor); 
 
     } catch (const AIException& e) {
-        std::cerr << "(Model:getPredictionsFloat) Error: " << e.what() << std::endl;
+        std::cerr << "(Model:predictFloat) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "(Model:getPredictionsFloat)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:predictFloat)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "(Model:getPredictionsFloat) Unknown Error:" << std::endl;
+        std::cerr << "(Model:predictFloat) Unknown Error:" << std::endl;
     }
     return py::array_t<float>();
 }
   
-py::array_t<double> Model::getPredictionsDouble() {
+py::array_t<double> Model::predictDouble() {
     py_cout << "Entering Prediction Double ...";
     try {
         if (datatype == "float") {
             throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
         }
-        aitensor<double> tensor = modelXd->getPredictions();
+
+        this->seedNodes(false);
+        aitensor<double> tensor = this->modelXd->predict();  
         return ConvertData::topyarray(tensor); 
 
     } catch (const AIException& e) {
-        std::cerr << "(Model:getPredictionsDouble) Error: " << e.what() << std::endl;
+        std::cerr << "(Model:predictDouble) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "(Model:getPredictionsDouble)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:predictDouble)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "(Model:getPredictionsDouble) Unknown Error:" << std::endl;
+        std::cerr << "(Model:predictDouble) Unknown Error:" << std::endl;
     }
     return py::array_t<double>();
 }
@@ -774,7 +855,7 @@ std::string Model::generateDotFormat(bool operators, bool weights) {
 *************************************************************************************************/
 void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate,  int max_epoch) {
     try {
-        this->seedNodes();
+        this->seedNodes(true);
         if (datatype == "float") {
             this->modelXf->train(losstype, metricstype, optimizertype, static_cast<float>(learningRate), max_epoch);
         } else
