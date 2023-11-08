@@ -351,7 +351,7 @@ using aitensor = std::vector<aimatrix<T>>;
 
 class AIException : public std::exception {
 public:
-    AIException(const char* message) : message_(message) {}
+    AIException(const std::string& message) : message_(message) {}
 
     // Overriding the what() function for customized message.
     const char* what() const noexcept override {

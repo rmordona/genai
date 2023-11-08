@@ -227,7 +227,7 @@ aitensor<T> BaseModel<T>::predict() {
 
 
     // Also, log the result if Logging INFO is enabled
-    log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
+    log_detail( "Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", 
             this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
 
     log_detail( "Training done ..." );

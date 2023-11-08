@@ -2,15 +2,10 @@ import genai as ai
 import numpy as np
 ai.print_string("Hello", True)
 
-#class MyModel(ai.Model):
-#
-#   def __init__(self, learningRate, datatype):
-#     super().__init__(learningRate, datatype);
-
 sample = ai.SampleClass(0.01);
 
 dtype = "float"
-modelgraph = ai.Model(learningRate=0.02, datatype=dtype);
+modelgraph = ai.Model(datatype=dtype);
 
 node1  = modelgraph.addNode("node1", ai.NodeType.Input);
 #node1.setOperations([ 

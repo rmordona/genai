@@ -965,7 +965,9 @@ const PerfMetrics<T> Graph<T>::computeMetrics(const std::vector<std::string>& me
     PerfMetrics<T> metrics = Metrics<T>::computeMetrics(metricstype, predicted, target);
 
     log_detail( "Performance metrics calculated: " );
-    log_scalar( metrics );
+    log_detail( "Precisoin: {0}", metrics.precision );
+    log_detail( "Recall: {0}", metrics.recall );
+    log_detail( "F1score: {0}", metrics.f1score );
 
     return metrics;
 }

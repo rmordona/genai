@@ -731,7 +731,7 @@ PYBIND11_MODULE(genai, m) {
         .def("train", (void (TokenModel::*)(const std::vector<std::wstring>&, int, const std::string&, const std::string&,
                              double, int, double, double)) &TokenModel::train,
             py::arg("corpus"),  py::arg("batchsize"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-            py::arg("learningrate") = 0.01, py::arg("maxiteration") = 1, 
+            py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
             py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe");
 
     // Definitions for Scraper APIs

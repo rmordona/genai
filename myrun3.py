@@ -67,7 +67,7 @@ print("Got the tokens ...");
 #   for y in x:
 #      print(y)
 
-tokenizer.train(corpus=sentences, batchsize=2, losstype = "mse", optimizertype = "adagrad", learningRate = 0.01, maxIteration = 100, clipTreshold = 5.0, regularization = 1.0);
+tokenizer.train(corpus=sentences, batchsize=2, losstype = "mse", optimizertype = "adagrad", learn_rate = 0.01, max_epoch = 10, clipthreshold = 5.0, regularization = 1.0);
 
 ai.print_string("Done.", True)
 

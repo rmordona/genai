@@ -48,10 +48,15 @@ private:
     int vocabSize     = 0;
     int embeddingSize = 5;
     aimatrix<T> wordEmbeddings;
-    aivector<T> wordBiases;
+    // aivector<T> wordBiases;
+
+    // Initialize the gradients for the batch
+    aimatrix<T> batchGradients;
 
 public:
 
+    int merges        = 1000;
+    
     std::unordered_map<std::wstring, int> vocab;
 
     bool resetVocab = false;
@@ -93,6 +98,9 @@ public:
     // Overload function to perform the same tokenization but for multiple sentences.
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
+    // Prefetch vocabulary and vector for given corpus
+    void prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit = 4000);
+
     // Now train a GloVe model
     void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
@@ -126,6 +134,8 @@ public:
     // Build or Reset Vocabulary.
     void buildVocabulary(const std::vector<std::wstring>& sentences, int numMerges);
 
+    void createEmbeddings(int embeddingSize);
+
     // Helper function to determine if suffix exists in a string.
     bool endsWith(const std::wstring& str, const std::wstring& suffix);
 
@@ -133,7 +143,7 @@ public:
     std::vector<std::wstring> tokenize_to_char(const std::vector<std::wstring>& corpus);
 
     // Part of Byte Pair Encoding is to merge tokens that have the highest frequency.
-    void mergeTokens(std::vector<std::wstring>& tokens, int numMerges);
+    std::unordered_map<std::wstring, int>  mergeTokens(std::vector<std::wstring>& tokens, int numMerges);
 
     // Preload BPE Tokenizer
     void preload(const std::vector<std::wstring>& sentences, int numMerges,  int embeddingSize = 0);

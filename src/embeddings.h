@@ -27,18 +27,22 @@
 #define EMBEDDINGS_H
 
 #include <sqlite3.h>
+#include "logger.h"
 
 template <class T>
 class Embeddings {
 private:
     std::unordered_map<std::wstring, int> vocab;
     aimatrix<T> wordEmbeddings;
-    aivector<T> wordBiases;
     int vocabSize = 0;
     int embeddingSize = 5;
 
-    const std::string dbFileName = "data.db";
-    sqlite3* db = nullptr;
+
+    // const char* dbFileName = "data.db";
+    const char* dbFileName = ":memory:";
+    sqlite3* db = NULL;
+
+    int dbopened = 0;
 
     struct Record {
 
@@ -54,36 +58,91 @@ private:
     };
 
     // Create the token hash-to-index mapping and index-to-token mapping
-    std::unordered_map<std::string, int> tokenHashToIndex;
+    std::unordered_map<std::string,int> tokenHashToIndex;
     // std::vector<std::wstring> indexToToken;
+
+
+
+    void sqlite3_assert_db(int rc, const std::string& errormsg) {
+        if (rc != SQLITE_OK) {
+            throw AIException(errormsg + " : " + sqlite3_errmsg(this->db));
+        }
+    }
+
+    void sqlite3_assert(int rc, const std::string& errormsg) {
+        if (rc != SQLITE_OK) {
+            throw AIException(errormsg + " : " + sqlite3_errmsg(this->db));
+        }
+    }
+
+    void sqlite3_assert_done(int rc, const std::string& errormsg) {
+        if (rc != SQLITE_DONE) {
+            throw AIException(errormsg + " : " + sqlite3_errmsg(this->db));
+        }
+    }
+
+    /************************************************************************************************
+    * Embeddings::openDB
+    * Function to open a SQLITE database.
+    *************************************************************************************************/
+    void openDB() {
+        int rc = sqlite3_open_v2(this->dbFileName, &this->db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+        this->dbopened = rc;
+        sqlite3_assert_db(rc, "Error opening database (Embedding::openDB)");
+    }
+
+    void closeDB() {
+        if (this->dbopened == SQLITE_OK) {
+            sqlite3_close(this->db);
+            this->db = NULL;
+        }
+    }
 
 public:
 
     Embeddings(int embeddingSize) {  
         this->embeddingSize = embeddingSize;
-        initializeVectorDB();  
+        try {
+            openDB();
+            initializeVectorDB();
+        } catch (const AIException& e) {
+            std::cerr << "Error (Embeddings::updateEmbeddingsInDatabase): " << e.what() << std::endl;
+            closeDB();
+        }
+    }
+
+    ~Embeddings() {
+        closeDB();
+    }
+
+    int getTokenIndex(std::string token) {
+        int index = -1;
+        try {
+            index = this->tokenHashToIndex.at(token);
+        } catch (const std::out_of_range& e) {}
+        return index;
     }
 
     // Initialize Vector DB
     void initializeVectorDB();
-
-    // Seed Vector DB
-    void seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary);
-
-    // Function to create simple SQLite DB
-    void createVectorDB();
 
     // Function to create the vector table
     void createVectorTable();
 
     // Function to create the vocabulary table
     void createVocabularyTable();
+ 
+    // Seed Vector DB
+    void seedVectorDB();
+
+    // Seed Vocabulary DB
+    void seedVocabularyDB(std::unordered_map<std::wstring, int>& vocabulary);
 
     // Function to update a record into the vocabulary table
-    void saveVocabulary(const Record& record);
+    void saveVocabulary(sqlite3* db, const Record& record);
 
     // Function to insert a record into the vector table
-    void saveEmbeddings(const Record& record);
+    void saveEmbeddings(sqlite3* db, const Record& record);
 
     // Function to retrieve an embedding from the database based on the hash key
     bool retrieveEmbeddings(const std::string& hashKey, Record& record);
@@ -101,22 +160,32 @@ public:
     // Function to get the vocabulary
     const std::unordered_map<std::wstring, int>& getVocabulary() const { return this->vocab; }
 
-    // Initialize Embeddings Cache
-    void initializeEmbeddings(int vocabSize);
+    // Initialize Embeddings in Cache
+    void initializeEmbeddingsinCache();
+
+    // Create Initial Vocabulary (Saving into the database)
+    void createInitialVocabulary(std::unordered_map<std::wstring, int>& vocabulary);
+
+    // Create Initial Embeddings (Saving into the database)
+    void createInitialEmbeddings(int embeddingSize, std::unordered_map<std::wstring,int> vocabulary);
+
     void initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary);
 
     // Cross Reference Vocabulary
-    void crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary);
+    void crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int> vocabulary);
 
     // Function to fetch the embeddings for tokens in the current corpus from the vector database
     void prefetchVocabularyToCache(const std::vector<std::vector<std::wstring>>& corpus);
 
+    // Generate Token Indices
+    void generateTokenIndices();
+
     // Function to fetch the embeddings for tokens in the cached vocabulary (instead of corpus) from the vector database to cache
+    int fetchEmbeddings(sqlite3* db, std::string query, int currentIndex);
     void prefetchEmbeddingsToCache();
 
     // Update Embeddings in the Database
-    void updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings,
-                                    const aivector<T>& wordBiases);
+    void updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings);
 
     // Get Vocab Size and Embedding Size
     int getVocabSize() { return this->wordEmbeddings.rows(); }
@@ -124,8 +193,8 @@ public:
 
     // Get Embeddings and indcies
     const aimatrix<T> getWordEmbeddings() { return this->wordEmbeddings; }
-    const aivector<T> getWordBiases() { return this->wordBiases; }
-    std::unordered_map<std::string, int>& getTokenIndex() { return this->tokenHashToIndex; }
+    // const aivector<T> getWordBiases() { return this->wordBiases; }
+    const std::unordered_map<std::string,int>& getTokenHashIndex() { return this->tokenHashToIndex; }
 };
 
 

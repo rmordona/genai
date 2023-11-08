@@ -26,7 +26,6 @@
  */
 
 #include "genai.h"
-#include "logger.h"
 #include "embeddings.h"
 
 namespace py = pybind11;
@@ -59,14 +58,83 @@ void replaceAll(std::string& str, const std::string& from, const std::string& to
 template <class T>
 void Embeddings<T>::initializeVectorDB() {
    
-    // Create Vector DB
-    createVectorDB();
+    try {
 
-    // Create Vector Table
-    createVectorTable();
+        //openDB();
 
-    // Create Vocabulary Table
-    createVocabularyTable();
+        // Create Vector Table
+        createVectorTable();
+
+        // Create Vocabulary Table
+        createVocabularyTable();
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::initializeVectorDB): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::initializeVectorDB): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::initializeVectorDB):" << std::endl;
+        //closeDB();
+    }
+}
+
+/************************************************************************************************
+* Embeddings::seedVocabularyDB
+* Function to seed the Vocabulary DB
+*************************************************************************************************/
+
+template <class T>
+void Embeddings<T>::seedVocabularyDB(std::unordered_map<std::wstring, int>& vocabulary) {
+    try {
+
+        //openDB();
+
+        int currentIndex = 0;
+        for (const auto& entry : vocabulary) {
+
+            Record record;
+            record.token = entry.first;
+            record.frequency = entry.second;
+            record.tokenIndex = currentIndex;
+            saveVocabulary(this->db, record);
+            currentIndex++;
+        }
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::seedVocabularyDB): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::seedVocabularyDB): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::seedVocabularyDB):" << std::endl;
+        //closeDB();
+    }
+
+}
+
+template <class T>
+void Embeddings<T>::createInitialVocabulary(std::unordered_map<std::wstring, int>& vocabulary) {
+
+    log_info( "=======================================" );
+    log_info( "Entering Creation of Initial Vocabulary  ..." );
+
+    log_info( "Size of initial vocabulary: {0}", vocabulary.size());
+
+    this->vocabSize = vocabulary.size();
+    this->vocab = vocabulary;
+
+    seedVocabularyDB(vocabulary);
 }
 
 /************************************************************************************************
@@ -75,41 +143,43 @@ void Embeddings<T>::initializeVectorDB() {
 *************************************************************************************************/
 
 template <class T>
-void Embeddings<T>::seedVectorDB(std::unordered_map<std::wstring, int>& vocabulary) {
+void Embeddings<T>::seedVectorDB() {
 
-    int currentIndex = 0;
-    for (const auto& entry : vocabulary) {
-        Record record;
+    try {
 
-        record.hashKey = sha256(entry.first);
-        record.vectorValue = this->wordEmbeddings.row(currentIndex);
-        record.bias = 0.0;
-        saveEmbeddings(record);
+        //openDB();
 
-        record.token = entry.first;
-        record.frequency = entry.second;
-        record.tokenIndex = currentIndex;
-        saveVocabulary(record);
+        int currentIndex = 0;
+        for (const auto& entry : this->vocab) {
+            Record record;
 
-        currentIndex++;
+            record.hashKey = sha256(entry.first);
+            record.vectorValue = this->wordEmbeddings.row(currentIndex);
+            record.bias = 0.0;
+            saveEmbeddings(this->db, record);
+
+            currentIndex++;
+        }
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::seedVectorDB): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::seedVectorDB): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::seedVectorDB):" << std::endl;
+        //closeDB();
     }
 
 }
 
-/************************************************************************************************
-* Embeddings::createVectorDB
-* Function to create a simple SQLite vector DB
-*************************************************************************************************/
-template <class T>
-void Embeddings<T>::createVectorDB() {
-    int rc = sqlite3_open(dbFileName.c_str(), &this->db);
-    if (rc) {
-        log_warning( "Error opening database: {0}", sqlite3_errmsg(this->db) );
-        std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
-        sqlite3_close(this->db);
-        throw AIException("Error Opening database: Embeddings::createVectorDB()");
-    }
-}
+
+
 
 /************************************************************************************************
 * Embeddings::createVectorTable
@@ -119,15 +189,14 @@ template <class T>
 void Embeddings<T>::createVectorTable() {
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS corpus_embeddings ("
                                  "hash_key TEXT PRIMARY KEY, "
-                                 "vector_value BLOB, "
-                                 "bias REAL"
+                                 "vector_value BLOB "
                                  ");";
 
     char* errorMsg;
     int rc = sqlite3_exec(this->db, createTableSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
-        log_warning( "SQL error: {0}", errorMsg );
-        std::cerr << "SQL error: " << errorMsg << std::endl;
+        log_warning( "SQL error (Embeddings::createVectorTable): {0}", errorMsg );
+        std::cerr << "SQL error (Embeddings::createVectorTable): " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
         throw AIException("Error Creating (corpus_embeddings) table");
     }
@@ -140,7 +209,6 @@ void Embeddings<T>::createVectorTable() {
 *************************************************************************************************/
 template <class T>
 void Embeddings<T>::createVocabularyTable() {
-
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS vocabulary ("
                                  "token TEXT PRIMARY KEY, "
                                  "frequency INTEGER, "
@@ -150,8 +218,8 @@ void Embeddings<T>::createVocabularyTable() {
     char* errorMsg;
     int rc = sqlite3_exec(this->db, createTableSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
-        log_warning( "SQL error: {0}", errorMsg );
-        std::cerr << "SQL error: " << errorMsg << std::endl;
+        log_warning( "SQL error (Embeddings::createVocabularyTable): {0}", errorMsg );
+        std::cerr << "SQL error (Embeddings::createVocabularyTable): " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
         throw AIException("Error Creating (vocabulary) table");
     }
@@ -160,8 +228,9 @@ void Embeddings<T>::createVocabularyTable() {
 
     rc = sqlite3_exec(this->db, createIndexSQL, 0, 0, &errorMsg);
     if (rc != SQLITE_OK) {
-        log_warning( "SQL error: {0}", errorMsg );
-        std::cerr << "SQL error: " << errorMsg << std::endl;
+        // No need to log issue.
+        log_warning( "SQL error Embeddings::createVocabularyTable):: {0} {1}",  rc, errorMsg );
+        std::cerr << "SQL error Embeddings::createVocabularyTable):: " << errorMsg << std::endl;
         sqlite3_free(errorMsg);
     }
 
@@ -174,18 +243,17 @@ void Embeddings<T>::createVocabularyTable() {
 * does not represent any embedding.
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::saveVocabulary(const Record& record) {
+void Embeddings<T>::saveVocabulary(sqlite3* db, const Record& record) {
     std::stringstream insertSQL;
     // The tokenIndex column is defined with AUTOINCREEMNT
     insertSQL << "INSERT OR REPLACE INTO vocabulary (token, frequency) VALUES (?, ?);";
 
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(this->db, insertSQL.str().c_str(), -1, &stmt, 0);
+    int rc = sqlite3_prepare_v2(db, insertSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
-        log_warning( "Error preparing statement: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
-        throw AIException("Error Inserrting vocabulary (Embeddings::saveVocabulary)");
+        sqlite3_finalize(stmt); // Release the stmt memory
     }
+    sqlite3_assert(rc, "Error preparing statement (Embeddings::saveVocabulary)");
 
     // Bind the token
     std::string utf8Str = wstringToUtf8(record.token);
@@ -195,10 +263,7 @@ void Embeddings<T>::saveVocabulary(const Record& record) {
     sqlite3_bind_int(stmt, 2, record.frequency);
 
     rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        log_warning( "Error inserting data: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error inserting data: " << sqlite3_errmsg(this->db) << std::endl;
-    }
+    sqlite3_assert_done(rc, "Error inserting data (Embeddings::saveVocabulary)");
 
     sqlite3_finalize(stmt);
 }
@@ -208,34 +273,33 @@ void Embeddings<T>::saveVocabulary(const Record& record) {
 * Function to insert into or replace an embedding into the vector table
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::saveEmbeddings(const Record& record) {
+void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
     std::stringstream insertSQL;
-    insertSQL << "INSERT OR REPLACE INTO corpus_embeddings (hash_key, vector_value, bias) VALUES (?, ?, ?);";
-
+    insertSQL << "INSERT OR REPLACE INTO corpus_embeddings (hash_key, vector_value) VALUES (?, ?);";
     sqlite3_stmt* stmt;
-    int rc = sqlite3_prepare_v2(this->db, insertSQL.str().c_str(), -1, &stmt, 0);
+    int rc = sqlite3_prepare_v2(db, insertSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
-        log_warning( "Error preparing statement: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
-        return;
+        sqlite3_finalize(stmt); // Release the stmt memory
     }
+    sqlite3_assert(rc, "Error preparing statement (Embeddings::saveEmbeddings)");
 
     // Bind the hash key
     sqlite3_bind_text(stmt, 1, record.hashKey.c_str(), -1, SQLITE_STATIC);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt); // Release the stmt memory
+    }
 
     // Bind the vector embedding
     sqlite3_bind_blob(stmt, 2, record.vectorValue.data(), record.vectorValue.size() * sizeof(T), SQLITE_STATIC);
-
-    // Prepare statement and bind bias...
-    sqlite3_bind_double(stmt, 3, record.bias);
-
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        log_warning( "Error inserting data: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error inserting data: " << sqlite3_errmsg(this->db) << std::endl;
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt); // Release the stmt memory
     }
 
+    rc = sqlite3_step(stmt);
+    sqlite3_assert_done(rc, "Error inserting data (Embeddings::saveEmbeddings)");
+
     sqlite3_finalize(stmt);
+
 }
 
 /************************************************************************************************
@@ -246,13 +310,14 @@ void Embeddings<T>::saveEmbeddings(const Record& record) {
 template <class T>
 bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& record) {
     std::stringstream selectSQL;
-    selectSQL << "SELECT vector_value, bias FROM corpus_embeddings WHERE hash_key = ?;";
+    selectSQL << "SELECT vector_value FROM corpus_embeddings WHERE hash_key = ?;";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
-        log_warning( "Error preparing statement: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
+        log_warning( "Error preparing statement (Embeddings::retrieveEmbeddings): {0}", sqlite3_errmsg(this->db));
+        std::cerr << "Error preparing statement (Embeddings::retrieveEmbeddings): " << sqlite3_errmsg(this->db) << std::endl;
+        sqlite3_finalize(stmt); // Release the stmt memory
         return false;
     }
 
@@ -268,8 +333,6 @@ bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& recor
         int size = sqlite3_column_bytes(stmt, 0);
         record.vectorValue.resize(size / sizeof(double)); // let column hold double regardless of T (typeclass)
         std::memcpy(record.vectorValue.data(), data, size);
-
-        record.bias = sqlite3_column_double(stmt, 1);
 
         sqlite3_finalize(stmt);
         return true;
@@ -293,8 +356,9 @@ bool Embeddings<T>::retrieveVocabulary(const std::wstring& token, Record& record
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
-        log_warning( "Error preparing statement: {0}", sqlite3_errmsg(this->db));
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(this->db) << std::endl;
+        log_warning( "Error preparing statement (Embeddings::retrieveVocabulary): {0}", sqlite3_errmsg(this->db));
+        std::cerr << "Error preparing statement (Embeddings::retrieveVocabulary): " << sqlite3_errmsg(this->db) << std::endl;
+        sqlite3_finalize(stmt); // Release the stmt memory
         return false;
     }
  
@@ -325,41 +389,56 @@ bool Embeddings<T>::retrieveVocabulary(const std::wstring& token, Record& record
 template <class T>
 bool Embeddings<T>::isInVocabulary(const std::wstring& token) {
 
-    sqlite3* db;
     sqlite3_stmt* stmt;
-    int rc1 = sqlite3_open(dbFileName.c_str(), &db);
 
-    if (rc1 != SQLITE_OK) {
-        // Handle database open error
-        log_warning( "Error opening database: {0}", sqlite3_errmsg(db) );
-        std::cerr << "Error opening database: " << sqlite3_errmsg(db) << std::endl;
-        throw AIException("Error opening database: Embeddings::isInvocabulary()");
-        return false;
-    }
+    try {
 
-    std::stringstream selectSQL;
-    selectSQL << "SELECT frequency FROM vocabulary WHERE token = ?;";
+        //openDB();
 
-    int rc = sqlite3_prepare_v2(db, selectSQL.str().c_str(), -1, &stmt, 0);
-    if (rc != SQLITE_OK) {
-        log_warning( "Error preparing statement: {0}", sqlite3_errmsg(db));
-        std::cerr << "Error preparing statement: " << sqlite3_errmsg(db) << std::endl;
-        return false;
-    }
+        std::stringstream selectSQL;
+        selectSQL << "SELECT frequency FROM vocabulary WHERE token = ?;";
 
-    // Bind the hash key
-    std::string utf8Str = wstringToUtf8(token);
-    sqlite3_bind_text(stmt, 1, utf8Str.c_str(), -1, SQLITE_STATIC);
+        int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
+        if (rc != SQLITE_OK) {
+            sqlite3_finalize(stmt); // Release the stmt memory
+        }
+        sqlite3_assert(rc, "Error preparing statement (Embeddings::isInVocabulary)");
 
-    rc = sqlite3_step(stmt);
-    if (rc == SQLITE_ROW) {
+        // Bind the hash key
+        std::string utf8Str = wstringToUtf8(token);
+
+        sqlite3_bind_text(stmt, 1, utf8Str.c_str(), -1, SQLITE_STATIC);
+
+        rc = sqlite3_step(stmt);
+
+        if (rc == SQLITE_ROW) {
+
+            sqlite3_finalize(stmt);
+
+            //closeDB();
+
+            return true;
+        }
+
         sqlite3_finalize(stmt);
-        return true;
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::isInVocabulary): " << e.what() << std::endl;
+        //closeDB();
+        return false;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::isInVocabulary): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+        return false;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::isInVocabulary):" << std::endl;
+        //closeDB();
+        return false;
     }
-
-    sqlite3_finalize(stmt);
-
-    sqlite3_close(db);
 
     return false;
 }
@@ -370,34 +449,50 @@ bool Embeddings<T>::isInVocabulary(const std::wstring& token, Record& record)  {
 }
 
 /************************************************************************************************
-* Embeddings::initializeVectorandVocabMetadata
+* Embeddings::initializeEmbeddingsinCache 
 * Function to generate the initial word embedding. We require the size of the
 * constructed vocabulary
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::initializeEmbeddings(int vocabSize) {
+void Embeddings<T>::initializeEmbeddingsinCache() {
 
-    this->wordEmbeddings = aimatrix<T>::Random(vocabSize, this->embeddingSize);
-    this->wordBiases = aivector<T>::Zero(vocabSize);
+    this->wordEmbeddings = aimatrix<T>::Random(this->vocab.size(), this->embeddingSize);
+    // this->wordBiases = aivector<T>::Zero(vocabSize);
 
     // Initialize word Embeddings
     BaseOperator::heInitMatrix(this->wordEmbeddings);
 
 }
 
-
+/************************************************************************************************
+* Embeddings::createInitialEmbeddings
+* Function to generate or create the initial word embedding. We require the size of the
+* constructed vocabulary. We assume that the vocabulary is already pre-populated and
+* fetched into cache (this->vocab)
+*************************************************************************************************/
 template <class T>
-void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wstring, int>& vocabulary) {
+void Embeddings<T>::createInitialEmbeddings(int embeddingSize, std::unordered_map<std::wstring,int> vocabulary) {
+
+    log_info( "===============================================================" );
+    log_info( "Entering Creation of Initial Embeddings ..." );
 
     this->vocabSize = vocabulary.size();
     this->vocab = vocabulary;
 
-    initializeEmbeddings(this->vocabSize);
+    log_detail("Initializing Embeddings ... using embedding size {0} and vocab of size: {1}", embeddingSize, this->vocab.size());
 
-    // Seed VectorDB
-    this->seedVectorDB(this->vocab);
+    if (embeddingSize > 0 && this->vocab.size() > 0) {
+
+        this->embeddingSize = embeddingSize;
+
+        // Initialize Embeddings
+        initializeEmbeddingsinCache();
+
+        // Seed Embeddings / Vector DB
+        this->seedVectorDB();
+    } 
 }
-
+ 
 /************************************************************************************************
 * Embeddings::crossReferenceVocabularyinDBandCache
 * Cross Reference Vocabulary between memory and DB.  Sync in-memory vocab into DB.
@@ -405,25 +500,50 @@ void Embeddings<T>::initializeVectorandVocabMetadata(std::unordered_map<std::wst
 * save the new vocabulary with initial count. 
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring, int>& vocabulary) {
+void Embeddings<T>::crossReferenceVocabularyinDBandCache(std::unordered_map<std::wstring,int> vocabulary) {
 
     log_info( "===============================================================" );
     log_info( "Entering Cross Reference of Vocabulary between DB and Cache ..." );
 
-    this->vocab = vocabulary;
-    for (const auto& entry : this->vocab) {
-        Record record;
-        if (this->isInVocabulary(entry.first, record)) { 
-            record.frequency += entry.second;
-        } else {
-            record.frequency = entry.second;
+    try {
+
+        //openDB();
+
+        this->vocabSize = vocabulary.size();
+        this->vocab = vocabulary;
+        for (const auto& entry : this->vocab) {
+            Record record;
+            if (this->isInVocabulary(entry.first, record)) { 
+                record.frequency += entry.second;
+            } else {
+                record.frequency = entry.second;
+            }
+            record.token = entry.first;
+            saveVocabulary(this->db, record);
+            log_wdetail( "Saved tokens: {0} {1}", wstringToUtf8(record.token).c_str(), record.frequency );
         }
-        record.token = entry.first;
-        saveVocabulary(record);
-        log_wdetail( "Saved tokens: {0} {1}", wstringToUtf8(record.token).c_str(), record.frequency );
+        log_detail("Completed Cross Reference of Vocabulary between DB and Cache");
+
+        //closeDB();
+        //sqlite3_close(db); 
+        //this->db = nullptr;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::crossReferenceVocabularyinDBandCache): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::crossReferenceVocabularyinDBandCache): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::crossReferenceVocabularyinDBandCache):" << std::endl;
+        //closeDB();
     }
-    log_detail("Completed Cross Reference of Vocabulary between DB and Cache");
+
 }
+
+
 
 /************************************************************************************************
 * Embeddings::prefetchVocabularyToCache
@@ -438,66 +558,149 @@ void Embeddings<T>::prefetchVocabularyToCache(const std::vector<std::vector<std:
     log_info( "Entering Prefetching of Vocabulary to Cache ..." );
 
     // Open the database and prepare the query
-    sqlite3* db;
+
     sqlite3_stmt* stmt;
-    int rc = sqlite3_open(dbFileName.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        // Handle database open error
-        log_warning( "Error opening database: {0}", sqlite3_errmsg(this->db) );
-        std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
-        return;
-    }
 
-    // Prepare the query to fetch embeddings for tokens in the corpus
-    std::string query = "SELECT frequency, tokenIndex, token FROM vocabulary WHERE token IN (";
-    for (const auto& sentence : corpus) {
-        for (const auto& token : sentence) { 
-            std::string utf8Str =  wstringToUtf8(token);
-            replaceAll( utf8Str, "'", "''"); // handle escape characters.
-            query += "'" + utf8Str + "',";
+    try {
+
+        //openDB();
+
+        // Prepare the query to fetch embeddings for tokens in the corpus
+        for (const auto& sentence : corpus) {
+
+            std::string query = "SELECT frequency, tokenIndex, token FROM vocabulary WHERE token IN (";
+            for (const auto& token : sentence) { 
+                std::string utf8Str =  wstringToUtf8(token);
+                replaceAll( utf8Str, "'", "''"); // handle escape characters.
+                query += "'" + utf8Str + "',";
+            }
+
+            query.pop_back(); // Remove the last comma
+            query += ");";
+
+            // Execute the query and fetch the embeddings
+            int rc = sqlite3_prepare_v2(this->db, query.c_str(), -1, &stmt, 0);
+            sqlite3_assert(rc, "No vocabulary found ...");
+
+            // Fetch and store embeddings in the dynamic embeddings data structure in cache
+            // Also create a token hash index structure for fast lookup
+
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+
+                int frequency = sqlite3_column_int(stmt, 0);
+                const unsigned char* tokenBytes = sqlite3_column_text(stmt, 2);
+                std::string utf8Str(reinterpret_cast<const char*>(tokenBytes));
+
+                std::wstring token = utf8ToWstring(utf8Str);
+
+                this->vocab[token] += frequency;
+
+            }
+
+            sqlite3_finalize(stmt);
+
         }
-    }
-    query.pop_back(); // Remove the last comma
-    query += ");";
 
-    // Execute the query and fetch the embeddings
-    rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
-    if (rc != SQLITE_OK) {
-        // Handle query execution error
-        log_warning( "No vocabulary found ..." );
-        sqlite3_close(db);
-        return;
-    }
+        //closeDB();
+        // sqlite3_close(db); 
 
-    // Fetch and store embeddings in the dynamic embeddings data structure in cache
-    // Also create a token hash index structure for fast lookup
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-
-        int frequency = sqlite3_column_int(stmt, 0);
-        // int tokenIndex = sqlite3_column_int(stmt, 1); not used for now
-        const unsigned char* tokenBytes = sqlite3_column_text(stmt, 2);
-        std::string utf8Str(reinterpret_cast<const char*>(tokenBytes));
-
-        std::wstring token = utf8ToWstring(utf8Str);
-
-        std::wcout << "vocab token: " << token << std::endl;
-
-        this->vocab[token] += frequency;
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::prefetchVocabularyToCache): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::prefetchVocabularyToCache): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::prefetchVocabularyToCache):" << std::endl;
+        //closeDB();
     }
 
-    // Close the database
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
 
     log_detail("Completed Prefetching of Vocabulary to Cache ...");
 
 }
 
 /************************************************************************************************
-* Embeddings::prefetchEmbeddingsToCache
+* Embeddings::generateTokenIndices
+* Function to pre-geneate the token indices
+*************************************************************************************************/
+
+template <class T>
+void Embeddings<T>::generateTokenIndices() {
+
+    this->tokenHashToIndex.clear();
+
+    log_detail("Initial size of TokenIndex: {0}", this->tokenHashToIndex.size());
+
+    int currentIndex = 0;  // This is an in-memory index only
+    // Let's generate the Token Indices
+    for (const auto& token : this->vocab) {
+
+        // Prepare the query to fetch embeddings for tokens in the corpus
+        std::string tokenHash = sha256(token.first);  
+
+        // Create the token hash-to-index mapping
+        this->tokenHashToIndex[tokenHash] = currentIndex;   // This is an in-memory index only
+
+        currentIndex ++;
+    }
+
+    log_detail("Final size of TokenIndex: {0}", this->tokenHashToIndex.size());
+
+}
+
+/************************************************************************************************
+* Embeddings::fetchEmbeddings
 * Function to fetch the embeddings for tokens in the cached vocabulary (instead of corpus) 
 * from the vector database to cache
 *************************************************************************************************/
+template <class T>
+int Embeddings<T>::fetchEmbeddings(sqlite3* db, std::string query, int currentIndex) {
+    // Execute the query and fetch the embeddings
+    sqlite3_stmt* stmt;
+    int rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
+    sqlite3_assert(rc, "No embeddings found ");
+ 
+    // Fetch and store embeddings in the dynamic embeddings data structure
+    // Also create a token hash index structure for fast lookup
+
+    int fetched = 0;
+    // For every token that exists in the Embeddings DB, update the initialized wordEmbedding in Cache
+    // otherwise, each entry in the Cache takes the initial he Initialization value. See prefetchEmbeddingsToCache().
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+
+        fetched++;
+        const unsigned char* tokenHashBytes = sqlite3_column_text(stmt, 0);
+
+        // Convert the token hash from const unsigned char* to std::string
+        std::string tokenHash(reinterpret_cast<const char*>(tokenHashBytes));
+
+        const void* embeddingBlob = sqlite3_column_blob(stmt, 1);
+        int embeddingSizeBytes = sqlite3_column_bytes(stmt, 1);
+
+        // Convert the BLOB data to Eigen VectorXd (assuming float64 for the embeddings)
+        aivector<T> embeddings(embeddingSizeBytes / sizeof(double));
+        std::memcpy(embeddings.data(), embeddingBlob, embeddingSizeBytes);
+
+        // Check if missing token based on token hash, then create.
+        if (this->tokenHashToIndex.find(tokenHash) == this->tokenHashToIndex.end()) {
+
+            // Create index-to-token mapping
+            this->wordEmbeddings.row(currentIndex) = embeddings;
+
+            currentIndex++;
+
+        } 
+    }
+
+    sqlite3_finalize(stmt);
+
+    return currentIndex;
+
+}
+
 template <class T>
 void Embeddings<T>::prefetchEmbeddingsToCache() {
     // Assuming you have a SQLite database connection and a table called "corpus_embeddings"
@@ -507,102 +710,80 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
     log_info( "Entering Prefetching of Embedding to Cache ...");
 
     // Open the database and prepare the query
-    sqlite3* db;
-    sqlite3_stmt* stmt;
-    int rc = sqlite3_open(dbFileName.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        // Handle database open error
-        log_warning( "Error opening database: {0}", sqlite3_errmsg(this->db) );
-        std::cerr << "Error opening database: " << sqlite3_errmsg(this->db) << std::endl;
-        return;
-    }
 
-    // Prepare the query to fetch embeddings for tokens in the corpus
-    std::string query = "SELECT hash_key, vector_value, bias FROM corpus_embeddings WHERE hash_key IN (";
+    try {
 
-    // Use the cached vocabulary
-    for (const auto& token : this->vocab) {
+        //openDB();
+
+        log_detail("Before Size of Word Embeddings: {0}x{1}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols());
+
+        // This assumes the Vocabulary is already in Cache (this->vocab)
+        // Therefore, initialize the word embedding in Cache then use the list to update the embedding
+        // from DB if it exists. Rest of the list remains initialized using he-initialization.
+        initializeEmbeddingsinCache();
+
+        log_detail("Size of Initialized Word Embeddings: {0}x{1}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols());
+
+        // Use the cached vocabulary
+        // fetch every 20
+        int fetch = 1, fetch_limit = 20;
+
+        int currentIndex = 0;  // This is an in-memory index only
+        std::vector<std::string> vquery;
+        std::string query; 
+
+        log_detail("Size of Vocabulary: {0} {1}", this->vocab.size(), this->vocabSize);
+
+        for (const auto& token : this->vocab) {
+
+            if (fetch == 1) {
+                query = "SELECT hash_key, vector_value FROM corpus_embeddings WHERE hash_key IN ("; 
+            }
+
+            // Prepare the query to fetch embeddings for tokens in the corpus
             std::string tokenHash = sha256(token.first);  
             query += "'" + tokenHash + "',";
-    }
 
-    query.pop_back(); // Remove the last comma
-    query += ");";
+            if (fetch == fetch_limit) {       
 
-    log_detail("query: {0}", query);
+                query.pop_back(); // Remove the last comma
+                query += ");";
 
-    // Execute the query and fetch the embeddings
-    rc = sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0);
-    if (rc != SQLITE_OK) {
-        // Handle query execution error
-        log_warning( "No embeddings found ..." );
-        sqlite3_close(db);
-        return;
-    }
- 
-    log_detail("Start to Cache token hash ...");
+                fetch = 0;
+                currentIndex = fetchEmbeddings(this->db, query, currentIndex);
 
-    // If cache is unitilialized, then let's initialize
-    if (this-wordEmbeddings.size() == 0) {
-        initializeEmbeddings(this->vocabSize);
-    }
+            }
 
-    log_detail("Size of Word Embedding and Bias: {0}x{1} {2}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols(), this->wordBiases.size());
+            fetch++;
 
-    // Fetch and store embeddings in the dynamic embeddings data structure
-    // Also create a token hash index structure for fast lookup
-    int currentIndex = 0;
-    this->tokenHashToIndex.clear();
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        const unsigned char* tokenHashBytes = sqlite3_column_text(stmt, 0);
-
-        log_detail("1 ...");
-        // Convert the token hash from const unsigned char* to std::string
-        std::string tokenHash(reinterpret_cast<const char*>(tokenHashBytes));
-
-        const void* embeddingBlob = sqlite3_column_blob(stmt, 1);
-        int embeddingSizeBytes = sqlite3_column_bytes(stmt, 1);
-
-        log_detail("2 ...");
-
-        // Convert the BLOB data to Eigen VectorXd (assuming float64 for the embeddings)
-        aivector<T> embeddings(embeddingSizeBytes / sizeof(double));
-        std::memcpy(embeddings.data(), embeddingBlob, embeddingSizeBytes);
-
-        double bias = sqlite3_column_double(stmt, 2);
-
-        log_detail("3 ...");
-
-        // Find the token based on token hash.
-        if (this->tokenHashToIndex.find(tokenHash) == this->tokenHashToIndex.end()) {
-
-            log_detail("3a ...");
-
-            // Create the token hash-to-index mapping
-            this->tokenHashToIndex[tokenHash] = currentIndex;
-
-            log_detail("3b ...");
-
-            // Create index-to-token mapping
-            this->wordEmbeddings.row(currentIndex) = embeddings;
-
-            log_detail("3c ...{0} {1}", currentIndex, this->wordBiases.size());
-
-            // Add some bias
-            this->wordBiases(currentIndex) = bias;
-
-            log_detail("3d ... ");
-
-            currentIndex++;
         }
 
-        log_detail("4 ...");
+        // process for leftovers
+        if (fetch < fetch_limit) {
 
+                query.pop_back(); // Remove the last comma
+                query += ");";
+
+                currentIndex = fetchEmbeddings(this->db, query, currentIndex);
+
+        }
+
+        log_detail( "Final Current Index: {0}", currentIndex );
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::prefetchEmbeddingsToCache): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::prefetchEmbeddingsToCache): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::prefetchEmbeddingsToCache):" << std::endl;
+        //closeDB();
     }
-
-    // Close the database
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
 
     log_detail("Completed Prefetching of Embedding to Cache ...");
 
@@ -613,22 +794,44 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 * Update Embeddings in the Database
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings,
-                                           const aivector<T>& wordBiases) {
+void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings) {
     log_tag("Embeddings");
     log_info( "==========================================" );
     log_info( "Entering Parameter Update in Embedding ...");
-
-    log_detail( "Word Embeddings" );
-    log_matrix( wordEmbeddings );
-    for (const auto& indexTokenPair : this->tokenHashToIndex) {
-        const std::string& tokenHash = indexTokenPair.first;
-        int index = indexTokenPair.second;
+  
+    try {
+ 
         Record record;
-        record.hashKey = tokenHash;
-        record.vectorValue = this->wordEmbeddings.row(index);
-        record.bias = this->wordBiases(index);
-        saveEmbeddings(record);
+
+        log_detail("Number of tokens to update: {0}", this->tokenHashToIndex.size());
+
+        // openDB();
+
+        log_detail("xNumber of tokens to update: {0}", this->tokenHashToIndex.size());
+
+
+        for (const auto& indexTokenPair : this->tokenHashToIndex) {
+            int index = indexTokenPair.second;
+            record.hashKey = indexTokenPair.first;
+            record.vectorValue = this->wordEmbeddings.row(index);
+            saveEmbeddings(this->db, record);
+        }
+
+        log_detail("yNumber of tokens to update: {0}", this->tokenHashToIndex.size());
+
+        //closeDB();
+
+    } catch (const AIException& e) {
+        std::cerr << "Error (Embeddings::updateEmbeddingsInDatabase): " << e.what() << std::endl;
+        //closeDB();
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error (Embeddings::updateEmbeddingsInDatabase): " << e.what() << " at " << __LINE__ << std::endl;
+        //closeDB();
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error (Embeddings::updateEmbeddingsInDatabase):" << std::endl;
+        //closeDB();
     }
 
 }
