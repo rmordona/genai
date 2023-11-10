@@ -748,10 +748,8 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 
                 query.pop_back(); // Remove the last comma
                 query += ");";
-
                 fetch = 0;
                 currentIndex = fetchEmbeddings(this->db, query, currentIndex);
-
             }
 
             fetch++;
@@ -759,11 +757,10 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
         }
 
         // process for leftovers
-        if (fetch < fetch_limit) {
+        if (fetch > 1 && fetch < fetch_limit) {
 
                 query.pop_back(); // Remove the last comma
                 query += ");";
-
                 currentIndex = fetchEmbeddings(this->db, query, currentIndex);
 
         }
@@ -832,6 +829,69 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
         // Catch all other exceptions
         std::cerr << "Unknown Error (Embeddings::updateEmbeddingsInDatabase):" << std::endl;
         //closeDB();
+    }
+
+}
+
+// This is batch level co-occurrence
+template <class T>
+void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& corpus, int batchSize) {
+
+    int corpus_size = static_cast<int>(corpus.size());
+    int sentence_length = corpus.at(0).size();
+
+    for (int batchStart = 0; batchStart < corpus_size; batchStart += batchSize) {
+        int batchEnd = std::min(batchStart + batchSize, corpus_size);
+
+        std::unordered_map<std::wstring, int> pairs;
+        std::unordered_map<std::wstring, int> tokens;
+
+        // Iterate over each sentence in the batch
+        for (int i = batchStart; i < batchEnd; ++i) {
+
+            const auto& sentence = corpus[i];
+
+            // Iterate over each token in the sentence to find frequent pairings
+            // This co-occurrence is sensitive to the order of the pair.
+            for (int j = 0; j < sentence_length; ++j) {
+                std::wstring token_j = sentence[j];
+                for (int k = 0; k < sentence_length; ++k) {
+                    if (j == k) continue;
+                    std::wstring token_k = sentence[k];
+                    std::wstring pair = token_j + L" " + token_k;
+                    pairs[pair] += 1;  // count
+                }
+                tokens[token_j] += 1;
+            }
+        }
+
+        // Now iterate again to finally build the comatrix based on the list of global tokens
+        // derived from within a single batch
+        int token_size = tokens.size();
+        aimatrix<T> comatrix = aimatrix<T>::Zero(token_size, token_size);
+
+        int j = 0;
+        for (const auto& tokens_j : tokens) {
+            int k = 0;
+            std::wstring token_j = tokens_j.first;
+            for (const auto& tokens_k : tokens) {
+                if (j == k) return;
+                std::wstring token_k = tokens_k.first;
+
+                std::wstring key = token_j + L" " + token_k;
+                auto it = pairs.find(key);
+
+                // Check if the element is found
+                if (it != pairs.end()) {
+                    comatrix(j, k) = it->second; // frequency / count
+                } 
+                k++;
+            }
+            j++;
+        }
+
+        this->comatrices.push_back( comatrix );
+            
     }
 
 }

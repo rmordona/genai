@@ -37,6 +37,9 @@ private:
     int vocabSize = 0;
     int embeddingSize = 5;
 
+    // Used to build the co-occurrence matrix.
+    // std::unordered_map<std::pair<int, int>, aimatrix<T>> comatrices;
+    std::vector<aimatrix<T>> comatrices;
 
     // const char* dbFileName = "data.db";
     const char* dbFileName = ":memory:";
@@ -195,6 +198,9 @@ public:
     const aimatrix<T> getWordEmbeddings() { return this->wordEmbeddings; }
     // const aivector<T> getWordBiases() { return this->wordBiases; }
     const std::unordered_map<std::string,int>& getTokenHashIndex() { return this->tokenHashToIndex; }
+
+    void buildCoMatrix(const std::vector<std::vector<std::wstring>>& corpus, int batchSize);
+
 };
 
 

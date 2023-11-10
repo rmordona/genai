@@ -386,10 +386,6 @@ std::vector<std::wstring> BaseTokenModel<T>::tokenize(const std::wstring& senten
     log_info( "=================================" );
     log_info( "Tokenizing a sentence  ..." );
 
-
-    // std::vector<std::wstring> tokens = tokenize_to_char(sentences);
-    // this->vocab = mergeTokens(tokens, numMerges);
-
     const std::unordered_map<std::wstring, int> vocabulary = this->vocab;
     std::vector<std::wstring> tokens;
     std::wstring currentToken;
@@ -434,6 +430,7 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 
     log_info( "=================================" );
     log_info( "Tokenizing Sentences  ..." );
+
 
     const std::unordered_map<std::wstring, int> vocabulary = this->vocab;
     std::vector<std::vector<std::wstring>> corpus;
@@ -482,11 +479,15 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 * Prefetch the vocabulary and embeddings associated with the sentences.
 ********************************************************************************************************************/
 template <class T>
-void BaseTokenModel<T>::prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit) {
+void BaseTokenModel<T>::prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit, int batchSize) {
 
     // First, let us fetch the voculabulary for the tokens in the generated corpus.
     // After which, we use the vocabulary to create or update our embeddings.
     this->embeddings->prefetchVocabularyToCache(corpus);
+
+    for (const auto& token : this->vocab) {
+        std::wcout << "vocab: " << token.first << std::endl;
+    }
 
     // Now, let us generate the Token Indices
     this->embeddings->generateTokenIndices();
@@ -497,6 +498,9 @@ void BaseTokenModel<T>::prefetchEmbeddings(std::vector<std::vector<std::wstring>
     // exists in the vocabulary. The mere fact that the token is used in the corpus
     // and is found in the vocabulary indidcates that we now have to start creating an embedding for the token.
     this->embeddings->prefetchEmbeddingsToCache();
+
+    // Finally, let's build the co-occurrence matrix;
+    // this->embeddings->buildCoMatrix(corpus, batchSize);
 
 }
 
@@ -527,7 +531,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     log_detail("Size of tokenized corpus: {0}", corpus.size());
 
     // Prefetch the Embeddings for given corpus
-    prefetchEmbeddings(corpus, 4000);
+    prefetchEmbeddings(corpus, 4000, batchSize);
 
     // Now retrieve the generated embeddings
     aimatrix<T> wordEmbeddings = this->embeddings->getWordEmbeddings();
@@ -567,6 +571,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
             }
         }
     }
+
     // We do not use the raw corpus from the tokenized sentences, instead we use the prefetched vocabulary
     // that represents the tokens from the corpus.
   
@@ -574,40 +579,36 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
     this->batchGradients = aimatrix<T>::Zero(vocabSize, embeddingSize);
 
-    // Iterate over the corpus in batches
-    for (int iteration = 0; iteration < this->maxIteration; ++iteration) {
-
         T totalLoss = 0.0;
         T totaliter = 0.0;
 
-        log_detail( "Iteration Token Size a: {0} {1}", iteration, this->embeddings->getTokenHashIndex().size() );
+    // Iterate over the corpus in batches
+    int corpus_size = static_cast<int>(corpus.size());
+    for (int iteration = 0; iteration < this->maxIteration; ++iteration) {
+
+        log_detail( "Iteration at {0} with token size {1}", iteration, this->embeddings->getTokenHashIndex().size() );
 
         // Iterate over each batch in the corpus
         // This, we use MP (multi-processing), splitting the workload per batch across processes
-        for (int batchStart = 0; batchStart < (int) corpus.size(); batchStart += batchSize) {
-            int batchEnd = std::min(batchStart + batchSize, static_cast<int>(corpus.size()));
+        for (int batchStart = 0; batchStart < corpus_size; batchStart += batchSize) {
+            int batchEnd = std::min(batchStart + batchSize, corpus_size);
 
             // Iterate over each sentence in the batch
             for (int i = batchStart; i < batchEnd; ++i) {
                 const auto& sentence = corpus[i];
-
                 // Iterate over each token in the sentence
-                for (int j = 0; j < (int) sentence.size(); ++j) {
+                for (int j = 0; j < (int) sentence.size(); j++) {
                     std::wstring targetWord = sentence[j];
-
                     // Get the context window for the target word
+                    // context window being 3 words
                     int start = std::max(0, j - 3);
-                    int end = std::min(static_cast<int>(sentence.size()) - 1, j + 3);
+                    int end = std::min(corpus_size - 1, j + 3);
 
                     // Iterate over the context token
-                    for (int k = start; k <= end; ++k) {
+                    for (int k = start; k <= end && k < (int) sentence.size(); k++) {
                         // Skip the target token itself
-                        if (k == j) {
-                            continue;
-                        }
- 
+                        if (k == j) continue;
                         std::wstring contextWord = sentence[k]; 
-
                         if (targetWord == TK_PAD_) continue;
                         if (contextWord == TK_PAD_) continue;
 
@@ -633,7 +634,6 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
                         // Accumulate loss
                         totalLoss += loss;
                         totaliter += 1;
-
                         // Compute the gradients for embeddings and biases
                         this->batchGradients.row(targetIndex) += gradient * wordEmbeddings.row(contextIndex).cwiseAbs();
                         this->batchGradients.row(contextIndex) += gradient * wordEmbeddings.row(targetIndex).cwiseAbs();

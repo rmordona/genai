@@ -56,7 +56,7 @@ private:
 public:
 
     int merges        = 1000;
-    
+
     std::unordered_map<std::wstring, int> vocab;
 
     bool resetVocab = false;
@@ -99,7 +99,7 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // Prefetch vocabulary and vector for given corpus
-    void prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit = 4000);
+    void prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit = 4000, int batchSize = 1);
 
     // Now train a GloVe model
     void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
