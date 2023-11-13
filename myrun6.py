@@ -25,7 +25,6 @@ tokenizer = ai.TokenModel(tokenizer="bpetokenizer", datatype=dtype);
 
 tokenizer.preload(corpus = sentences, merges = 1000, size=5);
 
-
 new_corpus = [
         "Got here :float learningRate 0.01",
         "SQL error: index vocab_index already exists" ];
@@ -36,4 +35,4 @@ new_corpus = [
 
 # tokens = tokenizer.tokenize(sentences);
 
-tokenizer.train(corpus=sentences, batchsize=2, losstype = "mse", optimizertype = "adagrad", learn_rate = 0.01, max_epoch = 2, clipthreshold = 5.0, regularization = 1.0);
+tokenizer.train(corpus=sentences, batchsize=2, losstype = "mse", optimizertype = "adagrad", learn_rate = 0.01, max_epoch = 500, clipthreshold = 5.0, regularization = 1.0);

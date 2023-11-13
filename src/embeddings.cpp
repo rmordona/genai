@@ -154,8 +154,8 @@ void Embeddings<T>::seedVectorDB() {
             Record record;
 
             record.hashKey = sha256(entry.first);
-            record.vectorValue = this->wordEmbeddings.row(currentIndex);
-            record.bias = 0.0;
+            record.embedding = this->wordEmbeddings.row(currentIndex);
+            record.bias = this->wordBiases[currentIndex];
             saveEmbeddings(this->db, record);
 
             currentIndex++;
@@ -187,9 +187,11 @@ void Embeddings<T>::seedVectorDB() {
 *************************************************************************************************/
 template <class T>
 void Embeddings<T>::createVectorTable() {
+    std::cout << "Creating corpus embeddings ..." << std::endl;
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS corpus_embeddings ("
                                  "hash_key TEXT PRIMARY KEY, "
-                                 "vector_value BLOB "
+                                 "embedding BLOB, "
+                                 "bias real "
                                  ");";
 
     char* errorMsg;
@@ -275,7 +277,7 @@ void Embeddings<T>::saveVocabulary(sqlite3* db, const Record& record) {
 template <class T>
 void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
     std::stringstream insertSQL;
-    insertSQL << "INSERT OR REPLACE INTO corpus_embeddings (hash_key, vector_value) VALUES (?, ?);";
+    insertSQL << "INSERT OR REPLACE INTO corpus_embeddings (hash_key, embedding, bias) VALUES (?, ?, ?);";
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(db, insertSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {
@@ -290,7 +292,13 @@ void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
     }
 
     // Bind the vector embedding
-    sqlite3_bind_blob(stmt, 2, record.vectorValue.data(), record.vectorValue.size() * sizeof(T), SQLITE_STATIC);
+    sqlite3_bind_blob(stmt, 2, record.embedding.data(), record.embedding.size() * sizeof(T), SQLITE_STATIC);
+    if (rc != SQLITE_OK) {
+        sqlite3_finalize(stmt); // Release the stmt memory
+    }
+
+    // Bind the bias term
+    sqlite3_bind_double(stmt, 3, static_cast<double>(record.bias));
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt); // Release the stmt memory
     }
@@ -310,7 +318,7 @@ void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
 template <class T>
 bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& record) {
     std::stringstream selectSQL;
-    selectSQL << "SELECT vector_value FROM corpus_embeddings WHERE hash_key = ?;";
+    selectSQL << "SELECT embedding, bias FROM corpus_embeddings WHERE hash_key = ?;";
 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
@@ -328,11 +336,14 @@ bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& recor
     if (rc == SQLITE_ROW) {
         record.hashKey = hashKey;
 
-        // Get the vector value from the result and store it in the record
+        // Get the embedding value from the result and store it in the record
         const void* data = sqlite3_column_blob(stmt, 0);
         int size = sqlite3_column_bytes(stmt, 0);
-        record.vectorValue.resize(size / sizeof(double)); // let column hold double regardless of T (typeclass)
-        std::memcpy(record.vectorValue.data(), data, size);
+        record.embedding.resize(size / sizeof(T)); // let column hold double regardless of T (typeclass)
+        std::memcpy(record.embedding.data(), data, size);
+
+        // Get the bias term
+        record.bias = sqlite3_column_double(stmt, 1);
 
         sqlite3_finalize(stmt);
         return true;
@@ -454,10 +465,10 @@ bool Embeddings<T>::isInVocabulary(const std::wstring& token, Record& record)  {
 * constructed vocabulary
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::initializeEmbeddingsinCache() {
+void Embeddings<T>::initializeEmbeddingsinCache(int row, int col) {
 
-    this->wordEmbeddings = aimatrix<T>::Random(this->vocab.size(), this->embeddingSize);
-    // this->wordBiases = aivector<T>::Zero(vocabSize);
+    this->wordEmbeddings = aimatrix<T>::Zero(row, col);
+    this->wordBiases = aivector<T>::Zero(row);  // bias term for target word
 
     // Initialize word Embeddings
     BaseOperator::heInitMatrix(this->wordEmbeddings);
@@ -486,7 +497,7 @@ void Embeddings<T>::createInitialEmbeddings(int embeddingSize, std::unordered_ma
         this->embeddingSize = embeddingSize;
 
         // Initialize Embeddings
-        initializeEmbeddingsinCache();
+        initializeEmbeddingsinCache( this->vocabSize, this->embeddingSize );
 
         // Seed Embeddings / Vector DB
         this->seedVectorDB();
@@ -636,7 +647,7 @@ void Embeddings<T>::generateTokenIndices() {
 
     int currentIndex = 0;  // This is an in-memory index only
     // Let's generate the Token Indices
-    for (const auto& token : this->vocab) {
+    for (const auto& token : this->tokens) {
 
         // Prepare the query to fetch embeddings for tokens in the corpus
         std::string tokenHash = sha256(token.first);  
@@ -684,11 +695,15 @@ int Embeddings<T>::fetchEmbeddings(sqlite3* db, std::string query, int currentIn
         aivector<T> embeddings(embeddingSizeBytes / sizeof(double));
         std::memcpy(embeddings.data(), embeddingBlob, embeddingSizeBytes);
 
+        // Get the bias term
+        T bias = sqlite3_column_double(stmt, 2);
+
         // Check if missing token based on token hash, then create.
         if (this->tokenHashToIndex.find(tokenHash) == this->tokenHashToIndex.end()) {
 
             // Create index-to-token mapping
             this->wordEmbeddings.row(currentIndex) = embeddings;
+            this->wordBiases[currentIndex] = bias;
 
             currentIndex++;
 
@@ -717,51 +732,34 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 
         log_detail("Before Size of Word Embeddings: {0}x{1}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols());
 
-        // This assumes the Vocabulary is already in Cache (this->vocab)
+        // This assumes the Tokens are already built for the corpus generated.
         // Therefore, initialize the word embedding in Cache then use the list to update the embedding
         // from DB if it exists. Rest of the list remains initialized using he-initialization.
-        initializeEmbeddingsinCache();
+        initializeEmbeddingsinCache(this->tokens.size(), this->embeddingSize);
 
         log_detail("Size of Initialized Word Embeddings: {0}x{1}", this->wordEmbeddings.rows(), this->wordEmbeddings.cols());
+        log_detail("Size of Bias: {0}", this->wordBiases.size());
 
         // Use the cached vocabulary
         // fetch every 20
-        int fetch = 1, fetch_limit = 20;
+        // int fetch = 1, fetch_limit = 20;
 
         int currentIndex = 0;  // This is an in-memory index only
         std::vector<std::string> vquery;
         std::string query; 
 
-        log_detail("Size of Vocabulary: {0} {1}", this->vocab.size(), this->vocabSize);
+        log_detail("Size of Tokens: {0} ", this->tokens.size());
 
-        for (const auto& token : this->vocab) {
-
-            if (fetch == 1) {
-                query = "SELECT hash_key, vector_value FROM corpus_embeddings WHERE hash_key IN ("; 
+        for (const auto& token : this->tokens) {
+            Record record;
+            bool row = retrieveEmbeddings(sha256(token.first), record);
+            // if token is not found in the stored embedding (in db), then let it stay initialized
+            // otherwise, we pin retrieved embeddings into cache.
+            if (row) {
+                this->wordEmbeddings.row(currentIndex) = record.embedding;
+                this->wordBiases[currentIndex] = record.bias;
             }
-
-            // Prepare the query to fetch embeddings for tokens in the corpus
-            std::string tokenHash = sha256(token.first);  
-            query += "'" + tokenHash + "',";
-
-            if (fetch == fetch_limit) {       
-
-                query.pop_back(); // Remove the last comma
-                query += ");";
-                fetch = 0;
-                currentIndex = fetchEmbeddings(this->db, query, currentIndex);
-            }
-
-            fetch++;
-
-        }
-
-        // process for leftovers
-        if (fetch > 1 && fetch < fetch_limit) {
-
-                query.pop_back(); // Remove the last comma
-                query += ");";
-                currentIndex = fetchEmbeddings(this->db, query, currentIndex);
+            currentIndex++;
 
         }
 
@@ -791,8 +789,8 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 * Update Embeddings in the Database
 *************************************************************************************************/
 template <class T>
-void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings) {
-    log_tag("Embeddings");
+void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings, const aivector<T>& wordBiases) {
+
     log_info( "==========================================" );
     log_info( "Entering Parameter Update in Embedding ...");
   
@@ -809,10 +807,14 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
 
         for (const auto& indexTokenPair : this->tokenHashToIndex) {
             int index = indexTokenPair.second;
-            record.hashKey = indexTokenPair.first;
-            record.vectorValue = this->wordEmbeddings.row(index);
+            record.hashKey   = indexTokenPair.first;
+            record.embedding = this->wordEmbeddings.row(index);
+            record.bias      = this->wordBiases[index];
             saveEmbeddings(this->db, record);
         }
+
+        this->wordEmbeddings = wordEmbeddings;
+        this->wordBiases     = wordBiases;
 
         log_detail("yNumber of tokens to update: {0}", this->tokenHashToIndex.size());
 
@@ -837,63 +839,140 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
 template <class T>
 void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& corpus, int batchSize) {
 
+    log_info( "==========================================" );
+    log_info( "Entering buildCoMatrices ...");
+
     int corpus_size = static_cast<int>(corpus.size());
-    int sentence_length = corpus.at(0).size();
+
+    int x = 0;
+
+    // Global Vector
+    std::unordered_map<std::wstring, int> comatrix;
+    std::unordered_map<std::wstring, std::vector<std::wstring>> tokens; 
 
     for (int batchStart = 0; batchStart < corpus_size; batchStart += batchSize) {
         int batchEnd = std::min(batchStart + batchSize, corpus_size);
 
-        std::unordered_map<std::wstring, int> pairs;
-        std::unordered_map<std::wstring, int> tokens;
-
         // Iterate over each sentence in the batch
         for (int i = batchStart; i < batchEnd; ++i) {
-
             const auto& sentence = corpus[i];
 
-            // Iterate over each token in the sentence to find frequent pairings
-            // This co-occurrence is sensitive to the order of the pair.
-            for (int j = 0; j < sentence_length; ++j) {
-                std::wstring token_j = sentence[j];
-                for (int k = 0; k < sentence_length; ++k) {
+            // Iterate over each token in the sentence
+            for (int j = 0; j < (int) sentence.size(); j++) {
+                std::wstring targetWord = sentence[j];
+
+                // Get the context window for the target word
+                // context window being 3 words
+                int start = std::max(0, j - 3);
+                int end = std::min(corpus_size - 1, j + 3);
+
+                // Iterate over the context token
+                for (int k = start; k <= end && k < (int) sentence.size(); k++) {
+                    // Skip the target token itself
                     if (j == k) continue;
-                    std::wstring token_k = sentence[k];
-                    std::wstring pair = token_j + L" " + token_k;
-                    pairs[pair] += 1;  // count
+                    std::wstring contextWord = sentence[k]; 
+                    if (targetWord == TK_PAD_) continue;
+                    if (contextWord == TK_PAD_) continue;
+                    // include only pairs with co-occurrence, eliminating building a sparse matrix
+                    std::wstring cooccur= targetWord + contextWord;
+                    comatrix[ cooccur ] ++;  
+                    if (comatrix[cooccur] < 2) { // capture only unique context words
+                        x++;
+                        tokens[ targetWord ].push_back(contextWord);
+                    }
+
                 }
-                tokens[token_j] += 1;
+
             }
         }
-
-        // Now iterate again to finally build the comatrix based on the list of global tokens
-        // derived from within a single batch
-        int token_size = tokens.size();
-        aimatrix<T> comatrix = aimatrix<T>::Zero(token_size, token_size);
-
-        int j = 0;
-        for (const auto& tokens_j : tokens) {
-            int k = 0;
-            std::wstring token_j = tokens_j.first;
-            for (const auto& tokens_k : tokens) {
-                if (j == k) return;
-                std::wstring token_k = tokens_k.first;
-
-                std::wstring key = token_j + L" " + token_k;
-                auto it = pairs.find(key);
-
-                // Check if the element is found
-                if (it != pairs.end()) {
-                    comatrix(j, k) = it->second; // frequency / count
-                } 
-                k++;
-            }
-            j++;
-        }
-
-        this->comatrices.push_back( comatrix );
-            
     }
 
+    this->comatrix = comatrix;
+    this->tokens = tokens;
+
+    log_detail("Size of comatrices: {0}", this->comatrix.size());
+    log_detail("Size of comatrices: {0}", x);
+/*
+
+    for (const auto& pair : comatrix) {
+        std::wcout << "comatrices   " << pair.first << " " << pair.second << std::endl;
+    }
+*/
+
+/*
+    int token_size = this->tokens.size();
+    int embedding_size = 5;
+    aimatrix<T> weights = aimatrix<T>::Random(token_size, embedding_size);
+    aivector<T> biasv = airowvector<T>::Zero(token_size); // each unique word in vocab has a bias term
+    aivector<T> biasu = airowvector<T>::Zero(token_size); // each unique word in vocab has a bias term
+
+    // Initialize word Embeddings
+    // BaseOperator::heInitMatrix(weights);
+
+    log_detail("weights:");
+    log_matrix(weights);
+
+    log_detail("Size of tokens: {0}", this->tokens.size());
+
+
+    airowvector<T> Vi = weights.row(0);
+    airowvector<T> Uj = weights.row(1);
+
+    log_detail("V row");
+    std::cout << Vi << std::endl;
+
+    log_detail("U row");
+    std::cout << Uj << std::endl;
+
+    log_detail("VU");
+    // aiscalar<T> xxx = Uj.dot(Vi) + biasv[0] + biasu[1];
+    // log_detail("dimension: {0}", xxx);
+
+    auto it = this->tokens.begin();
+
+    std::wcout << "first token: " << it->first << std::endl;
+    std::wcout << "first token vector: " << it->second.size() << std::endl;
+
+    ++it;
+
+    std::wcout << "second token: " << it->first << std::endl;
+    std::wcout << "second token vector: " << it->second.size() << std::endl;
+
+    int i = 0;
+    aiscalar<T> J = 0.0;
+    aiscalar<T> alpha = 0.75f;
+    aiscalar<T> Xmax = 5.0f; // Our threshold of dominating frequency is upto 5 only.
+    for (const auto& token : tokens) {
+
+        std::wstring target = token.first;
+        std::wcout << "token:   " << target << std::endl;
+
+        airowvector<T> Vi = weights.row(i);
+
+        std::vector<std::wstring> contexts = token.second;
+        for (int j = 0; j < (int) contexts.size(); j++) {
+            std::wstring context = contexts.at(j);
+            std::wcout << " contexts:   " << context << std::endl;
+
+            airowvector<T> Uj = weights.row(j);
+
+            int Xij = this->comatrix[ target + context];
+
+            aiscalar<T> weight = 1.0;
+
+            // implement smooth weighting  = min(1, X/Xm^alpha)
+            weight = (T) std::min((T) 1.0, (T) std::pow( ( Xij / Xmax ), alpha) );
+
+            aiscalar<T> dotprod = Uj.dot(Vi) + biasv[i] + biasu[j];
+            J+= weight * std::pow(dotprod - std::log(Xij), 2.0);
+            std::cout << "i: " << i << " j: " << j << " XiJ: " << Xij << " vTu: " << Uj.dot(Vi) << " cost: " << weight << " log(Xij): " << std::log(Xij) << " J: " << J << std::endl;
+            std::cout << "pow1: " << std::pow(Uj.dot(Vi) + biasv[i] + biasu[j] - std::log(Xij), 2.0) << std::endl;
+            std::cout << "pow2: " << weight * std::pow(Uj.dot(Vi) + biasv[i] + biasu[j] - std::log(Xij), 2.0) << " " << J << std::endl;
+        }
+        i++;
+        break;
+    }
+ */
 }
 
 /************ Tokenizer / Embeddings initialize template ************/

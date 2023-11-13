@@ -48,7 +48,6 @@ private:
     int vocabSize     = 0;
     int embeddingSize = 5;
     aimatrix<T> wordEmbeddings;
-    // aivector<T> wordBiases;
 
     // Initialize the gradients for the batch
     aimatrix<T> batchGradients;
@@ -99,7 +98,7 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // Prefetch vocabulary and vector for given corpus
-    void prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit = 4000, int batchSize = 1);
+    void prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit = 4000, int batchSize = 1);
 
     // Now train a GloVe model
     void train(std::vector<std::wstring>& sentences, int batchSize = 2, 

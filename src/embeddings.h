@@ -29,17 +29,26 @@
 #include <sqlite3.h>
 #include "logger.h"
 
+#define TK_SPACE_ L"<SPC>"
+#define TK_MASK_  L"<MASK>"
+#define TK_UNK_   L"<UNK>"
+#define TK_PAD_   L"<PAD>"
+#define TK_SOS_   L"<SOS>"
+#define TK_EOS_   L"<EOS>"
+
 template <class T>
 class Embeddings {
 private:
     std::unordered_map<std::wstring, int> vocab;
     aimatrix<T> wordEmbeddings;
+    aivector<T> wordBiases; // bias term for  word - each unique word in vocab has a bias term
+
     int vocabSize = 0;
     int embeddingSize = 5;
 
-    // Used to build the co-occurrence matrix.
-    // std::unordered_map<std::pair<int, int>, aimatrix<T>> comatrices;
-    std::vector<aimatrix<T>> comatrices;
+    // Global Vector
+    std::unordered_map<std::wstring, int> comatrix;
+    std::unordered_map<std::wstring, std::vector<std::wstring>> tokens;
 
     // const char* dbFileName = "data.db";
     const char* dbFileName = ":memory:";
@@ -56,8 +65,8 @@ private:
 
         // For the Embedding
         std::string hashKey;
-        aivector<T> vectorValue;
-        double bias;
+        aivector<T> embedding;
+        T bias;
     };
 
     // Create the token hash-to-index mapping and index-to-token mapping
@@ -118,14 +127,6 @@ public:
         closeDB();
     }
 
-    int getTokenIndex(std::string token) {
-        int index = -1;
-        try {
-            index = this->tokenHashToIndex.at(token);
-        } catch (const std::out_of_range& e) {}
-        return index;
-    }
-
     // Initialize Vector DB
     void initializeVectorDB();
 
@@ -164,7 +165,7 @@ public:
     const std::unordered_map<std::wstring, int>& getVocabulary() const { return this->vocab; }
 
     // Initialize Embeddings in Cache
-    void initializeEmbeddingsinCache();
+    void initializeEmbeddingsinCache(int row, int col);
 
     // Create Initial Vocabulary (Saving into the database)
     void createInitialVocabulary(std::unordered_map<std::wstring, int>& vocabulary);
@@ -188,7 +189,7 @@ public:
     void prefetchEmbeddingsToCache();
 
     // Update Embeddings in the Database
-    void updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings);
+    void updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings, const aivector<T>& wordBiases);
 
     // Get Vocab Size and Embedding Size
     int getVocabSize() { return this->wordEmbeddings.rows(); }
@@ -196,10 +197,21 @@ public:
 
     // Get Embeddings and indcies
     const aimatrix<T> getWordEmbeddings() { return this->wordEmbeddings; }
-    // const aivector<T> getWordBiases() { return this->wordBiases; }
+    const aivector<T> getWordBiases() { return this->wordBiases; }
     const std::unordered_map<std::string,int>& getTokenHashIndex() { return this->tokenHashToIndex; }
 
+    int getTokenIndex(std::string token) {
+        int index = -1;
+        try {
+            index = this->tokenHashToIndex.at(token);
+        } catch (const std::out_of_range& e) {}
+        return index;
+    }
+
     void buildCoMatrix(const std::vector<std::vector<std::wstring>>& corpus, int batchSize);
+    std::unordered_map<std::wstring, int> getCoMatrix() { return this->comatrix; }
+    std::unordered_map<std::wstring, std::vector<std::wstring>> getTokens() { return this->tokens; }
+
 
 };
 

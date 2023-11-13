@@ -158,14 +158,6 @@
 namespace py = pybind11;
 using namespace py::literals;
 
-#define TK_SPACE_ L"<SPC>"
-#define TK_MASK_  L"<MASK>"
-#define TK_UNK_   L"<UNK>"
-#define TK_PAD_   L"<PAD>"
-#define TK_SOS_   L"<SOS>"
-#define TK_EOS_   L"<EOS>"
-
-
 /************************************************************************************************
 * BPETokenizer::tokenize_to_char
 * Function tokenizes corpus one character at a time. This function is different from the
@@ -345,7 +337,6 @@ void BPETokenizer<T>::preload(const std::vector<std::wstring>& sentences, int nu
 
     // Generate the initial embedding.
     this->getEmbeddings()->createInitialEmbeddings(embeddingSize, this->vocab);
-
 }
 
 
@@ -437,18 +428,28 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
     std::wstring currentToken;
 
     for (const auto& sentence : sentences) {
+        
+        std::wcout << "Sentence: " << sentence << std::endl;
 
         std::vector<std::wstring> tokens;
         std::vector<std::wstring> words;
         words = splitString(sentence);
 
         for (const auto& word : words) {
-            bool found = false;
+
+            // bool found = false;
             std::wstring unit = word + TK_SPACE_;
+
+/*
+
+            
 
             if (this->embeddings->isInVocabulary(unit)) {
                 found = true;
                 tokens.push_back(unit);
+
+                std::wcout << "Found ...";
+
             } else {
                 size_t start = 0;
                 size_t end = word.length();
@@ -462,9 +463,14 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
                 }
             }
             if (!found) {  // unknown word
+
+                std::wcout << "Not Found ..." << std::endl;
                 tokens.push_back(word + TK_SPACE_);
             }
+*/
+            tokens.push_back(unit);
         }
+
 
         corpus.push_back(tokens);
     }
@@ -479,15 +485,24 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 * Prefetch the vocabulary and embeddings associated with the sentences.
 ********************************************************************************************************************/
 template <class T>
-void BaseTokenModel<T>::prefetchEmbeddings(std::vector<std::vector<std::wstring>> corpus, int token_limit, int batchSize) {
+void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit, int batchSize) {
+
+    // Generate the corpus.
+    std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
+    log_detail("Size of tokenized corpus: {0}", corpus.size());
 
     // First, let us fetch the voculabulary for the tokens in the generated corpus.
     // After which, we use the vocabulary to create or update our embeddings.
     this->embeddings->prefetchVocabularyToCache(corpus);
 
+    /*
     for (const auto& token : this->vocab) {
         std::wcout << "vocab: " << token.first << std::endl;
     }
+    */
+
+    // Next, let's build the co-occurrence matrix;
+    this->embeddings->buildCoMatrix(corpus, batchSize);
 
     // Now, let us generate the Token Indices
     this->embeddings->generateTokenIndices();
@@ -498,10 +513,7 @@ void BaseTokenModel<T>::prefetchEmbeddings(std::vector<std::vector<std::wstring>
     // exists in the vocabulary. The mere fact that the token is used in the corpus
     // and is found in the vocabulary indidcates that we now have to start creating an embedding for the token.
     this->embeddings->prefetchEmbeddingsToCache();
-
-    // Finally, let's build the co-occurrence matrix;
-    // this->embeddings->buildCoMatrix(corpus, batchSize);
-
+ 
 }
 
 /*******************************************************************************************************************
@@ -514,7 +526,7 @@ template <class T>
 void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSize, 
         const std::string& losstype, const std::string& optimizertype,
         T learningRate, int maxIteration, T clipThreshold,  T regularization) {
-     
+
     log_info( "=================================" );
     log_info( "Entering GloVe-like Training  ..." );
 
@@ -525,163 +537,155 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     this->maxIteration  = maxIteration;
     this->clipThreshold  = clipThreshold;
     this->regularization = regularization;
- 
-    // Generate the corpus.
-    std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
-    log_detail("Size of tokenized corpus: {0}", corpus.size());
 
     // Prefetch the Embeddings for given corpus
-    prefetchEmbeddings(corpus, 4000, batchSize);
+    prefetchEmbeddings(sentences, 4000, batchSize);
+
+    std::unordered_map<std::wstring, int> comatrix = this->embeddings->getCoMatrix();
+    std::unordered_map<std::wstring, std::vector<std::wstring>> tokens = this->embeddings->getTokens();
 
     // Now retrieve the generated embeddings
-    aimatrix<T> wordEmbeddings = this->embeddings->getWordEmbeddings();
+    aimatrix<T> weights_V    = this->embeddings->getWordEmbeddings();
+    aimatrix<T> weights_U    = this->embeddings->getWordEmbeddings();
+    aivector<T> biases_V     = this->embeddings->getWordBiases();
+    aivector<T> biases_U     = this->embeddings->getWordBiases();
 
-    const std::unordered_map<std::string,int>& tokenHashToIndex = this->embeddings->getTokenHashIndex();
- 
-    int vocabSize     = wordEmbeddings.rows();
-    int embeddingSize = wordEmbeddings.cols();
- 
-    log_detail( "Corpus Size: {0}, Batch Size: {1}", corpus.size(), batchSize);
-    log_detail( "Embedding Rows: {0}",  vocabSize );
-    log_detail( "Embedding Col: {0}",  embeddingSize );
-    log_detail( "Token Size: {0}", tokenHashToIndex.size() );
+    // log_detail("weights:");
+    // log_matrix(weights_V);
 
-    // Initialize Adagrad gradients
-    aimatrix<T> adagradGradients = aimatrix<T>::Constant(vocabSize, embeddingSize, 1e-8);
+    log_detail("Size of tokens: {0}", tokens.size());
+    log_detail("Size of weights: {0}x{1}", weights_V.rows(), weights_V.cols());
+    log_detail("Size of biases: {0}", biases_V.size());
 
-    log_detail("Perform Right Padding ...");
+    aiscalar<T> totalloss = 0.0;
+    aiscalar<T> totalcount = 0;
+    aiscalar<T> alpha = 0.75f;
+    aiscalar<T> Xmax = 5.0f; // Our threshold of dominating frequency is upto 5 only.
 
-    // Compute the maximum sentence length in the current batch
-    int maxBatchLength = 0;
-    // Perform Right Padding to make the length of sentences consistent.
-    for (int batchStart = 0; batchStart < (int) corpus.size(); batchStart += batchSize) {
-        int batchEnd = std::min(batchStart + batchSize, static_cast<int>(corpus.size()));
+    // Gradients
+    airowvector<T> gradient_U;
+    airowvector<T> gradient_V;
+    aiscalar<T> gradient_Bu;
+    aiscalar<T> gradient_Bv;
 
-        for (int i = batchStart; i < batchEnd; ++i) {
-            int sentenceLength = corpus[i].size();
-            maxBatchLength = std::max(maxBatchLength, sentenceLength);
-        }
+    // Used for Adagrad (Accummulated sum of squares)
+    airowvector<T> agradient_U = airowvector<T>::Constant(weights_V.cols(), 1.0);
+    airowvector<T> agradient_V = airowvector<T>::Constant(weights_V.cols(), 1.0);
+    aivector<T> agradient_Bu   = aivector<T>::Constant(weights_V.rows(), 1.0);
+    aivector<T> agradient_Bv   = aivector<T>::Constant(weights_V.rows(), 1.0);
 
-        // Perform right padding to make sentences equal in length
-        for (int i = batchStart; i < batchEnd; ++i) {
-            int sentenceLength = corpus[i].size();
-            if (sentenceLength < maxBatchLength) {
-                // Pad the sentence with a special padding token
-                corpus[i].resize(maxBatchLength, TK_PAD_);
-            }
-        }
-    }
+    airowvector<T> Vi;
+    airowvector<T> Uj;
+    aiscalar<T>    Bv;
+    aiscalar<T>    Bu;
 
-    // We do not use the raw corpus from the tokenized sentences, instead we use the prefetched vocabulary
-    // that represents the tokens from the corpus.
-  
-    log_detail("Iterate over the corpus in batches ... {0}", this->maxIteration);
+    std::wstring target;
+    std::wstring context;
 
-    this->batchGradients = aimatrix<T>::Zero(vocabSize, embeddingSize);
+    aiscalar<T> weight;
+    aiscalar<T> dotprod;
 
-        T totalLoss = 0.0;
-        T totaliter = 0.0;
+    log_detail("Starting Training ...");
 
-    // Iterate over the corpus in batches
-    int corpus_size = static_cast<int>(corpus.size());
     for (int iteration = 0; iteration < this->maxIteration; ++iteration) {
 
-        log_detail( "Iteration at {0} with token size {1}", iteration, this->embeddings->getTokenHashIndex().size() );
+        totalloss = 0.0;
+        totalcount = 0;
 
-        // Iterate over each batch in the corpus
-        // This, we use MP (multi-processing), splitting the workload per batch across processes
-        for (int batchStart = 0; batchStart < corpus_size; batchStart += batchSize) {
-            int batchEnd = std::min(batchStart + batchSize, corpus_size);
+        log_detail( "Iteration at {0}", iteration);
 
-            // Iterate over each sentence in the batch
-            for (int i = batchStart; i < batchEnd; ++i) {
-                const auto& sentence = corpus[i];
-                // Iterate over each token in the sentence
-                for (int j = 0; j < (int) sentence.size(); j++) {
-                    std::wstring targetWord = sentence[j];
-                    // Get the context window for the target word
-                    // context window being 3 words
-                    int start = std::max(0, j - 3);
-                    int end = std::min(corpus_size - 1, j + 3);
+        for (const auto& token : tokens) {
 
-                    // Iterate over the context token
-                    for (int k = start; k <= end && k < (int) sentence.size(); k++) {
-                        // Skip the target token itself
-                        if (k == j) continue;
-                        std::wstring contextWord = sentence[k]; 
-                        if (targetWord == TK_PAD_) continue;
-                        if (contextWord == TK_PAD_) continue;
+            // std::wcout << "iteration at " << iteration << " token:   " << target << std::endl;
 
-                        // Use the token-to-index mapping to get the indices (see generateTokenIndices() function)
-                        int targetIndex = this->embeddings->getTokenIndex(sha256(targetWord));
-                        int contextIndex = this->embeddings->getTokenIndex(sha256(contextWord));
+            target = token.first;
 
-                        if (targetIndex < 0) continue;
-                        if (contextIndex < 0) continue;
-                        
-                        // Compute the co-occurrence weight
-                        T weight = 1.0f / (std::abs(j - k) * 1.0f);
+            // get the token index for the target word
+            int i = this->embeddings->getTokenIndex(sha256(target));
 
-                        // The statement below is taken from nlp.standofrd.edu/projects/glove site:
-                        // The training objective of GloVe is to learn word vectors such that their dot product equals the logarithm of 
-                        // the words' probability of co-occurrence. Owing to the fact that the logarithm of a ratio equals the difference of 
-                        // logarithms, this objective associates (the logarithm of) ratios of co-occurrence probabilities with vector 
-                        T dotProduct = (wordEmbeddings.row(targetIndex) * wordEmbeddings.row(contextIndex).transpose()).sum();
-                        // differences in the word vector space.
-                        T loss = std::pow(dotProduct - std::log(weight), 2.0);
-                        T gradient = 2.0 * (dotProduct - std::log(weight));
+            Vi = weights_V.row(i);  // center word
+            Bv = biases_V(i);       // bias term for center word
 
-                        // Accumulate loss
-                        totalLoss += loss;
-                        totaliter += 1;
-                        // Compute the gradients for embeddings and biases
-                        this->batchGradients.row(targetIndex) += gradient * wordEmbeddings.row(contextIndex).cwiseAbs();
-                        this->batchGradients.row(contextIndex) += gradient * wordEmbeddings.row(targetIndex).cwiseAbs();
+            std::vector<std::wstring> contexts = token.second;
+            for (int k = 0; k < (int) contexts.size(); k++) {
 
-                    }
-                }
+                context = contexts.at(k);
+
+                // get the token index for the context word
+                int j = this->embeddings->getTokenIndex(sha256(context));
+
+                // std::wcout << "iteration at " << iteration << " contexts:   " << context << std::endl;
+                // std::wcout << " contexts:   " << context << std::endl;
+
+                Uj = weights_U.row(j);  // context word
+                Bu = biases_U(j);       // bias term for context word
+
+                int Xij = comatrix[ target + context ]; // co-occurrence frequency
+
+                // implement smooth weighting  (capping co-occurrence frequency) = min(1, X/Xm^alpha)
+                weight = (T) std::min((T) 1.0, (T) std::pow( ( Xij / Xmax ), alpha) );
+
+                dotprod = Uj.dot(Vi) + Bv + Bu;
+
+                totalloss+= weight * std::pow(dotprod - std::log(Xij), 2.0);
+
+                totalcount ++;
+
+                // Gradient with respect to Uj
+                gradient_U = weight * (dotprod - std::log(Xij)) * Vi; // generate gradient for the entire embedding (row vector)
+                // Gradient with respect to Vi
+                gradient_V = weight * (dotprod - std::log(Xij)) * Uj; // generate gradient for the entire embedding (row vector)
+
+                // Gradient with respect to Bias i
+                gradient_Bu = weight * (dotprod - std::log(Xij));  
+                // Gradient with respect to Bias j
+                gradient_Bv = weight * (dotprod - std::log(Xij));  
+
+                // Now update embedding Vi using Adagrad optimization
+                Vi.array() -= (learningRate * gradient_V.array() / agradient_V.array().sqrt());
+                // Now update embedding Uj using Adagrad optimization
+                Uj.array() -= (learningRate * gradient_U.array() / agradient_U.array().sqrt());
+                // Now update bias Bv using Adagrad optimization
+                Bv -= (learningRate * gradient_Bv / sqrt(agradient_Bv[i]));
+                // Now update bias Bu using Adagrad optimization
+                Bu -= (learningRate * gradient_Bu / sqrt(agradient_Bu[j]));
+
+                // Update actual embeddings
+                weights_V.row(i) = Vi.array();
+                weights_U.row(j) = Uj.array();
+                biases_V[i]  = Bv;
+                biases_U[j]  = Bu;
+
+                // Update Adagrad parameters
+                agradient_V.array() += gradient_V.array().square(); // std::pow((T) gradient_V, (T) 2.0);
+                agradient_U.array() += gradient_U.array().square(); // std::pow((T) gradient_U, (T) 2.0);
+                agradient_Bv[i] += std::pow((T) gradient_Bv, (T) 2.0);
+                agradient_Bu[j] += std::pow((T) gradient_Bu, (T) 2.0);
+
+                // std::cout << "i: " << i << " j: " << j << " XiJ: " << Xij << " vTu: " << Uj.dot(Vi) << " weight: " << weight << " log(Xij): " << std::log(Xij) << " J: " << totalloss << std::endl;
             }
         }
 
-        // Compute the average loss
-        T averageLoss = totalLoss / totaliter; 
+        // log_detail("Total Loss: {:8.10f}", totalloss );
 
-        log_detail("Average Loss: {:8.10f}", averageLoss );
-        std::cout << "Average Loss: " << averageLoss << std::endl;
+        totalloss = totalloss / totalcount;
+        log_detail("Average Loss: {:8.10f}", totalloss );
 
-        // Clip the gradients to a specified threshold
-        // batchGradients = batchGradients.cwiseMax(-this->clipThreshold).cwiseMin(this->clipThreshold);
-
-        // Update word embeddings and biases
-        // adagradGradients = batchGradients;
-        // Accumulate gradients for Adagrad
-        adagradGradients += this->batchGradients.array().square().matrix();
-
-        // log_detail( "Calculation of Gradient (Iteration {}):",  iteration );
-        // log_matrix( (aimatrix<T>) ((this->learningRate * batchGradients.array() / (adagradGradients.array() + 1).sqrt().array())  ));
-
-        //log_detail( "Updating Parameters (Before image) (Iteration {})...", iteration );
-        //log_matrix( wordEmbeddings );
-
-        wordEmbeddings.array() -= this->learningRate * this->batchGradients.array() / (adagradGradients.array() + 1).sqrt();
-        // wordBiases.array() -= this->learningRate * batchBiasGradients.array();
-
-        // log_detail( "Updated Parameters (After image) (Iteration {})...", iteration );
-        // log_matrix( this->batchGradients );
-
-        // Apply regularization
-        wordEmbeddings *= (1.0 - this->learningRate * this->regularization);
-
-        //std::cout << "Updating parameters in Learning: \n" << wordEmbeddings << std::endl;
 
         // Checkpointing at every 10th iteration
         if (iteration % 10 == 0 || iteration == maxIteration - 1) {
-           this->embeddings->updateEmbeddingsInDatabase(wordEmbeddings);
+            // Here, we add both V and U matrices and biases instead of averaging.
+            aimatrix<T> weights = (weights_V + weights_U);
+            aivector<T> biases  = (biases_V + biases_U);
+            this->embeddings->updateEmbeddingsInDatabase(weights, biases);
         }
-
-        // Initialize the gradients for the batch
-        this->batchGradients.setZero();
+        agradient_U.setConstant(T(1.0));
+        agradient_V.setConstant(T(1.0));
+        agradient_Bu.setConstant(T(1.0));
+        agradient_Bv.setConstant(T(1.0));
     }
+
+
 }
 
 /************************************************************************************************
