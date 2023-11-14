@@ -99,8 +99,8 @@ target = [
              ];
 
 modelgraph.setTarget(target);
-modelgraph.train(loss="mse", metrics=["precision", "recall"], optimizer="adam", learn_rate=0.01, max_epoch=1);
+modelgraph.train(loss="mse", metrics=["precision", "recall"], optimizer="adam", learn_rate=0.01, max_epoch=10);
 
-yy_pred = modelgraph.getPredictions();
+#yy_pred = modelgraph.getPredictions();
 
 ai.print_string("Done.", True)

@@ -270,7 +270,6 @@
 * computations on each worker, aggregating gradients, updating parameters, and ensuring synchronization to achieve distributed training and collaboration.
 ******************************************************************************************************************************************/
 #include "genai.h"
-#include "logger.h"
 #include "topology.h"
 #include "model.h"
 #include "tokenmodel.h"
@@ -278,11 +277,37 @@
 
 // Define PY as the static member instance of PythonStream
 PythonStream py_cout;
+ 
+// Function to serialize std::wstring to UTF-8 encoded std::vector<unsigned char>
+std::vector<unsigned char> serializeWString(const std::wstring& wstr) {
+    std::vector<unsigned char> bytes;
+    bytes.reserve(wstr.size() * 4); // Reserve enough space for UTF-8 encoding (up to 4 bytes per character)
+
+    for (const wchar_t& wc : wstr) {
+        if (wc <= 0x7F) {
+            bytes.push_back(static_cast<unsigned char>(wc));
+        } else if (wc <= 0x7FF) {
+            bytes.push_back(0xC0 | ((wc >> 6) & 0x1F));
+            bytes.push_back(0x80 | (wc & 0x3F));
+        } else if (wc <= 0xFFFF) {
+            bytes.push_back(0xE0 | ((wc >> 12) & 0x0F));
+            bytes.push_back(0x80 | ((wc >> 6) & 0x3F));
+            bytes.push_back(0x80 | (wc & 0x3F));
+        } else {
+            bytes.push_back(0xF0 | ((wc >> 18) & 0x07));
+            bytes.push_back(0x80 | ((wc >> 12) & 0x3F));
+            bytes.push_back(0x80 | ((wc >> 6) & 0x3F));
+            bytes.push_back(0x80 | (wc & 0x3F));
+        }
+    }
+
+    return bytes;
+}
 
 void log_msg(const std::string& text) {
     std::cout << text << std::endl;
 }
- 
+
 double inf() {
     return std::numeric_limits<double>::infinity();
 }
@@ -325,62 +350,6 @@ std::wstring utf8ToWstring(const std::string& utf8Str) {
     return wstr;
 }
 
-// Function to serialize std::wstring to UTF-8 encoded std::vector<unsigned char>
-std::vector<unsigned char> serializeWString(const std::wstring& wstr) {
-    std::vector<unsigned char> bytes;
-    bytes.reserve(wstr.size() * 4); // Reserve enough space for UTF-8 encoding (up to 4 bytes per character)
-
-    for (const wchar_t& wc : wstr) {
-        if (wc <= 0x7F) {
-            bytes.push_back(static_cast<unsigned char>(wc));
-        } else if (wc <= 0x7FF) {
-            bytes.push_back(0xC0 | ((wc >> 6) & 0x1F));
-            bytes.push_back(0x80 | (wc & 0x3F));
-        } else if (wc <= 0xFFFF) {
-            bytes.push_back(0xE0 | ((wc >> 12) & 0x0F));
-            bytes.push_back(0x80 | ((wc >> 6) & 0x3F));
-            bytes.push_back(0x80 | (wc & 0x3F));
-        } else {
-            bytes.push_back(0xF0 | ((wc >> 18) & 0x07));
-            bytes.push_back(0x80 | ((wc >> 12) & 0x3F));
-            bytes.push_back(0x80 | ((wc >> 6) & 0x3F));
-            bytes.push_back(0x80 | (wc & 0x3F));
-        }
-    }
-
-    return bytes;
-}
-
-// Function to deserialize UTF-8 encoded std::vector<unsigned char> back to std::wstring
-std::wstring deserializeWString(const std::vector<unsigned char>& bytes) {
-    std::wstring wstr;
-    wstr.reserve(bytes.size()); // Reserve enough space for the wide characters
-
-    for (size_t i = 0; i < bytes.size();) {
-        wchar_t wc;
-        if ((bytes[i] & 0x80) == 0x00) {
-            wc = static_cast<wchar_t>(bytes[i]);
-            i += 1;
-        } else if ((bytes[i] & 0xE0) == 0xC0) {
-            wc = static_cast<wchar_t>((bytes[i] & 0x1F) << 6 | (bytes[i + 1] & 0x3F));
-            i += 2;
-        } else if ((bytes[i] & 0xF0) == 0xE0) {
-            wc = static_cast<wchar_t>((bytes[i] & 0x0F) << 12 | (bytes[i + 1] & 0x3F) << 6 | (bytes[i + 2] & 0x3F));
-            i += 3;
-        } else if ((bytes[i] & 0xF8) == 0xF0) {
-            wc = static_cast<wchar_t>((bytes[i] & 0x07) << 18 | (bytes[i + 1] & 0x3F) << 12 | (bytes[i + 2] & 0x3F) << 6 | (bytes[i + 3] & 0x3F));
-            i += 4;
-        } else {
-            // Invalid UTF-8 sequence, handle the error if needed
-            break;
-        }
-
-        wstr.push_back(wc);
-    }
-
-    return wstr;
-}
-
 // Function to calculate SHA-256 and return it as a string
 std::string sha256(const std::wstring& data) {
     EVP_MD_CTX* mdctx;
@@ -418,38 +387,35 @@ std::string sha256(const std::wstring& data) {
     return ss.str();
 }
 
+// Function to deserialize UTF-8 encoded std::vector<unsigned char> back to std::wstring
+std::wstring deserializeWString(const std::vector<unsigned char>& bytes) {
+    std::wstring wstr;
+    wstr.reserve(bytes.size()); // Reserve enough space for the wide characters
 
-/* sha256Context is deprecated 
-// Function to hash a given word token using SHA256
-std::string sha256(const std::wstring& str) {
-    std::vector<unsigned char> bytes = serializeWString(str);
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256_CTX sha256Context;
+    for (size_t i = 0; i < bytes.size();) {
+        wchar_t wc;
+        if ((bytes[i] & 0x80) == 0x00) {
+            wc = static_cast<wchar_t>(bytes[i]);
+            i += 1;
+        } else if ((bytes[i] & 0xE0) == 0xC0) {
+            wc = static_cast<wchar_t>((bytes[i] & 0x1F) << 6 | (bytes[i + 1] & 0x3F));
+            i += 2;
+        } else if ((bytes[i] & 0xF0) == 0xE0) {
+            wc = static_cast<wchar_t>((bytes[i] & 0x0F) << 12 | (bytes[i + 1] & 0x3F) << 6 | (bytes[i + 2] & 0x3F));
+            i += 3;
+        } else if ((bytes[i] & 0xF8) == 0xF0) {
+            wc = static_cast<wchar_t>((bytes[i] & 0x07) << 18 | (bytes[i + 1] & 0x3F) << 12 | (bytes[i + 2] & 0x3F) << 6 | (bytes[i + 3] & 0x3F));
+            i += 4;
+        } else {
+            // Invalid UTF-8 sequence, handle the error if needed
+            break;
+        }
 
-    if (SHA256_Init(&sha256Context) != 1) {
-        // Handle initialization error
-        return "";
+        wstr.push_back(wc);
     }
 
-    if (SHA256_Update(&sha256Context, bytes.data(), bytes.size()) != 1) {
-        // Handle update error
-        return "";
-    }
-
-    if (SHA256_Final(hash, &sha256Context) != 1) {
-        // Handle finalization error
-        return "";
-    }
-
-    std::stringstream ss;
-    ss << std::hex << std::setfill('0');
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
-        ss << std::setw(2) << static_cast<int>(hash[i]);
-    }
-
-    return ss.str();
+    return wstr;
 }
-*/
 
 double* allocate_matrix(ssize_t rows, ssize_t cols) {
     // Allocate memory for the matrix
@@ -732,7 +698,10 @@ PYBIND11_MODULE(genai, m) {
                              double, int, double, double)) &TokenModel::train,
             py::arg("corpus"),  py::arg("batchsize"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
             py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
-            py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe");
+            py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
+        .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
+        .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
+        .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
 
     // Definitions for Scraper APIs
     py::class_<Scraper>(m, "Scraper")

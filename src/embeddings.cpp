@@ -311,7 +311,7 @@ void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
 }
 
 /************************************************************************************************
-* Embeddings::retrieveEmbeddings
+* Embeddings::getEmbeddings
 * Function to retrieve an embedding from the database based on the hash key
 *************************************************************************************************/
 
@@ -783,7 +783,7 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
     log_detail("Completed Prefetching of Embedding to Cache ...");
 
 }
-
+ 
 /************************************************************************************************
 * Embeddings::updateEmbeddingsInDatabase
 * Update Embeddings in the Database
@@ -791,19 +791,9 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 template <class T>
 void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings, const aivector<T>& wordBiases) {
 
-    log_info( "==========================================" );
-    log_info( "Entering Parameter Update in Embedding ...");
-  
     try {
  
         Record record;
-
-        log_detail("Number of tokens to update: {0}", this->tokenHashToIndex.size());
-
-        // openDB();
-
-        log_detail("xNumber of tokens to update: {0}", this->tokenHashToIndex.size());
-
 
         for (const auto& indexTokenPair : this->tokenHashToIndex) {
             int index = indexTokenPair.second;
@@ -813,10 +803,8 @@ void Embeddings<T>::updateEmbeddingsInDatabase(const aimatrix<T>& wordEmbeddings
             saveEmbeddings(this->db, record);
         }
 
-        this->wordEmbeddings = wordEmbeddings;
-        this->wordBiases     = wordBiases;
-
-        log_detail("yNumber of tokens to update: {0}", this->tokenHashToIndex.size());
+        this->wordEmbeddings.array() = wordEmbeddings.array();
+        this->wordBiases.array()     = wordBiases.array(); 
 
         //closeDB();
 
@@ -892,87 +880,7 @@ void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& 
 
     log_detail("Size of comatrices: {0}", this->comatrix.size());
     log_detail("Size of comatrices: {0}", x);
-/*
 
-    for (const auto& pair : comatrix) {
-        std::wcout << "comatrices   " << pair.first << " " << pair.second << std::endl;
-    }
-*/
-
-/*
-    int token_size = this->tokens.size();
-    int embedding_size = 5;
-    aimatrix<T> weights = aimatrix<T>::Random(token_size, embedding_size);
-    aivector<T> biasv = airowvector<T>::Zero(token_size); // each unique word in vocab has a bias term
-    aivector<T> biasu = airowvector<T>::Zero(token_size); // each unique word in vocab has a bias term
-
-    // Initialize word Embeddings
-    // BaseOperator::heInitMatrix(weights);
-
-    log_detail("weights:");
-    log_matrix(weights);
-
-    log_detail("Size of tokens: {0}", this->tokens.size());
-
-
-    airowvector<T> Vi = weights.row(0);
-    airowvector<T> Uj = weights.row(1);
-
-    log_detail("V row");
-    std::cout << Vi << std::endl;
-
-    log_detail("U row");
-    std::cout << Uj << std::endl;
-
-    log_detail("VU");
-    // aiscalar<T> xxx = Uj.dot(Vi) + biasv[0] + biasu[1];
-    // log_detail("dimension: {0}", xxx);
-
-    auto it = this->tokens.begin();
-
-    std::wcout << "first token: " << it->first << std::endl;
-    std::wcout << "first token vector: " << it->second.size() << std::endl;
-
-    ++it;
-
-    std::wcout << "second token: " << it->first << std::endl;
-    std::wcout << "second token vector: " << it->second.size() << std::endl;
-
-    int i = 0;
-    aiscalar<T> J = 0.0;
-    aiscalar<T> alpha = 0.75f;
-    aiscalar<T> Xmax = 5.0f; // Our threshold of dominating frequency is upto 5 only.
-    for (const auto& token : tokens) {
-
-        std::wstring target = token.first;
-        std::wcout << "token:   " << target << std::endl;
-
-        airowvector<T> Vi = weights.row(i);
-
-        std::vector<std::wstring> contexts = token.second;
-        for (int j = 0; j < (int) contexts.size(); j++) {
-            std::wstring context = contexts.at(j);
-            std::wcout << " contexts:   " << context << std::endl;
-
-            airowvector<T> Uj = weights.row(j);
-
-            int Xij = this->comatrix[ target + context];
-
-            aiscalar<T> weight = 1.0;
-
-            // implement smooth weighting  = min(1, X/Xm^alpha)
-            weight = (T) std::min((T) 1.0, (T) std::pow( ( Xij / Xmax ), alpha) );
-
-            aiscalar<T> dotprod = Uj.dot(Vi) + biasv[i] + biasu[j];
-            J+= weight * std::pow(dotprod - std::log(Xij), 2.0);
-            std::cout << "i: " << i << " j: " << j << " XiJ: " << Xij << " vTu: " << Uj.dot(Vi) << " cost: " << weight << " log(Xij): " << std::log(Xij) << " J: " << J << std::endl;
-            std::cout << "pow1: " << std::pow(Uj.dot(Vi) + biasv[i] + biasu[j] - std::log(Xij), 2.0) << std::endl;
-            std::cout << "pow2: " << weight * std::pow(Uj.dot(Vi) + biasv[i] + biasu[j] - std::log(Xij), 2.0) << " " << J << std::endl;
-        }
-        i++;
-        break;
-    }
- */
 }
 
 /************ Tokenizer / Embeddings initialize template ************/

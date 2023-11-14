@@ -103,7 +103,12 @@ public:
     // Now train a GloVe model
     void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
-            T learningRate = 0.01, int maxIteration = 1, T clipThreshold = 5.0, T regularization = 1.0);
+            T learningRate = 0.01, int mod_epoch = 1, T clipThreshold = 5.0, T regularization = 1.0);
+
+
+    std::vector<std::wstring> listTokens();
+
+    aimatrix<T> listEmbeddings();
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -150,6 +155,8 @@ public:
     // Merge BPE Tokenizer
     void merge(const std::vector<std::wstring>& sentences, int numMerges);
 
+
+
 };
 
 /************************************************************************************************
@@ -195,6 +202,12 @@ public:
     void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
             double learningRate = 0.01, int maxIteration = 1, double clipThreshold = 5.0, double regularization = 1.0);
+
+    std::vector<std::wstring> tokens();
+
+    py::array_t<double> embeddingsDouble();
+
+    py::array_t<float> embeddingsFloat();
 
 /*
     // Overload the train function

@@ -429,45 +429,12 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 
     for (const auto& sentence : sentences) {
         
-        std::wcout << "Sentence: " << sentence << std::endl;
-
         std::vector<std::wstring> tokens;
         std::vector<std::wstring> words;
         words = splitString(sentence);
 
         for (const auto& word : words) {
-
-            // bool found = false;
             std::wstring unit = word + TK_SPACE_;
-
-/*
-
-            
-
-            if (this->embeddings->isInVocabulary(unit)) {
-                found = true;
-                tokens.push_back(unit);
-
-                std::wcout << "Found ...";
-
-            } else {
-                size_t start = 0;
-                size_t end = word.length();
-
-                for (size_t i = start + 1; i <= end; ++i) {
-                    std::wstring token = unit.substr(start, end - start);
-                    if (this->embeddings->isInVocabulary(token)) {
-                        found = true;
-                        tokens.push_back(unit);
-                    }
-                }
-            }
-            if (!found) {  // unknown word
-
-                std::wcout << "Not Found ..." << std::endl;
-                tokens.push_back(word + TK_SPACE_);
-            }
-*/
             tokens.push_back(unit);
         }
 
@@ -495,19 +462,13 @@ void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sent
     // After which, we use the vocabulary to create or update our embeddings.
     this->embeddings->prefetchVocabularyToCache(corpus);
 
-    /*
-    for (const auto& token : this->vocab) {
-        std::wcout << "vocab: " << token.first << std::endl;
-    }
-    */
-
     // Next, let's build the co-occurrence matrix;
     this->embeddings->buildCoMatrix(corpus, batchSize);
 
     // Now, let us generate the Token Indices
     this->embeddings->generateTokenIndices();
 
-    // Next, Fetch embeddings from the vector database specific to the current corpus
+    // Finally, Fetch embeddings from the vector database specific to the current corpus
     // Also, create the token hash-to-index mapping and index-to-token mapping
     // This is also where we perform the embedding if tokens do not have embeddings but
     // exists in the vocabulary. The mere fact that the token is used in the corpus
@@ -525,7 +486,7 @@ void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sent
 template <class T>
 void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSize, 
         const std::string& losstype, const std::string& optimizertype,
-        T learningRate, int maxIteration, T clipThreshold,  T regularization) {
+        T learningRate, int max_epoch, T clipThreshold,  T regularization) {
 
     log_info( "=================================" );
     log_info( "Entering GloVe-like Training  ..." );
@@ -585,18 +546,19 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     aiscalar<T> weight;
     aiscalar<T> dotprod;
 
-    log_detail("Starting Training ...");
+    int mod_epoch =  (max_epoch * 0.10);
 
-    for (int iteration = 0; iteration < this->maxIteration; ++iteration) {
+    log_detail("Starting Training ...");
+    auto start_time = std::chrono::system_clock::now();
+
+    for (int iter = 0; iter < max_epoch; ++iter) {
 
         totalloss = 0.0;
         totalcount = 0;
 
-        log_detail( "Iteration at {0}", iteration);
-
         for (const auto& token : tokens) {
 
-            // std::wcout << "iteration at " << iteration << " token:   " << target << std::endl;
+            // std::wcout << "iteration at " << iter << " token:   " << target << std::endl;
 
             target = token.first;
 
@@ -661,19 +623,35 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
                 agradient_U.array() += gradient_U.array().square(); // std::pow((T) gradient_U, (T) 2.0);
                 agradient_Bv[i] += std::pow((T) gradient_Bv, (T) 2.0);
                 agradient_Bu[j] += std::pow((T) gradient_Bu, (T) 2.0);
-
-                // std::cout << "i: " << i << " j: " << j << " XiJ: " << Xij << " vTu: " << Uj.dot(Vi) << " weight: " << weight << " log(Xij): " << std::log(Xij) << " J: " << totalloss << std::endl;
-            }
+           }
         }
 
         // log_detail("Total Loss: {:8.10f}", totalloss );
 
         totalloss = totalloss / totalcount;
-        log_detail("Average Loss: {:8.10f}", totalloss );
 
+        // Print Progress
+        if (iter == 1 || iter % mod_epoch == 0) {
 
+            // Calculate Time, then display loss
+            auto end_time = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+            std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
+            start_time = end_time;
+
+            py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
+            py_cout << "Loss: " << totalloss;
+            py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
+            py_cout << " at " << std::ctime(&next_time) << std::endl;
+
+            // Also, log the result if Logging INFO is enabled
+            log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
+                totalloss,   elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+
+        }
+ 
         // Checkpointing at every 10th iteration
-        if (iteration % 10 == 0 || iteration == maxIteration - 1) {
+        if (iter % mod_epoch == 0 || iter == max_epoch - 1) {
             // Here, we add both V and U matrices and biases instead of averaging.
             aimatrix<T> weights = (weights_V + weights_U);
             aivector<T> biases  = (biases_V + biases_U);
@@ -684,8 +662,20 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
         agradient_Bu.setConstant(T(1.0));
         agradient_Bv.setConstant(T(1.0));
     }
+}
 
+/************************************************************************************************
+* BaseTokenModel::list Tokens and Embeddings
+* Helper function to list tokens and Embeddings
+*************************************************************************************************/
+template <class T>
+std::vector<std::wstring> BaseTokenModel<T>::listTokens() {
+    return this->embeddings->listTokens();
+}
 
+template <class T>
+aimatrix<T> BaseTokenModel<T>::listEmbeddings() {
+    return this->embeddings->getWordEmbeddings();
 }
 
 /************************************************************************************************
@@ -816,6 +806,45 @@ void TokenModel::train(std::vector<std::wstring>& sentences, int batchSize,
         this->tokenizerd->train(sentences, batchSize, losstype, optimizertype, static_cast<double>(learningRate), maxIteration);
     }
 }
+
+std::vector<std::wstring> TokenModel::tokens() {
+    std::vector<std::wstring> tokens;
+    if (this->datatype == "float") {
+        tokens = this->tokenizerf->listTokens();
+    } else 
+    if (this->datatype == "double") {
+        tokens = this->tokenizerd->listTokens();
+    }
+    return tokens;
+}
+
+py::array_t<double> TokenModel::embeddingsDouble() {
+    aimatrix<double> embeddingd;
+    log_detail("Double embedding ");
+    if (this->datatype == "double") {
+        embeddingd = this->tokenizerd->listEmbeddings();
+
+    } else 
+    if (this->datatype == "float") {
+        aimatrix<float> embeddingf = this->tokenizerf->listEmbeddings();
+        embeddingd = embeddingf.cast<double>();
+    }
+    return ConvertData::topyarray(embeddingd);
+}
+
+py::array_t<float> TokenModel::embeddingsFloat() {
+    aimatrix<float> embeddingf;
+    log_detail("Float embedding ");
+    if (this->datatype == "double") {
+        aimatrix<double> embeddingd = this->tokenizerd->listEmbeddings();
+        embeddingf = embeddingd.cast<float>();
+    } else 
+    if (this->datatype == "float") {
+        embeddingf = this->tokenizerf->listEmbeddings();
+    }
+    return ConvertData::topyarray(embeddingf);
+}
+
 
 /************ Tokenizer / Embeddings initialize template ************/
 

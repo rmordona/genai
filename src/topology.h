@@ -38,84 +38,9 @@ enum class NodeType {
     Generic
 };
 
-
-class ConvertData {
-public:
-
-    template <class T>
-    static aitensor<T> totensor(const py::array_t<T>& parray) {
-
-        log_info("Converting data ...");
-
-        int ndim = parray.ndim();
-        py::buffer_info buffer_info = parray.request();
-
-        log_info( "Received buffer info:" );
-        log_detail( "Format: {0}", buffer_info.format );
-        log_detail( "Item size: {0}", buffer_info.itemsize );
-        log_detail( "Size: {0}", buffer_info.size );
-        log_detail( "Dimension: {0}", ndim );
-
-        std::vector<ssize_t> shape = buffer_info.shape;
-        // extract data and shape of input array
-        T* dataPtr = static_cast<T *>(buffer_info.ptr);
-
-        ssize_t dim0, dim1, dim2;
-
-        if (ndim == 2) {
-            dim0 = 1;        // Batch Size
-            dim1 = shape[0]; // Input Size
-            dim2 = shape[1]; // Parameter / Embedding Size
-            
-        } else
-        if (ndim == 3) {
-            dim0 = shape[0]; // Batch Size
-            dim1 = shape[1]; // Input Size
-            dim2 = shape[2]; // Parameter / Embedding Size        
-        } else {
-            throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
-        } 
-
-        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
-
-        aitensor<T> eigenMatrices;
-        eigenMatrices.reserve(dim0);
-
-        for (int i = 0; i < dim0; ++i) {
-            aimatrix<T> eigenMatrix(dim1, dim2);
-            std::memcpy(eigenMatrix.data(), &dataPtr[i * dim1 * dim2], dim1 * dim2 * sizeof(T));
-            eigenMatrices.push_back(eigenMatrix);
-        }
-
-        return eigenMatrices;
-    }
-
-    template <class T>
-    static py::array_t<T> topyarray(const aitensor<T>& matrices) {
-        // Determine the shape and size of the NumPy array
-        size_t num_matrices = matrices.size();
-        size_t matrix_rows = matrices[0].rows();
-        size_t matrix_cols = matrices[0].cols();
-
-        // Create a NumPy array with the same shape
-        auto result = py::array_t<T>({num_matrices, matrix_rows, matrix_cols});
-        auto buffer_info = result.request();
-        double* ptr = static_cast<double*>(buffer_info.ptr);
-
-        // Copy data from Eigen matrices to NumPy array
-        for (size_t i = 0; i < num_matrices; i++) {
-            Eigen::Map<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(ptr, matrix_rows, matrix_cols) = matrices[i].template cast<double>();
-            ptr += matrix_rows * matrix_cols;
-        }
-
-        return result;
-    }
-
-
-};
-
 /*****************************************************************************************************
-* Node
+* Class Node
+* Graph Nodes that serve as container for Operators.
 *****************************************************************************************************/
 template <class T>
 class Node {

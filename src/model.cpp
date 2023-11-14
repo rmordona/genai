@@ -84,7 +84,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->learningRate = learningRate;
     this->metricstype = metricstype;
 
-    int mod_epoch = max_epoch / 0.10;
+    int mod_epoch = max_epoch * 0.10;
 
     log_info( "******************************************************************************************" );
     log_info( "********************************* Start Training *****************************************")
@@ -93,7 +93,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 
     aiscalar<T> epsilon = 1e-3;
     aiscalar<T> old_loss = inf();
-
+ 
     auto start_time = std::chrono::system_clock::now();
 
     py_cout << "Fitting the model ...";
@@ -127,14 +127,17 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
         }
 
-        // Calculate Time, then display loss
-        auto end_time = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-        std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
-        start_time = end_time;
+
 
         // Print Progress
-        if (iter == 1 || mod_epoch % iter == 0) {
+        if (iter == 1 || iter % mod_epoch == 0) {
+
+            // Calculate Time, then display loss
+            auto end_time = std::chrono::system_clock::now();
+            std::chrono::duration<double> elapsed_seconds = end_time - start_time;
+            std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
+            start_time = end_time;
+
             py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
             py_cout << "Loss: " << this->loss;
 
@@ -151,11 +154,13 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             }
             py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
             py_cout << " at " << std::ctime(&next_time) << std::endl;
-        }
 
-        // Also, log the result if Logging INFO is enabled
-        log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
+
+            // Also, log the result if Logging INFO is enabled
+            log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
                 this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+
+        }
 
         if (abs(old_loss - this->loss) <= epsilon) break;
 

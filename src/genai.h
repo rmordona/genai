@@ -372,6 +372,7 @@ void log_msg(const std::string& text);
 
 double inf();
 
+/*
 void print_string(const std::string& text, bool printNextLine);
 
 void print_double(double value, bool printNextLine);
@@ -379,6 +380,7 @@ void print_double(double value, bool printNextLine);
 std::string scalar_to_string(const float& value);
 
 std::string scalar_to_string(const double& value);
+*/
 
 double* allocate_matrix(ssize_t rows, ssize_t cols);
 
@@ -395,6 +397,7 @@ using namespace py::literals;
 #include <iomanip>
 #include <fstream>
 
+/*
 std::string wstringToUtf8(const std::wstring& wstr);
 
 std::wstring utf8ToWstring(const std::string& utf8Str);
@@ -407,8 +410,64 @@ std::wstring deserializeWString(const std::vector<unsigned char>& bytes);
 
 // Function to hash a given word token using SHA256
 std::string sha256(const std::wstring& str);
+*/
+
+
+void log_msg(const std::string& text);
+ 
+double inf();
+
+void print_string(const std::string& text, bool printNextLine);
+
+void print_double(double value, bool printNextLine);
+
+std::string scalar_to_string(const float& value);
+
+std::string scalar_to_string(const double& value);
+
+std::string wstringToUtf8(const std::wstring& wstr);
+
+std::wstring utf8ToWstring(const std::string& utf8Str);
+
+// Function to calculate SHA-256 and return it as a string
+std::string sha256(const std::wstring& data);
+
+
+/* sha256Context is deprecated 
+// Function to hash a given word token using SHA256
+std::string sha256(const std::wstring& str) {
+    std::vector<unsigned char> bytes = serializeWString(str);
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256Context;
+
+    if (SHA256_Init(&sha256Context) != 1) {
+        // Handle initialization error
+        return "";
+    }
+
+    if (SHA256_Update(&sha256Context, bytes.data(), bytes.size()) != 1) {
+        // Handle update error
+        return "";
+    }
+
+    if (SHA256_Final(hash, &sha256Context) != 1) {
+        // Handle finalization error
+        return "";
+    }
+
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0');
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; ++i) {
+        ss << std::setw(2) << static_cast<int>(hash[i]);
+    }
+
+    return ss.str();
+}
+*/
  
 #endif
+
+#include "logger.h"
 
 #ifndef OUTPUTFORMATTER_H
 #define OUTPUTFORMATTER_H
@@ -500,6 +559,110 @@ enum class ActivationType {
     LEAKYRELU,
     GELU,
     SOFTMAX
+};
+
+/*****************************************************************************************************
+* ConvertData
+*  Function to convert data from python array to C++ objects (tensor, matrix)
+*****************************************************************************************************/
+class ConvertData {
+public:
+
+    template <class T>
+    static aitensor<T> totensor(const py::array_t<T>& parray) {
+
+        log_info("Converting data ...");
+
+        int ndim = parray.ndim();
+        py::buffer_info buffer_info = parray.request();
+
+        log_info( "Received buffer info:" );
+        log_detail( "Format: {0}", buffer_info.format );
+        log_detail( "Item size: {0}", buffer_info.itemsize );
+        log_detail( "Size: {0}", buffer_info.size );
+        log_detail( "Dimension: {0}", ndim );
+
+        std::vector<ssize_t> shape = buffer_info.shape;
+        // extract data and shape of input array
+        T* dataPtr = static_cast<T *>(buffer_info.ptr);
+
+        ssize_t dim0, dim1, dim2;
+
+        if (ndim == 2) {
+            dim0 = 1;        // Batch Size
+            dim1 = shape[0]; // Input Size
+            dim2 = shape[1]; // Parameter / Embedding Size
+            
+        } else
+        if (ndim == 3) {
+            dim0 = shape[0]; // Batch Size
+            dim1 = shape[1]; // Input Size
+            dim2 = shape[2]; // Parameter / Embedding Size        
+        } else {
+            throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
+        } 
+
+        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
+
+        aitensor<T> eigenMatrices;
+        eigenMatrices.reserve(dim0);
+
+        for (int i = 0; i < dim0; ++i) {
+            aimatrix<T> eigenMatrix(dim1, dim2);
+            std::memcpy(eigenMatrix.data(), &dataPtr[i * dim1 * dim2], dim1 * dim2 * sizeof(T));
+            eigenMatrices.push_back(eigenMatrix);
+        }
+
+        return eigenMatrices;
+    }
+
+    template <class T>
+    static py::array_t<T> topyarray(const aitensor<T>& matrices) {
+        // Determine the shape and size of the NumPy array
+        size_t num_matrices = matrices.size();
+        size_t matrix_rows = matrices[0].rows();
+        size_t matrix_cols = matrices[0].cols();
+
+        // Create a NumPy array with the same shape
+        auto result = py::array_t<T>({num_matrices, matrix_rows, matrix_cols});
+        auto buffer_info = result.request();
+        T* ptr = static_cast<T*>(buffer_info.ptr);
+
+        // Copy data from Eigen matrices to NumPy array
+        for (size_t i = 0; i < num_matrices; i++) {
+            Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(ptr, matrix_rows, matrix_cols) = matrices[i].template cast<T>();
+            ptr += matrix_rows * matrix_cols;
+        }
+
+        return result;
+    }
+
+    template <class T>
+    static py::array_t<T> topyarray(const aimatrix<T>& matrix) {
+        // Determine the shape and size of the NumPy array
+
+        log_detail("Converting 1 ...");
+        size_t matrix_rows = matrix.rows();
+        size_t matrix_cols = matrix.cols();
+
+       log_detail("Converting 2 ...");
+
+        // Create a NumPy array with the same shape
+        auto result = py::array_t<T>({matrix_rows, matrix_cols});
+        auto buffer_info = result.request();
+        T* ptr = static_cast<T*>(buffer_info.ptr);
+
+       log_detail("Converting 3 ...");
+
+        // Copy data from Eigen matrices to NumPy array
+        Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(ptr, matrix_rows, matrix_cols) = matrix.template cast<T>();
+
+       log_detail("Converting 4 ...");
+
+        return result;
+    }
+
+
 };
 
 /*****************************************************************************************************

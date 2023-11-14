@@ -29,10 +29,10 @@
 #include <sqlite3.h>
 #include "logger.h"
 
-#define TK_SPACE_ L"<SPC>"
-#define TK_MASK_  L"<MASK>"
-#define TK_UNK_   L"<UNK>"
-#define TK_PAD_   L"<PAD>"
+#define TK_SPACE_ L"<s>"    
+#define TK_MASK_  L"<m>"
+#define TK_UNK_   L"<u>"
+#define TK_PAD_   L"<p>"
 #define TK_SOS_   L"<SOS>"
 #define TK_EOS_   L"<EOS>"
 
@@ -212,6 +212,13 @@ public:
     std::unordered_map<std::wstring, int> getCoMatrix() { return this->comatrix; }
     std::unordered_map<std::wstring, std::vector<std::wstring>> getTokens() { return this->tokens; }
 
+    std::vector<std::wstring> listTokens() {
+        std::vector<std::wstring> tks;
+        for (const auto& token : this->tokens) {
+            tks.push_back(token.first);
+        }
+        return tks;
+    }
 
 };
 
