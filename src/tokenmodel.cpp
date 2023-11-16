@@ -665,8 +665,8 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 }
 
 /************************************************************************************************
-* BaseTokenModel::list Tokens and Embeddings
-* Helper function to list tokens and Embeddings
+* BaseTokenModel::list Tokens, Embeddings, and Sequences
+* Helper function to list Tokens, Embeddings, and Sequences
 *************************************************************************************************/
 template <class T>
 std::vector<std::wstring> BaseTokenModel<T>::listTokens() {
@@ -676,6 +676,83 @@ std::vector<std::wstring> BaseTokenModel<T>::listTokens() {
 template <class T>
 aimatrix<T> BaseTokenModel<T>::listEmbeddings() {
     return this->embeddings->getWordEmbeddings();
+}
+
+
+template <class T>
+aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring>& sentences) {
+
+    typename Embeddings<T>::RecordStruct record;  
+
+    aimatrix<T> sequence;
+
+    aitensor<T> sequences;
+
+    bool initialized = false;
+
+    // Generate the corpus.
+    std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
+
+    int corpus_size = corpus.size();
+    int sequence_size = 0;
+    int embedding_size = 0;
+     
+    // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
+    for (int i = 0; i < (int) corpus_size; i++) {
+        std::wcout << " sentences: " << i << " : " << sentences[i] << std::endl;
+        sequence_size = ((int) corpus[i].size() > sequence_size) ? (int) corpus[i].size() : sequence_size;
+    }
+    std::cout << " size corpus: " << corpus_size << std::endl;
+
+    for (int i = 0; i < sequence_size; i++) {
+        initialized = false;
+        std::wcout << " next sequence: " << i << std::endl;
+        for (int j = 0; j < corpus_size; j++) {
+            if (i < (int) corpus[j].size()) {
+                std::wstring token = corpus[j][i];
+
+                std::wcout << " token: " << j << " : " << token << std::endl;
+
+                bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
+
+                if (result) {
+                    if (!initialized) {    
+                        embedding_size = record.embedding.size();
+                        sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
+                        initialized = true;
+                    }
+                    sequence.row(j) = record.embedding.array();
+                }
+            }
+        }
+        std::cout << " sequence dim: " << sequence.rows() << "x" << sequence.cols() << std::endl;
+        sequences.push_back(sequence);
+
+    }
+
+/*
+    for (int i = 0; i <   corpus_size; i++) {
+        std::wcout << " corpus: " << i << " : " << sentences[i] << std::endl;
+        initialized = false;
+        for (int j = 0; j < (int) corpus[i].size(); j++) {
+            std::wstring token = corpus[i][j];
+            std::wcout << " token: " << j << " : " << token << std::endl;
+            bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
+
+            if (result) {
+                if (!initialized) {    
+                    embedding_size = record.embedding.size();
+                    sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
+                    initialized = true;
+                }
+                sequence.row(j) = record.embedding.array();
+            }
+        }    
+        std::cout << " sequence dim: " << sequence.rows() << "x" << sequence.cols() << std::endl;
+        sequences.push_back(sequence);
+    }
+*/
+    return sequences;
 }
 
 /************************************************************************************************
@@ -796,6 +873,10 @@ void TokenModel::merge(const std::vector<std::wstring>& sentences, int numMerges
     }
 }
 
+/************************************************************************************************
+* TokenModel::train
+* Function to train (glove-like) a model
+*************************************************************************************************/
 void TokenModel::train(std::vector<std::wstring>& sentences, int batchSize, 
         const std::string& losstype , const std::string& optimizertype,
         double learningRate, int maxIteration, double clipThreshold ,double regularization ) {
@@ -807,6 +888,10 @@ void TokenModel::train(std::vector<std::wstring>& sentences, int batchSize,
     }
 }
 
+/************************************************************************************************
+* TokenModel::tokens
+* Function to return tokens generated via the training.
+*************************************************************************************************/
 std::vector<std::wstring> TokenModel::tokens() {
     std::vector<std::wstring> tokens;
     if (this->datatype == "float") {
@@ -818,9 +903,12 @@ std::vector<std::wstring> TokenModel::tokens() {
     return tokens;
 }
 
+/************************************************************************************************
+* TokenModel::embeddingsDouble and embeddingsFloat
+* Functions to return the embeddings constructed after the training.
+*************************************************************************************************/
 py::array_t<double> TokenModel::embeddingsDouble() {
     aimatrix<double> embeddingd;
-    log_detail("Double embedding ");
     if (this->datatype == "double") {
         embeddingd = this->tokenizerd->listEmbeddings();
 
@@ -834,7 +922,6 @@ py::array_t<double> TokenModel::embeddingsDouble() {
 
 py::array_t<float> TokenModel::embeddingsFloat() {
     aimatrix<float> embeddingf;
-    log_detail("Float embedding ");
     if (this->datatype == "double") {
         aimatrix<double> embeddingd = this->tokenizerd->listEmbeddings();
         embeddingf = embeddingd.cast<float>();
@@ -845,6 +932,38 @@ py::array_t<float> TokenModel::embeddingsFloat() {
     return ConvertData::topyarray(embeddingf);
 }
 
+/************************************************************************************************
+* TokenModel::sequenceDouble and sequenceFloat
+* Functions to generate sequence of embeddings based on given list of sentences
+*************************************************************************************************/
+py::array_t<double> TokenModel::sequenceDouble(const std::vector<std::wstring>& sentences) {
+    aitensor<double> embeddingd;
+    if (this->datatype == "double") {
+        embeddingd = this->tokenizerd->sequenceEmbeddings(sentences);
+
+    } else 
+    if (this->datatype == "float") {
+        aitensor<float> embeddingf = this->tokenizerf->sequenceEmbeddings(sentences);
+        for (int i = 0; i < (int) embeddingf.size(); i++) {
+            embeddingd.push_back( embeddingf[i].cast<double>() );
+        }
+    }
+    return ConvertData::topyarray(embeddingd);
+}
+
+py::array_t<float> TokenModel::sequenceFloat(const std::vector<std::wstring>& sentences) {
+    aitensor<float> embeddingf;
+    if (this->datatype == "double") {
+        aitensor<double> embeddingd = this->tokenizerd->sequenceEmbeddings(sentences);
+        for (int i = 0; i < (int) embeddingf.size(); i++) {
+            embeddingf.push_back( embeddingd[i].cast<float>() );
+        }
+    } else 
+    if (this->datatype == "float") {
+        embeddingf = this->tokenizerf->sequenceEmbeddings(sentences);
+    }
+    return ConvertData::topyarray(embeddingf);
+}
 
 /************ Tokenizer / Embeddings initialize template ************/
 

@@ -665,9 +665,7 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
  
     py::class_<Model>(m, "Model")
-        .def(py::init<const std::string&, const std::string&, const double, const int, const std::string&>(), 
-                py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-                py::arg("learning_rate") = 0.01, py::arg("max_epoch") = 1, py::arg("datatype") = "float")
+        .def(py::init<const std::string&>(),  py::arg("datatype") = "float")
         .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
                   py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
@@ -678,11 +676,12 @@ PYBIND11_MODULE(genai, m) {
         .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
         .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  
-                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("learn_rate") = 0.01, 
-                py::arg("max_epoch")=1, "Training a model")
+                py::arg("metrics"),  py::arg("optimizer") = "adam", 
+                py::arg("max_epoch")=1, py::arg("learn_rate") = 0.01, py::arg("use_step_decay") = false, py::arg("decay_rate") = 0.1, 
+                 "Training a model")
         .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
                 py::arg("operators") = true, py::arg("weights") = true);
-     
+ 
     // Definitions for TokenModel APIs
     py::class_<TokenModel>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&>(), py::arg("tokenizer") = "bpetokenizer", py::arg("datatype") = "float")
@@ -700,6 +699,8 @@ PYBIND11_MODULE(genai, m) {
             py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
             py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
+        .def("sequence",  (py::array_t<double> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::sequenceDouble, "Get sequence a Sentence")
+        .def("sequence",  (py::array_t<float> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::sequenceFloat, "Get sequence a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
 

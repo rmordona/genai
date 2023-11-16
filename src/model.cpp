@@ -74,15 +74,18 @@ void BaseModel<T>::useCrossEntropy() {
 * Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
 **************************************************************************************************/
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate , const int max_epoch) {
+void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+                const int max_epoch, const T learningRate , const bool useStepDecay, const float decayRate) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
 
-    this->losstype = losstype;
+    this->losstype      = losstype;
     this->optimizertype = optimizertype;
-    this->learningRate = learningRate;
-    this->metricstype = metricstype;
+    this->metricstype   = metricstype;
+    this->learningRate  = learningRate;
+    this->useStepDecay  = useStepDecay;
+    this->decayRate     = decayRate;
 
     int mod_epoch = max_epoch * 0.10;
 
@@ -96,13 +99,13 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
  
     auto start_time = std::chrono::system_clock::now();
 
-    py_cout << "Fitting the model ...";
+    py_cout << "Fitting the model ..." << std::endl;
 
     for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
         this->graph->nextBatch();
-
+ 
         log_detail( "Entering Forward Propagation ..." );
         this->predicted = this->graph->forwardPropagation();
 
@@ -120,14 +123,12 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         this->gradients = this->graph->backwardPropagation(this->gradients); 
 
         log_detail( "Updating Parameters ..." );
-        this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
+        this->graph->updateParameters(this->optimizertype, this->learningRate, this->useStepDecay, this->decayRate, iter);
 
         if (this->losstype == "bce" || this->losstype == "cce") {
             log_detail( "Calculate Performance Metrics ...");
             this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
         }
-
-
 
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0) {
@@ -192,7 +193,7 @@ aitensor<T> BaseModel<T>::predict() {
 
     auto start_time = std::chrono::system_clock::now();
 
-    py_cout << "Model Inference ...";
+    py_cout << "Model Inference ..." << std::endl;
 
     this->predicted = this->graph->forwardPropagation();
 
@@ -601,20 +602,15 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
 * This is the Model Constructor Implementation - Note that this is only a meta model.
 * The actual model is the BaseModel Class.
 *************************************************************************************************/
-Model::Model(const std::string& losstype, const std::string& optimizertype, 
-        const double learningRate, const int max_epoch, const std::string& datatype) {
-    this->losstype = losstype;
-    this->optimizertype = optimizertype;
-    this->learningRate = learningRate;
-    this->max_epoch = max_epoch;
+Model::Model(const std::string& datatype) {
     this->datatype = datatype;
     if (datatype == "float") {
-        std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>(losstype, optimizertype, static_cast<float>(learningRate), max_epoch);
+        std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>();
         std::shared_ptr<Graph<float>> graphXf = std::make_unique<Graph<float>>();
         bmodelf->setGraph(graphXf);
         this->modelXf = bmodelf;
     } else if (datatype == "double") {
-        std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>(losstype, optimizertype, static_cast<double>(learningRate), max_epoch);
+        std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>();
         std::shared_ptr<Graph<double>> graphXd = std::make_unique<Graph<double>>();
         bmodeld->setGraph(graphXd);
         this->modelXd = bmodeld;
@@ -858,14 +854,15 @@ std::string Model::generateDotFormat(bool operators, bool weights) {
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
-void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate,  int max_epoch) {
+void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+                const int max_epoch, const double learningRate , const bool useStepDecay, const float decayRate) {
     try {
         this->seedNodes(true);
         if (datatype == "float") {
-            this->modelXf->train(losstype, metricstype, optimizertype, static_cast<float>(learningRate), max_epoch);
+            this->modelXf->train(losstype, metricstype, optimizertype,  max_epoch,  static_cast<float>(learningRate), useStepDecay, decayRate);
         } else
         if (datatype == "double") {
-            this->modelXd->train(losstype, metricstype, optimizertype, static_cast<double>(learningRate), max_epoch);
+            this->modelXd->train(losstype, metricstype, optimizertype, max_epoch, static_cast<double>(learningRate), useStepDecay, decayRate);
         }
     } catch (const AIException& e) {
         std::cerr << "(Model::train) Error: " << e.what() << std::endl;

@@ -43,18 +43,15 @@ private:
     PerfMetrics<T> metrics;
     std::string losstype = "mse";
     std::string optimizertype = "adam";
-    T learningRate = 0.01;
     int max_epoch = 1;
+    T learningRate = 0.01;
+    bool useStepDecay = false;
+    float decayRate = 0.10;
+
     std::vector<std::string> metricstype;
 
 public:
-    BaseModel(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-        const T learningRate = 0.01, const int max_epoch = 1) {
-        this->losstype = losstype;
-        this->optimizertype = optimizertype;
-        this->learningRate = learningRate;
-        this->max_epoch = max_epoch;
-    }
+    BaseModel() {}
 
     void setGraph(std::shared_ptr<Graph<T>>  graph);
 
@@ -70,7 +67,8 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, const T learningRate = 0.01, const int max_epoch = 1);
+    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+            const int max_epoch = 1, const T learningRate = 0.01, const bool useStepDecay = false, const float decayRate = 0.10);
 
     aitensor<T> predict();
 
@@ -160,12 +158,7 @@ public:
 *************************************************************************************************/
 class Model {
 private:
-    std::string losstype = "mse";
-    std::vector<std::string> metricstype; // precision, recall, f1score
-    std::string optimizertype = "adam";
-    int max_epoch = 1;
     std::string datatype = "float";
-    double learningRate = 0.01;
     std::shared_ptr<Graph<float>> graphXf;
     std::shared_ptr<Graph<double>> graphXd;
     std::shared_ptr<BaseModel<float>> modelXf;
@@ -183,8 +176,7 @@ private:
     }
 
 public:
-    Model(const std::string& losstype = "mse", const std::string& optimizertype = "adam", 
-          const double learningRate = 0.01, const int max_epoch = 1, const std::string& datatype = "float");
+    Model(const std::string& datatype = "float");
 
     std::shared_ptr<ModelNode> addNode(std::string name, NodeType ntype);
 
@@ -208,7 +200,8 @@ public:
 
     py::array_t<double> predictDouble();
 
-    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, double learningRate = 0.01, int max_epoch = 1);
+    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int max_epoch = 1,
+                    double learningRate = 0.01, bool useStepDecay = false, float decayRate = 0.10);
 
     std::string generateDotFormat(bool operators = false, bool weights = false);
 

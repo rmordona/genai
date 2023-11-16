@@ -641,23 +641,16 @@ public:
     static py::array_t<T> topyarray(const aimatrix<T>& matrix) {
         // Determine the shape and size of the NumPy array
 
-        log_detail("Converting 1 ...");
         size_t matrix_rows = matrix.rows();
         size_t matrix_cols = matrix.cols();
-
-       log_detail("Converting 2 ...");
 
         // Create a NumPy array with the same shape
         auto result = py::array_t<T>({matrix_rows, matrix_cols});
         auto buffer_info = result.request();
         T* ptr = static_cast<T*>(buffer_info.ptr);
 
-       log_detail("Converting 3 ...");
-
         // Copy data from Eigen matrices to NumPy array
         Eigen::Map<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(ptr, matrix_rows, matrix_cols) = matrix.template cast<T>();
-
-       log_detail("Converting 4 ...");
 
         return result;
     }
@@ -677,23 +670,33 @@ class BaseOperator {
     virtual void backwardPass() = 0;
 
     static aimatrix<float> standardize(const aimatrix<float>& input_data) {
+
         // Calculate the mean and standard deviation along each column
-        aivector<float> mean = input_data.colwise().mean();
-        aivector<float> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
+        aiscalar<float> mean = input_data.mean();
 
-        // Standardize the matrix by subtracting the mean and dividing by the standard deviation
-        aimatrix<float> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
+        // Compute the sum of squared differences
+        float sumSquaredDiff = (input_data.array() - mean).pow(2).sum();
 
+        // Compute the standard deviation
+        float stddev = std::sqrt(sumSquaredDiff / input_data.size());
+
+        aimatrix<float> standard = ( input_data.array() - mean ) / stddev;
+        
         return standard;
     }
 
     static aimatrix<double> standardize(const aimatrix<double>& input_data) {
-        // Calculate the mean and standard deviation along each column
-        aivector<double> mean = input_data.colwise().mean();
-        aivector<double> stdDev = ((input_data.rowwise() - mean.transpose()).array().square().colwise().sum() / (input_data.rows() - 1)).sqrt();
 
-        // Standardize the matrix by subtracting the mean and dividing by the standard deviation
-        aimatrix<double> standard = (input_data.rowwise() - mean.transpose()).array().rowwise() / stdDev.transpose().array();
+        // Calculate the mean and standard deviation along each column
+        aiscalar<double> mean = input_data.mean();
+
+        // Compute the sum of squared differences
+        double sumSquaredDiff = (input_data.array() - mean).pow(2).sum();
+
+        // Compute the standard deviation
+        double stddev = std::sqrt(sumSquaredDiff / input_data.size());
+
+        aimatrix<double> standard = ( input_data.array() - mean ) / stddev;
 
         return standard;
     }

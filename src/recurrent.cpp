@@ -46,7 +46,7 @@
 #include "recurrent.h"
 
 /***************************************************************************************************************************
-*********** IMPLEMENTING RNNCell
+* IMPLEMENTING RNNCell
 ****************************************************************************************************************************/
 template <class T>
 void RNNCell<T>::setInitialWeights(int N, int P) {
@@ -262,7 +262,7 @@ void RNNCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 }
   
 /***************************************************************************************************************************
-*********** IMPLEMENTING LSTMCell
+* IMPLEMENTING LSTMCell
 ****************************************************************************************************************************/
 template <class T>
 void LSTMCell<T>::setInitialWeights(int N, int P) {
@@ -363,6 +363,9 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     const aimatrix<T>& Wi =  (is_W_seq) ?  this->Wi : this->Oi;
     const aimatrix<T>& Wg =  (is_W_seq) ?  this->Wg : this->Og;
     const aimatrix<T>& Wo =  (is_W_seq) ?  this->Wo : this->Oo;
+
+    log_detail("Dimension of X: {0}x{1}", X.rows(), X.cols());
+    log_matrix(X);
 
     log_detail("Dimension of Wf: {0}x{1}", Wf.rows(), Wf.cols());
     log_matrix(Wf);
@@ -695,7 +698,7 @@ void LSTMCell<T>::updateParameters(std::string& optimizertype, T& learningRate, 
 }
  
 /***************************************************************************************************************************
- *********** IMPLEMENTING GRUCell
+* IMPLEMENTING GRUCell
 ****************************************************************************************************************************/
 template <class T>
 void GRUCell<T>::setInitialWeights(int N, int P) {

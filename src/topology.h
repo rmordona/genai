@@ -122,7 +122,7 @@ public:
 
     void backwardPass();
 
-    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter);
 
     std::string generateDotFormat(bool operators = false, bool weights = false);
 
@@ -214,7 +214,7 @@ public:
 
     const PerfMetrics<T> computeMetrics(const std::vector<std::string>& metricstype, const aitensor<T>& predicted, const aitensor<T>& target);
 
-    void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+    void updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter);
 
     void nextBatch();
 

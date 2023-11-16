@@ -481,7 +481,7 @@ void Node<T>::backwardPass() {
 }
 
 template <class T>
-void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter) {
 
     log_info( "*****************************************" );
     log_info( "***     Node Parameter Update  **********" );
@@ -897,7 +897,7 @@ const aitensor<T> Graph<T>::backwardPropagation(const aitensor<T>& gradients) {
 
     return gradients;
 }
-
+ 
 template <class T>
 const aiscalar<T> Graph<T>::computeLoss(const std::string& losstype, const aitensor<T>& predicted, const aitensor<T>& target) {
 
@@ -939,14 +939,14 @@ const aitensor<T> Graph<T>::computeGradients(const std::string& losstype, const 
 }
 
 template <class T>
-void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter) {
 
     log_info( "*******************************************************" );
     log_info( "*****    Graph: Processing Parameter Update ***********" );
     log_info( "*******************************************************" );
 
     for (auto& node: nodes) {
-        node->updateParameters(optimizertype, learningRate, iter);
+        node->updateParameters(optimizertype, learningRate, useStepDecay, decayRate, iter);
     }
 
     log_detail( "Graph: parameter update completed for all nodes." );

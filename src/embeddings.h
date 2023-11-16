@@ -36,6 +36,7 @@
 #define TK_SOS_   L"<SOS>"
 #define TK_EOS_   L"<EOS>"
 
+
 template <class T>
 class Embeddings {
 private:
@@ -56,6 +57,10 @@ private:
 
     int dbopened = 0;
 
+    // Create the token hash-to-index mapping and index-to-token mapping
+    std::unordered_map<std::string,int> tokenHashToIndex;
+    // std::vector<std::wstring> indexToToken;
+
     struct Record {
 
         // For the Vocabulary
@@ -68,12 +73,6 @@ private:
         aivector<T> embedding;
         T bias;
     };
-
-    // Create the token hash-to-index mapping and index-to-token mapping
-    std::unordered_map<std::string,int> tokenHashToIndex;
-    // std::vector<std::wstring> indexToToken;
-
-
 
     void sqlite3_assert_db(int rc, const std::string& errormsg) {
         if (rc != SQLITE_OK) {
@@ -111,6 +110,8 @@ private:
     }
 
 public:
+
+    typedef Record RecordStruct;
 
     Embeddings(int embeddingSize) {  
         this->embeddingSize = embeddingSize;
