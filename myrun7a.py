@@ -65,4 +65,4 @@ y = x
 modelgraph.setTarget(data = y);
 
 # Perform fitting
-modelgraph.train(loss="mse", metrics=[], optimizer="adam", max_epoch=2500, learn_rate=0.1, use_step_decay = True, decay_rate = 0.75);
+modelgraph.train(loss="mse", metrics=[], optimizer="nadam", max_epoch=2400, learn_rate=0.1, use_step_decay = True, decay_rate = 0.80);

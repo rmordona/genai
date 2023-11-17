@@ -97,9 +97,16 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     aiscalar<T> epsilon = 1e-3;
     aiscalar<T> old_loss = inf();
  
-    auto start_time = std::chrono::system_clock::now();
-
+    auto start_time        = std::chrono::system_clock::now();
+    auto end_time          = std::chrono::system_clock::now();
+    std::time_t next_time  = std::chrono::system_clock::to_time_t(end_time);
+    double total_seconds = 0.0;
+    int    total_iteration = 0;
+    std::chrono::duration<double> elapsed_seconds;
+    
     py_cout << "Fitting the model ..." << std::endl;
+
+
 
     for (int iter = 1; iter <= max_epoch; iter++) {
 
@@ -131,6 +138,14 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
         }
 
+        // Calculate Time, then display loss
+        end_time = std::chrono::system_clock::now();
+        elapsed_seconds = end_time - start_time;
+        next_time = std::chrono::system_clock::to_time_t(end_time);
+        start_time = end_time;
+
+        total_seconds += elapsed_seconds.count();
+        total_iteration++;
 
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0) {
@@ -138,14 +153,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             // Use Step Decay  
             if (this->useStepDecay) {
                 this->learningRate = this->learningRate * (this->decayRate);
-                std::cout << "learning: " << this->learningRate << std::endl;
             }
-
-            // Calculate Time, then display loss
-            auto end_time = std::chrono::system_clock::now();
-            std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-            std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
-            start_time = end_time;
 
             py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
             py_cout << "Loss: " << this->loss;
@@ -161,13 +169,17 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
                     py_cout << "... Acc (F1): " << this->metrics.f1score;
                 }
             }
-            py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
-            py_cout << " at " << std::ctime(&next_time) << std::endl;
 
+            double avg_microseconds = (total_seconds / total_iteration) * 1000000;
+            py_cout << " ... elapsed " << avg_microseconds << "us";
+            py_cout << " at " << std::ctime(&next_time) << std::endl;
 
             // Also, log the result if Logging INFO is enabled
             log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
-                this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+                this->loss, this->metrics.precision, avg_microseconds, std::ctime(&next_time) );
+
+            total_seconds = 0.0;
+            total_iteration = 0;
 
         }
 

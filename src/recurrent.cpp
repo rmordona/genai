@@ -1090,7 +1090,7 @@ void GRUCell<T>::updateParameters(std::string& optimizertype, T& learningRate, i
     this->X.clear();
     this->dH.clear();
     this->dX.clear();
-
+ 
     this->dWz.setZero();
     this->dWr.setZero();
     this->dWg.setZero();

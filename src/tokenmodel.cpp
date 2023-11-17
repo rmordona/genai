@@ -546,10 +546,16 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     aiscalar<T> weight;
     aiscalar<T> dotprod;
 
-    int mod_epoch =  (max_epoch * 0.10);
+    int mod_epoch =  std::ceil(max_epoch * 0.10);
 
     log_detail("Starting Training ...");
-    auto start_time = std::chrono::system_clock::now();
+    auto start_time        = std::chrono::system_clock::now();
+    auto end_time          = std::chrono::system_clock::now();
+    std::time_t next_time  = std::chrono::system_clock::to_time_t(end_time);
+    double total_seconds = 0.0;
+    int    total_iteration = 0;
+
+    std::chrono::duration<double> elapsed_seconds;
 
     for (int iter = 0; iter < max_epoch; ++iter) {
 
@@ -630,23 +636,33 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
         totalloss = totalloss / totalcount;
 
+        // Calculate Time, then display loss
+        end_time = std::chrono::system_clock::now();
+        elapsed_seconds = end_time - start_time;
+        next_time = std::chrono::system_clock::to_time_t(end_time);
+        start_time = end_time;
+
+        total_seconds += elapsed_seconds.count();
+        total_iteration++;
+
+
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0) {
 
             // Calculate Time, then display loss
-            auto end_time = std::chrono::system_clock::now();
-            std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-            std::time_t next_time = std::chrono::system_clock::to_time_t(end_time);
-            start_time = end_time;
+            double avg_microseconds = (total_seconds / total_iteration) * 1000000;
 
             py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
             py_cout << "Loss: " << totalloss;
-            py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
+            py_cout << " ... elapsed " <<  avg_microseconds<< "us";
             py_cout << " at " << std::ctime(&next_time) << std::endl;
 
             // Also, log the result if Logging INFO is enabled
             log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
-                totalloss,   elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+                totalloss,   avg_microseconds, std::ctime(&next_time) );
+
+            total_seconds = 0.0;
+            total_iteration = 0;
 
         }
  
@@ -730,7 +746,7 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
 
     }
 
-/*
+/*  Leave this here for now. This will be used to construct a tensor of BxNxW (Batch x Samples x Embeddings)
     for (int i = 0; i <   corpus_size; i++) {
         std::wcout << " corpus: " << i << " : " << sentences[i] << std::endl;
         initialized = false;
