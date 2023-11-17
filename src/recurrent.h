@@ -126,6 +126,10 @@ private:
     aimatrix<T> dO;
     Optimizer<T>* opt_O  = nullptr; // for optimizer
 
+    aimatrix<T> OU;
+    aimatrix<T> dOU;
+    Optimizer<T>* opt_OU  = nullptr; // for optimizer
+
     int input_size = 0;
     int param_size = 0;
     int hidden_size;
@@ -227,10 +231,26 @@ private:
     aimatrix<T> dOi;
     aimatrix<T> dOg;
     aimatrix<T> dOo;
+
     Optimizer<T>* opt_Of  = nullptr; // for optimizer
     Optimizer<T>* opt_Oi  = nullptr; // for optimizer
     Optimizer<T>* opt_Og  = nullptr; // for optimizer
     Optimizer<T>* opt_Oo  = nullptr; // for optimizer
+
+    aimatrix<T> OUf;
+    aimatrix<T> OUi;
+    aimatrix<T> OUg;
+    aimatrix<T> OUo;
+    aimatrix<T> dOUf;
+    aimatrix<T> dOUi;
+    aimatrix<T> dOUg;
+    aimatrix<T> dOUo;
+
+
+    Optimizer<T>* opt_OUf  = nullptr; // for optimizer
+    Optimizer<T>* opt_OUi  = nullptr; // for optimizer
+    Optimizer<T>* opt_OUg  = nullptr; // for optimizer
+    Optimizer<T>* opt_OUo  = nullptr; // for optimizer
 
     int input_size = 0;
     int param_size = 0;
@@ -322,6 +342,16 @@ private:
     Optimizer<T>* opt_Oz  = nullptr; // for optimizer
     Optimizer<T>* opt_Or  = nullptr; // for optimizer
     Optimizer<T>* opt_Og  = nullptr; // for optimizer
+
+    aimatrix<T> OUz;
+    aimatrix<T> OUr;
+    aimatrix<T> OUg;
+    aimatrix<T> dOUz;
+    aimatrix<T> dOUr;
+    aimatrix<T> dOUg;
+    Optimizer<T>* opt_OUz  = nullptr; // for optimizer
+    Optimizer<T>* opt_OUr  = nullptr; // for optimizer
+    Optimizer<T>* opt_OUg  = nullptr; // for optimizer
 
     int input_size = 0;
     int param_size = 0;

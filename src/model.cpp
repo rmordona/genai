@@ -75,7 +75,7 @@ void BaseModel<T>::useCrossEntropy() {
 **************************************************************************************************/
 template <class T>
 void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
-                const int max_epoch, const T learningRate , const bool useStepDecay, const float decayRate) {
+                const int max_epoch, const T learn_rate , const bool use_step_decay, const T decay_rate) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -83,14 +83,14 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->losstype      = losstype;
     this->optimizertype = optimizertype;
     this->metricstype   = metricstype;
-    this->learningRate  = learningRate;
-    this->useStepDecay  = useStepDecay;
-    this->decayRate     = decayRate;
+    this->learningRate  = learn_rate;
+    this->useStepDecay  = use_step_decay;
+    this->decayRate     = decay_rate;
 
-    int mod_epoch = max_epoch * 0.10;
+    int mod_epoch = std::ceil(max_epoch * 0.10);
 
     log_info( "******************************************************************************************" );
-    log_info( "********************************* Start Training *****************************************")
+    log_info( "********************************* Start Training *****************************************" );
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
@@ -123,15 +123,23 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         this->gradients = this->graph->backwardPropagation(this->gradients); 
 
         log_detail( "Updating Parameters ..." );
-        this->graph->updateParameters(this->optimizertype, this->learningRate, this->useStepDecay, this->decayRate, iter);
+        this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
+
 
         if (this->losstype == "bce" || this->losstype == "cce") {
             log_detail( "Calculate Performance Metrics ...");
             this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
         }
 
+
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0) {
+
+            // Use Step Decay  
+            if (this->useStepDecay) {
+                this->learningRate = this->learningRate * (this->decayRate);
+                std::cout << "learning: " << this->learningRate << std::endl;
+            }
 
             // Calculate Time, then display loss
             auto end_time = std::chrono::system_clock::now();
@@ -855,14 +863,14 @@ std::string Model::generateDotFormat(bool operators, bool weights) {
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
 void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
-                const int max_epoch, const double learningRate , const bool useStepDecay, const float decayRate) {
+                const int max_epoch, const double learn_rate , const bool use_step_decay, const double decay_rate) {
     try {
         this->seedNodes(true);
         if (datatype == "float") {
-            this->modelXf->train(losstype, metricstype, optimizertype,  max_epoch,  static_cast<float>(learningRate), useStepDecay, decayRate);
+            this->modelXf->train(losstype, metricstype, optimizertype,  max_epoch,  static_cast<float>(learn_rate), use_step_decay, static_cast<float>(decay_rate));
         } else
         if (datatype == "double") {
-            this->modelXd->train(losstype, metricstype, optimizertype, max_epoch, static_cast<double>(learningRate), useStepDecay, decayRate);
+            this->modelXd->train(losstype, metricstype, optimizertype, max_epoch, static_cast<double>(learn_rate), use_step_decay, static_cast<double>(decay_rate));
         }
     } catch (const AIException& e) {
         std::cerr << "(Model::train) Error: " << e.what() << std::endl;

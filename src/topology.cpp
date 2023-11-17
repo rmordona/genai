@@ -481,7 +481,7 @@ void Node<T>::backwardPass() {
 }
 
 template <class T>
-void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter) {
+void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
     log_info( "*****************************************" );
     log_info( "***     Node Parameter Update  **********" );
@@ -489,7 +489,7 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, bool
 
     std::string name = this->getName();
 
-    log_detail("Node: {0}", name );
+    log_detail("Node: {0} updating parameters at iteration {1}", name, iter );
 
     for (const auto& op : operations ) {
         // Check the dynamic type of the object using dynamic_cast
@@ -939,14 +939,14 @@ const aitensor<T> Graph<T>::computeGradients(const std::string& losstype, const 
 }
 
 template <class T>
-void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate, bool useStepDecay, float decayRate, int& iter) {
+void Graph<T>::updateParameters(std::string& optimizertype, T& learningRate,   int& iter) {
 
     log_info( "*******************************************************" );
     log_info( "*****    Graph: Processing Parameter Update ***********" );
     log_info( "*******************************************************" );
 
     for (auto& node: nodes) {
-        node->updateParameters(optimizertype, learningRate, useStepDecay, decayRate, iter);
+        node->updateParameters(optimizertype, learningRate, iter);
     }
 
     log_detail( "Graph: parameter update completed for all nodes." );

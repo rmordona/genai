@@ -96,98 +96,77 @@ public:
     }
 
     // SGD optimizer with optional step decay
-    const aimatrix<T> sgd(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+    const aimatrix<T> sgd(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0);
                 
-    const aivector<T> sgd(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+    const aivector<T> sgd(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0);
                 
-    const airowvector<T> sgd(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+    const airowvector<T> sgd(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0);
 
     // Momentum optimizer with optional step decay
     const aimatrix<T> momentum(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T momentumRate = 0.9);
 
     const aivector<T> momentum(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
-                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T momentumRate = 0.9);
                 
     const airowvector<T> momentum(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
-                    T momentumRate = 0.9, bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T momentumRate = 0.9);
 
     // Adam optimizer with optional step decay
     const aimatrix<T> adam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    const T beta1 = 0.9, const T beta2 = 0.999, const T epsilon = 1e-8);
 
     const aivector<T> adam(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    const T beta1 = 0.9, const T beta2 = 0.999, const T epsilon = 1e-8);
                 
     const airowvector<T> adam(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    const T beta1 = 0.9, const T beta2 = 0.999, const T epsilon = 1e-8);
 
     // RMSprop optimizer with optional step decay
     const aimatrix<T> rmsprop(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    T rho = 0.9, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T rho = 0.9, T epsilon = 1e-8);
 
     const aivector<T> rmsprop(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
-                    T rho = 0.9, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T rho = 0.9, T epsilon = 1e-8);
                 
     const airowvector<T> rmsprop(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
-                    T rho = 0.9, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T rho = 0.9, T epsilon = 1e-8);
 
     // Adagrad optimizer with optional step decay
     const aimatrix<T> adagrad(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0,
-                    T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T epsilon = 1e-8);
 
     // Adagrad optimizer with optional step decay
     const aivector<T> adagrad(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0,
-                    T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T epsilon = 1e-8);
 
     // Adagrad optimizer with optional step decay
     const airowvector<T> adagrad(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0,
-                    T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1,  int decayStep = 0);
+                    T epsilon = 1e-8);
 
     // Adamax optimizer with optional step decay
     const aimatrix<T> adamax(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     // Adamax optimizer with optional step decay
     const aivector<T> adamax(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     // Adamax optimizer with optional step decay
     const airowvector<T> adamax(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     // Nadam optimizer with optional step decay
     const aimatrix<T> nadam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     // Nadam optimizer with optional step decay
     const aivector<T> nadam(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     // Nadam optimizer with optional step decay
     const airowvector<T> nadam(const airowvector<T>& weights, const airowvector<T>& gradients, int currentEpoch = 0, 
-                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8,
-                    bool useStepDecay = false, T decayRateStep = 0.1, int decayStep = 0);
-
-    // Step decay for learning rate
-    void stepDecay(T& learningRate, T decayRate, int currentEpoch, int decayStep);
+                    T beta1 = 0.9, T beta2 = 0.999, T epsilon = 1e-8);
 
     void forwardPass() {}
     void backwardPass() {}

@@ -46,7 +46,7 @@ private:
     int max_epoch = 1;
     T learningRate = 0.01;
     bool useStepDecay = false;
-    float decayRate = 0.10;
+    float decayRate = 0.90;
 
     std::vector<std::string> metricstype;
 
@@ -68,7 +68,7 @@ public:
     void useCrossEntropy();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
-            const int max_epoch = 1, const T learningRate = 0.01, const bool useStepDecay = false, const float decayRate = 0.10);
+            const int max_epoch = 1, const T learn_rate = 0.01, const bool use_step_decay = false, const T decay_rate = 0.90);
 
     aitensor<T> predict();
 
@@ -201,7 +201,7 @@ public:
     py::array_t<double> predictDouble();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int max_epoch = 1,
-                    double learningRate = 0.01, bool useStepDecay = false, float decayRate = 0.10);
+                    double learningRate = 0.01, bool useStepDecay = false, double decayRate = 0.90);
 
     std::string generateDotFormat(bool operators = false, bool weights = false);
 
