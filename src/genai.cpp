@@ -654,7 +654,7 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
-
+  
     py::class_<ModelGRU, BaseOperator, std::shared_ptr<ModelGRU>>(m, "GRU")
         .def(py::init<int, int, int, int, bool, RNNType>(), 
                 py::arg("hidden_size") = 1,
@@ -671,8 +671,10 @@ PYBIND11_MODULE(genai, m) {
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
         .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node from multiple nodes")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, "Connects this node to multiple nodes")
-        .def("setTarget", (void (Model::*)(const py::array_t<double>&)) &Model::setTargetDouble, py::arg("data"), "Function with double argument")
-        .def("setTarget", (void (Model::*)(const py::array_t<float>&)) &Model::setTargetFloat, py::arg("data"), "Function with float argument")
+        .def("setTarget", (void (Model::*)(const py::array_t<double>&, const bool)) &Model::setTargetDouble, 
+                    py::arg("data"), py::arg("normalize") = false, "Function with double argument")
+        .def("setTarget", (void (Model::*)(const py::array_t<float>&, const bool)) &Model::setTargetFloat, 
+                    py::arg("data"), py::arg("normalize") = false, "Function with float argument")
         .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
         .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
         .def("train", &Model::train, py::arg("loss") = "mse",  

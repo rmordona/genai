@@ -24,7 +24,7 @@
  * Author: Raymond Michael O. Ordona
  *
  */
-  
+   
 #include "genai.h"
 #include "topology.h"
 #include "model.h"
@@ -54,8 +54,11 @@ void BaseModel<T>::setLoss(std::string& losstype) {
 // The output is assumed to have BxNxM where B=batch/sequence size, N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void BaseModel<T>::setTarget(const py::array_t<T>& target) {
+void BaseModel<T>::setTarget(const py::array_t<T>& target, const bool normalize) {
     this->target = ConvertData::totensor(target);
+    if (normalize == true) {
+        this->target = BaseOperator::standardize(this->target); 
+    }
 }
 
 template <class T>
@@ -103,10 +106,8 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     double total_seconds = 0.0;
     int    total_iteration = 0;
     std::chrono::duration<double> elapsed_seconds;
-    
+
     py_cout << "Fitting the model ..." << std::endl;
-
-
 
     for (int iter = 1; iter <= max_epoch; iter++) {
 
@@ -758,12 +759,12 @@ void Model::seedNodes(bool setOps) {
 * We use modelXf.setTarget to convert the python array to aitensor<float> and store
 * the tensor inside the model.
 *************************************************************************************************/
-void Model::setTargetFloat(const py::array_t<float>& target) {
+void Model::setTargetFloat(const py::array_t<float>& target, const bool normalize) {
     try {
         if (datatype == "double") {
             throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
         }
-        modelXf->setTarget(target);
+        modelXf->setTarget(target, normalize);
 
     } catch (const AIException& e) {
         std::cerr << "(Model:setTargetFloat) Error: " << e.what() << std::endl;
@@ -781,12 +782,12 @@ void Model::setTargetFloat(const py::array_t<float>& target) {
 * We use modelXd.setTarget to convert the python array to aitensor<double> and store
 * the tensor inside the model.
 *************************************************************************************************/
-void Model::setTargetDouble(const py::array_t<double>& target) {
+void Model::setTargetDouble(const py::array_t<double>& target, const bool normalize) {
     try {
         if (datatype == "float") {
             throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
         }
-        modelXd->setTarget(target);
+        modelXd->setTarget(target, normalize);
 
     } catch (const AIException& e) {
         std::cerr << "(Model:setTargetDouble) Error: " << e.what() << std::endl;

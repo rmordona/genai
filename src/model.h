@@ -61,7 +61,7 @@ public:
 
     // The input is assumed to have NxM where N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setTarget(const py::array_t<T>& target);
+    void setTarget(const py::array_t<T>& target, const bool normalize);
 
     aitensor<T> getTarget();
 
@@ -184,9 +184,9 @@ public:
 
     // void unpackOperations();
 
-    void setTargetFloat(const py::array_t<float>& target);
+    void setTargetFloat(const py::array_t<float>& target, const bool normalize);
     
-    void setTargetDouble(const py::array_t<double>& target);
+    void setTargetDouble(const py::array_t<double>& target, const bool normalize);
 
     void connect(std::shared_ptr<ModelNode> from, std::shared_ptr<ModelNode> to);
 

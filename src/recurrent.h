@@ -391,8 +391,8 @@ private:
     int embedding_size = 0;
     int num_directions = 2;
 
-    ActivationType otype;
-    ReductionType rtype;
+    ActivationType otype = ActivationType::NONE;
+    ReductionType rtype = ReductionType::NONE;
 
     // Consider a vector of outputs specially in a MANY-TO-MANY scenario
     // where each time-step produces an output.

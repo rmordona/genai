@@ -86,7 +86,7 @@ const airowvector<T> Optimizer<T>::sgd(const airowvector<T>& weights, const airo
 }
 
 /*****************************************************************************************************
-* Momentum optimizer with optional step decay
+* Momentum optimizer 
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::momentum(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch, T momentumRate) {
@@ -128,7 +128,7 @@ const airowvector<T> Optimizer<T>::momentum(const airowvector<T>& weights, const
 }
 
 /*****************************************************************************************************
-*  Adam optimizer with optional step decay
+*  Adam optimizer 
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::adam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
@@ -219,7 +219,7 @@ const airowvector<T> Optimizer<T>::adam(const airowvector<T>& weights, const air
 }
 
 /*****************************************************************************************************
-*  RMSprop optimizer with optional step decay
+*  RMSprop optimizer 
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::rmsprop(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch ,
@@ -263,7 +263,7 @@ const airowvector<T> Optimizer<T>::rmsprop(const airowvector<T>& weights, const 
 }
 
 /*****************************************************************************************************
-*  Adagrad optimizer with optional step decay
+*  Adagrad optimizer 
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::adagrad(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch, T epsilon) {
@@ -305,7 +305,7 @@ const airowvector<T> Optimizer<T>::adagrad(const airowvector<T>& weights, const 
 }
 
 /*****************************************************************************************************
-*  Adamax optimizer with optional step decay
+*  Adamax optimizer 
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::adamax(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
@@ -355,7 +355,7 @@ const airowvector<T> Optimizer<T>::adamax(const airowvector<T>& weights, const a
 }
 
 /*****************************************************************************************************
-*  Nadam optimizer with optional step decay
+*  Nadam optimizer
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Optimizer<T>::nadam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
@@ -459,7 +459,7 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
     // Initialize the parameters.
     setInitialWeights(input_data.cols());
 
-    log_detail( "Size of Input: {:d}", input_data.size() );
+    log_detail( "Size of Input: {:d}  {:d}x{:d}", input_data.size(), input_data.rows(), input_data.cols() );
     log_detail( "Size of Weights: {:d}", parameters.weights.size() );
     log_detail( "Size of Biases: {:d}", parameters.biases.size() );
     log_detail( "---");
@@ -468,7 +468,7 @@ const aimatrix<T> Linear<T>::linearTransform(const aimatrix<T>& input_data) {
     log_detail( "Weights" );
     log_matrix( parameters.weights );
     log_detail( "Matrix Multiplication of Input and Weights (Standard)" );
-    log_matrix( aimatrix<T> (input_data * parameters.weights) );
+    log_matrix( aimatrix<T> (input_data * parameters.weights ) );
     log_detail( "Matrix Multiplication of Input and Weights (Using BaseOperator)" );
     log_matrix( aimatrix<T> (BaseOperator::matmul(input_data, parameters.weights)) );
     log_detail( "bias" );
@@ -1911,7 +1911,7 @@ const aiscalar<T> Loss<T>::computeLoss(const std::string& losstype, const aitens
     if (p_size != t_size || p_row != t_row || p_col != t_col) {
         log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
                      p_size, p_row, p_col, t_size, t_row, t_col);
-
+        std::cout << "Dimension: " << p_size << "x" << p_row << "x" << p_col << "  " << t_size << "x" << t_row << "x" << t_col << std::endl;
         throw AIException("Dimension of Prediction and Target do not match");
 
     }
@@ -2011,7 +2011,6 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
     if (p_size != t_size || p_row != t_row || p_col != t_col) {
         log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
                      p_size, p_row, p_col, t_size, t_row, t_col);
-
         throw AIException("Dimension of Prediction and Target do not match");
     } 
  
@@ -2019,37 +2018,24 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
     metrics.isrecall    = findMetrics(metricstype, "recall");   
     metrics.isf1score   = findMetrics(metricstype, "f1score");  
 
-    std::cout << "Batch size: " << batch_size << std::endl;
-
-    std::cout << "isPrecision " << metrics.isprecision << std::endl;
 
     for (int i = 0; i < batch_size; ++i) {
 
         batch_predicted = predicted.at(i); 
         batch_target    = target.at(i); 
 
-            std::cout << "Precision 1:" << precision << std::endl;
-
         if ( metrics.isprecision || metrics.isrecall  || metrics.isf1score ) {
             std::tie(precision, recall, f1score) = calculateMetrics(batch_predicted, batch_target);
             total_precision += precision;
             total_recall += recall;
             total_f1score += f1score;
-
-             std::cout << "Precision 2:" << precision << std::endl;
-
         } 
     }
-
-
-    std::cout << "Precision 3:" << total_precision << std::endl;
 
     // Calculate average metrics
     metrics.precision = total_precision / batch_size;
     metrics.recall    = total_recall    / batch_size;
     metrics.f1score   = total_f1score   / batch_size;
-
-    std::cout << "Precision 4:" << metrics.precision << std::endl;
 
     return metrics; 
 }

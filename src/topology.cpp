@@ -37,7 +37,6 @@ using namespace py::literals;
 /********************************************************************************************
 * NodeFactory
 ********************************************************************************************/
-
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
@@ -45,10 +44,7 @@ void Node<T>::setData(const py::array_t<T>& data, const bool normalize) {
     log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
     this->input_data = ConvertData::totensor(data);
     if (normalize == true) {
-        int input_size = this->input_data.size();
-        for (int i=0; i < input_size; i++) {
-            this->input_data.at(i).array() = BaseOperator::standardize(this->input_data.at(i));
-        }   
+        this->input_data = BaseOperator::standardize(this->input_data); 
     }
 }
  
@@ -56,10 +52,7 @@ template <class T>
 void Node<T>::setData(const aitensor<T> data, const bool normalize) {
     this->input_data =  data;
     if (normalize == true) {
-        int input_size = this->input_data.size();
-        for (int i=0; i < input_size; i++) {
-            this->input_data.at(i).array() = BaseOperator::standardize(this->input_data.at(i));
-        }   
+        this->input_data = BaseOperator::standardize(this->input_data);
     }
 }
 
@@ -69,10 +62,7 @@ void Node<T>::setDecoderData(const py::array_t<T>& data, const bool normalize) {
     log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
     this->decoder_data = ConvertData::totensor(data);
     if (normalize == true) {
-        int input_size = this->decoder_data.size();
-        for (int i=0; i < input_size; i++) {
-            this->decoder_data.at(i).array() = BaseOperator::standardize(this->decoder_data.at(i));
-        }   
+        this->decoder_data = BaseOperator::standardize(this->decoder_data);
     }
 }
  
@@ -81,10 +71,7 @@ template <class T>
 void Node<T>::setDecoderData(const aitensor<T> data, const bool normalize) {
     this->decoder_data =  data;
     if (normalize == true) {
-        int input_size = this->decoder_data.size();
-        for (int i=0; i < input_size; i++) {
-            this->decoder_data.at(i).array() = BaseOperator::standardize(this->decoder_data.at(i));
-        }   
+        this->decoder_data = BaseOperator::standardize(this->decoder_data);
     }
 }
 
@@ -253,6 +240,8 @@ void Node<T>::forwardPass() {
     log_info( "**************************************" );
 
     log_detail("Node forward: ({0}) Operation Size: {1}", name, operations.size());
+
+    log_detail("Size of Input: {0}", this->input_data.size());
 
     // See if we can perform reduction.
     aitensor<T> output = aggregateData(this->input_data); // see Node.setData
@@ -683,7 +672,7 @@ void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& data, 
 template <class T>
 void Graph<T>::setData(const std::string& nodename, const aitensor<T>& data, const bool normalize) {
     Node<T>* node = this->findNode(nodename);
-    if (node != nullptr) {
+    if (node != nullptr) {        
         node->setData(data, normalize);
     }
 }
@@ -782,7 +771,7 @@ const aitensor<T> Graph<T>::forwardPropagation() {
 
     std::unordered_map<Node<T>*, int> indegree_(indegree); 
 
-    log_detail( "Iitialized done pass in Graph ..." );
+    log_detail( "Initialized done pass in Graph ..." );
 
     log_info( "***************************************" );
     log_info( "*****    Graph Forward Pass  **********" );

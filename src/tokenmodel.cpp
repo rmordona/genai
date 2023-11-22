@@ -511,9 +511,6 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     aivector<T> biases_V     = this->embeddings->getWordBiases();
     aivector<T> biases_U     = this->embeddings->getWordBiases();
 
-    // log_detail("weights:");
-    // log_matrix(weights_V);
-
     log_detail("Size of tokens: {0}", tokens.size());
     log_detail("Size of weights: {0}x{1}", weights_V.rows(), weights_V.cols());
     log_detail("Size of biases: {0}", biases_V.size());
@@ -564,8 +561,6 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
         for (const auto& token : tokens) {
 
-            // std::wcout << "iteration at " << iter << " token:   " << target << std::endl;
-
             target = token.first;
 
             // get the token index for the target word
@@ -581,9 +576,6 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
                 // get the token index for the context word
                 int j = this->embeddings->getTokenIndex(sha256(context));
-
-                // std::wcout << "iteration at " << iteration << " contexts:   " << context << std::endl;
-                // std::wcout << " contexts:   " << context << std::endl;
 
                 Uj = weights_U.row(j);  // context word
                 Bu = biases_U(j);       // bias term for context word
@@ -715,19 +707,14 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
      
     // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
     for (int i = 0; i < (int) corpus_size; i++) {
-        std::wcout << " sentences: " << i << " : " << sentences[i] << std::endl;
         sequence_size = ((int) corpus[i].size() > sequence_size) ? (int) corpus[i].size() : sequence_size;
     }
-    std::cout << " size corpus: " << corpus_size << std::endl;
 
     for (int i = 0; i < sequence_size; i++) {
         initialized = false;
-        std::wcout << " next sequence: " << i << std::endl;
         for (int j = 0; j < corpus_size; j++) {
             if (i < (int) corpus[j].size()) {
                 std::wstring token = corpus[j][i];
-
-                std::wcout << " token: " << j << " : " << token << std::endl;
 
                 bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
 
@@ -741,12 +728,11 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
                 }
             }
         }
-        std::cout << " sequence dim: " << sequence.rows() << "x" << sequence.cols() << std::endl;
         sequences.push_back(sequence);
 
     }
 
-/*  Leave this here for now. This will be used to construct a tensor of BxNxW (Batch x Samples x Embeddings)
+    /*  Leave this here for now. This will be used to construct a tensor of BxNxW (Batch x Samples x Embeddings)
     for (int i = 0; i <   corpus_size; i++) {
         std::wcout << " corpus: " << i << " : " << sentences[i] << std::endl;
         initialized = false;
@@ -767,7 +753,8 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
         std::cout << " sequence dim: " << sequence.rows() << "x" << sequence.cols() << std::endl;
         sequences.push_back(sequence);
     }
-*/
+    */
+
     return sequences;
 }
 
@@ -846,7 +833,6 @@ TokenModel::TokenModel(const std::string& tokenizer, const std::string& datatype
         std::cerr << "(TokenModel:TokenModel) Unknown Error:" << std::endl;
     }
 
-    std::cout << "Got here :" << datatype << " learningRate " << learningRate << std::endl;
 }
 
 std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {

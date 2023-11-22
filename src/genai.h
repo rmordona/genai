@@ -549,7 +549,8 @@ enum class ReductionType {
     ARGMIN,
     MATMUL,
     MUL,
-    CONCAT
+    CONCAT,
+    NONE
 };
 
 enum class ActivationType {
@@ -558,7 +559,8 @@ enum class ActivationType {
     RELU,
     LEAKYRELU,
     GELU,
-    SOFTMAX
+    SOFTMAX,
+    NONE
 };
 
 /*****************************************************************************************************
@@ -669,35 +671,70 @@ class BaseOperator {
     virtual void forwardPass() = 0;
     virtual void backwardPass() = 0;
 
-    static aimatrix<float> standardize(const aimatrix<float>& input_data) {
+    static aitensor<float> standardize(const aitensor<float>& input_data) {
+        int input_size = input_data.size();
 
-        // Calculate the mean and standard deviation along each column
-        aiscalar<float> mean = input_data.mean();
+        aiscalar<float> mean = 0;
+        aiscalar<float> input_max = -1e13;
+        aiscalar<float> input_min = 1e13;
+        aiscalar<float> max = 1;
+        aiscalar<float> min = 0;
 
-        // Compute the sum of squared differences
-        float sumSquaredDiff = (input_data.array() - mean).pow(2).sum();
+        for (int i = 0; i < input_size; i++) {
+            mean += input_data.at(i).mean();
+            input_max = (input_data.at(i).maxCoeff() > input_max) ? input_data.at(i).maxCoeff() : input_max;
+            input_min = (input_data.at(i).minCoeff() < input_min) ? input_data.at(i).minCoeff() : input_min;
 
-        // Compute the standard deviation
-        float stddev = std::sqrt(sumSquaredDiff / input_data.size());
+        }
 
-        aimatrix<float> standard = ( input_data.array() - mean ) / stddev;
-        
+        // Calculate the mean 
+        mean = mean / input_size;
+
+        aitensor<float> standard = input_data;
+
+        for (int i = 0; i < input_size; i++) {
+
+            standard.at(i).array() = (input_data.at(i).array() - input_min) / (input_max - input_min);
+            standard.at(i).array() = standard.at(i).array() * (max - min) + min;
+
+        }
+
         return standard;
     }
 
-    static aimatrix<double> standardize(const aimatrix<double>& input_data) {
+    static aitensor<double> standardize(const aitensor<double>& input_data ) {
 
-        // Calculate the mean and standard deviation along each column
-        aiscalar<double> mean = input_data.mean();
+        int input_size = input_data.size();
 
-        // Compute the sum of squared differences
-        double sumSquaredDiff = (input_data.array() - mean).pow(2).sum();
 
-        // Compute the standard deviation
-        double stddev = std::sqrt(sumSquaredDiff / input_data.size());
+        aiscalar<double> mean = 0;
+        aiscalar<double> input_max = -1e13;
+        aiscalar<double> input_min = 1e13;
+        aiscalar<double> max = 1;
+        aiscalar<double> min = 0;
 
-        aimatrix<double> standard = ( input_data.array() - mean ) / stddev;
+        for (int i = 0; i < input_size; i++) {
+            mean += input_data.at(i).mean();
+            input_max = (input_data.at(i).maxCoeff() > input_max) ? input_data.at(i).maxCoeff() : input_max;
+            input_min = (input_data.at(i).minCoeff() < input_min) ? input_data.at(i).minCoeff() : input_min;
 
+        }
+
+
+
+        // Calculate the mean 
+        mean = mean / input_size;
+
+        aitensor<double> standard = input_data;
+
+        for (int i = 0; i < input_size; i++) {
+
+            standard.at(i).array() = (input_data.at(i).array() - input_min) / (input_max - input_min);
+            standard.at(i).array() = standard.at(i).array() * (max - min) + min;
+
+        }
+
+  
         return standard;
     }
 
