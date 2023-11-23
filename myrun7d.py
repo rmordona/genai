@@ -33,19 +33,18 @@ node1  = modelgraph.addNode("node1", ai.NodeType.Generic);
 node2  = modelgraph.addNode("node2", ai.NodeType.Generic);
 
 
-node1.setOperations([
-                ai.LSTM(hidden_size=20, 
-                        output_size=1, 
-                        num_layers=15, 
-                        bidirectional=False, 
-                        rnntype=ai.RNNtype.MANY_TO_MANY)
-                ]
-                   );
+node1.setOperations([ai.Encoder(heads=2, 
+				size=3, 
+				bias=True, 
+				type="leakyrelu", 
+				alpha=0.01)
+                    ]
+                 );
 
 # Set the Data
 node1.setData(data = x, normalize=True);
 
-node2.setOperations([ai.Dense(size=1, bias=True)])
+node2.setOperations([ai.Dense(size=3, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
 
 modelgraph.connect(node1, node2);
 

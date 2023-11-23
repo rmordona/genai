@@ -701,8 +701,10 @@ PYBIND11_MODULE(genai, m) {
             py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
             py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
-        .def("sequence",  (py::array_t<double> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::sequenceDouble, "Get sequence a Sentence")
-        .def("sequence",  (py::array_t<float> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::sequenceFloat, "Get sequence a Sentence")
+        .def("sequence",  (py::array_t<double> (TokenModel::*)(const std::vector<std::wstring>&, bool)) &TokenModel::sequenceDouble, 
+                   py::arg("corpus"), py::arg("rowwise") = false,  "Get sequence a Sentence")
+        .def("sequence",  (py::array_t<float> (TokenModel::*)(const std::vector<std::wstring>&, bool)) &TokenModel::sequenceFloat, 
+                    py::arg("corpus"), py::arg("rowwise") = false, "Get sequence a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
 

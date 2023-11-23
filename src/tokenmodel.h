@@ -110,7 +110,7 @@ public:
 
     aimatrix<T> listEmbeddings();
 
-    aitensor<T> sequenceEmbeddings(const std::vector<std::wstring>& sentences);
+    aitensor<T> sequenceEmbeddings(const std::vector<std::wstring>& sentences, bool rowwise = false);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -211,9 +211,9 @@ public:
 
     py::array_t<float> embeddingsFloat();
 
-    py::array_t<double> sequenceDouble(const std::vector<std::wstring>& sentences);
+    py::array_t<double> sequenceDouble(const std::vector<std::wstring>& sentences, bool rowwise = false);
 
-    py::array_t<float> sequenceFloat(const std::vector<std::wstring>& sentences);
+    py::array_t<float> sequenceFloat(const std::vector<std::wstring>& sentences, bool rowwise = false);
 
 /*
     // Overload the train function

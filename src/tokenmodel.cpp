@@ -688,7 +688,7 @@ aimatrix<T> BaseTokenModel<T>::listEmbeddings() {
 
 
 template <class T>
-aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring>& sentences) {
+aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring>& sentences, bool rowwise) {
 
     typename Embeddings<T>::RecordStruct record;  
 
@@ -701,7 +701,7 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
     // Generate the corpus.
     std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
 
-    int corpus_size = corpus.size();
+    int corpus_size = corpus.size(); 
     int sequence_size = 0;
     int embedding_size = 0;
      
@@ -710,51 +710,52 @@ aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring
         sequence_size = ((int) corpus[i].size() > sequence_size) ? (int) corpus[i].size() : sequence_size;
     }
 
-    for (int i = 0; i < sequence_size; i++) {
-        initialized = false;
-        for (int j = 0; j < corpus_size; j++) {
-            if (i < (int) corpus[j].size()) {
-                std::wstring token = corpus[j][i];
-
+    if (rowwise) {
+        // The tensor will have dimension (BxSxE) where B = Batch, S = Sequence, E = Embedding
+        // Used by Encoder-Decoder Transformer
+        for (int i = 0; i <   corpus_size; i++) {
+            initialized = false;
+            for (int j = 0; j < (int) corpus[i].size(); j++) {
+                std::wstring token = corpus[i][j];
                 bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
 
                 if (result) {
                     if (!initialized) {    
                         embedding_size = record.embedding.size();
-                        sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
+                        sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
                         initialized = true;
                     }
                     sequence.row(j) = record.embedding.array();
                 }
-            }
+            }    
+            sequences.push_back(sequence);
         }
-        sequences.push_back(sequence);
+    } else {
+        // The tensor will have dimension (SxBxE) where S = Sequence, B = Batch, E = Embedding
+        // Used by RNN/LSTM/GRU
+        for (int i = 0; i < sequence_size; i++) {
+            initialized = false;
+            for (int j = 0; j < corpus_size; j++) {
+                if (i < (int) corpus[j].size()) {
+                    std::wstring token = corpus[j][i];
 
-    }
+                    bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
 
-    /*  Leave this here for now. This will be used to construct a tensor of BxNxW (Batch x Samples x Embeddings)
-    for (int i = 0; i <   corpus_size; i++) {
-        std::wcout << " corpus: " << i << " : " << sentences[i] << std::endl;
-        initialized = false;
-        for (int j = 0; j < (int) corpus[i].size(); j++) {
-            std::wstring token = corpus[i][j];
-            std::wcout << " token: " << j << " : " << token << std::endl;
-            bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
-
-            if (result) {
-                if (!initialized) {    
-                    embedding_size = record.embedding.size();
-                    sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
-                    initialized = true;
+                    if (result) {
+                        if (!initialized) {    
+                            embedding_size = record.embedding.size();
+                            sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
+                            initialized = true;
+                        }
+                        sequence.row(j) = record.embedding.array();
+                    }
                 }
-                sequence.row(j) = record.embedding.array();
             }
-        }    
-        std::cout << " sequence dim: " << sequence.rows() << "x" << sequence.cols() << std::endl;
-        sequences.push_back(sequence);
-    }
-    */
+            sequences.push_back(sequence);
 
+        }
+
+    }
     return sequences;
 }
 
@@ -938,14 +939,14 @@ py::array_t<float> TokenModel::embeddingsFloat() {
 * TokenModel::sequenceDouble and sequenceFloat
 * Functions to generate sequence of embeddings based on given list of sentences
 *************************************************************************************************/
-py::array_t<double> TokenModel::sequenceDouble(const std::vector<std::wstring>& sentences) {
+py::array_t<double> TokenModel::sequenceDouble(const std::vector<std::wstring>& sentences, bool rowwise) {
     aitensor<double> embeddingd;
     if (this->datatype == "double") {
-        embeddingd = this->tokenizerd->sequenceEmbeddings(sentences);
+        embeddingd = this->tokenizerd->sequenceEmbeddings(sentences, rowwise);
 
     } else 
     if (this->datatype == "float") {
-        aitensor<float> embeddingf = this->tokenizerf->sequenceEmbeddings(sentences);
+        aitensor<float> embeddingf = this->tokenizerf->sequenceEmbeddings(sentences, rowwise);
         for (int i = 0; i < (int) embeddingf.size(); i++) {
             embeddingd.push_back( embeddingf[i].cast<double>() );
         }
@@ -953,16 +954,16 @@ py::array_t<double> TokenModel::sequenceDouble(const std::vector<std::wstring>& 
     return ConvertData::topyarray(embeddingd);
 }
 
-py::array_t<float> TokenModel::sequenceFloat(const std::vector<std::wstring>& sentences) {
+py::array_t<float> TokenModel::sequenceFloat(const std::vector<std::wstring>& sentences, bool rowwise) {
     aitensor<float> embeddingf;
     if (this->datatype == "double") {
-        aitensor<double> embeddingd = this->tokenizerd->sequenceEmbeddings(sentences);
+        aitensor<double> embeddingd = this->tokenizerd->sequenceEmbeddings(sentences, rowwise);
         for (int i = 0; i < (int) embeddingf.size(); i++) {
             embeddingf.push_back( embeddingd[i].cast<float>() );
         }
     } else 
     if (this->datatype == "float") {
-        embeddingf = this->tokenizerf->sequenceEmbeddings(sentences);
+        embeddingf = this->tokenizerf->sequenceEmbeddings(sentences, rowwise);
     }
     return ConvertData::topyarray(embeddingf);
 }
