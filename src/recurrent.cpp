@@ -1273,25 +1273,6 @@ const aimatrix<T> RecurrentBase<T>::processPrediction(int step, const aimatrix<T
     log_detail("Get (by) weight");
     log_rowvector(by);
 
- /*
-    if (this->getOType() == ActivationType::SOFTMAX) {
-        log_detail("Non-Linearity (Softmax) ...");
-        log_matrix((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-        Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-    } else 
-    if (this->getOType() == ActivationType::TANH) {
-        log_detail("Non-Linearity (TANH) ...");
-        Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-    } else
-    if (this->getOType() == ActivationType::SIGMOID) {
-        log_detail("Non-Linearity (SIGMOID) ...");
-        Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-    } else {
-        this->setOutputSize( this->getHiddenSize());
-        Yhat = H; // no non-linearity operations to logit, raw Hidden State output
-    }
- */
-
     // this->setOutputSize( this->getHiddenSize());
     Yhat = (BaseOperator::matmul(H, V).rowwise() + by); // no non-linearity operations to logit, raw Hidden State output
 
@@ -1367,24 +1348,6 @@ const aitensor<T> RecurrentBase<T>::processPredictions() {
 
         log_detail("Matmul (H * v) ...");
         log_matrix(BaseOperator::matmul(H, V));
-
-/*
-        if (this->getOType() == ActivationType::SOFTMAX) {
-            log_detail("Non-Linearity (Softmax) ...");
-            Yhat = BaseOperator::softmax((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-        } else 
-        if (this->getOType() == ActivationType::TANH) {
-            log_detail("Non-Linearity (TANH) ...");
-            Yhat = BaseOperator::tanh((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-        } else
-        if (this->getOType() == ActivationType::SIGMOID) {
-            log_detail("Non-Linearity (SIGMOID) ...");
-            Yhat = BaseOperator::sigmoid((aimatrix<T>) (BaseOperator::matmul(H, V).rowwise() + by));
-        } else {
-            this->setOutputSize( this->getHiddenSize());
-            Yhat = H; // no non-linearity operations to logit, raw Hidden State output
-        }
-*/
 
         // this->setOutputSize( this->getHiddenSize());
         Yhat = (BaseOperator::matmul(H, V).rowwise() + by); // no non-linearity operations to logit, raw Hidden State output
@@ -1571,32 +1534,6 @@ void RecurrentBase<T>::processGradients(aitensor<T>& gradients) {
 
         log_detail("Yhat output (prediction at step {})", step);
         log_matrix(yhat);
-
-/*
-        if (otype == ActivationType::SOFTMAX) {
-            log_detail("Non-Linearity Softmax Gardient ...");
-            dOut = BaseOperator::softmaxGradient(dOut, yhat); // dsoftmaxV
-            dV = BaseOperator::matmul(H.transpose(), dOut);
-            this->dV.push_back(dV);
-            this->dby.push_back(dOut.colwise().sum());
-        } else 
-        if (otype == ActivationType::TANH) {
-            log_detail("Non-Linearity TANH Gardient ...");
-            dOut = BaseOperator::tanhGradient(dOut, yhat);      // dtanV
-            dV = BaseOperator::matmul(H.transpose(), dOut);
-            this->dV.push_back(dV);
-            this->dby.push_back(dOut.colwise().sum());
-        } else
-        if (otype == ActivationType::SIGMOID) {
-            log_detail("Non-Linearity SIGMOID Gardient ...");
-            dOut = BaseOperator::sigmoidGradient(dOut, yhat);  // dsigmoidV
-            dV = BaseOperator::matmul(H.transpose(), dOut);
-            this->dV.push_back(dV);
-            this->dby.push_back(dOut.colwise().sum());
-        } else { // just use dOut
-            reduction = false;
-        }
-*/
 
         dV = BaseOperator::matmul(H.transpose(), dOut);
         this->dV.push_back(dV);

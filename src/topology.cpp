@@ -40,38 +40,50 @@ using namespace py::literals;
 // The input is assumed to have NxM where N=number of samples, M=embedding vector size
 // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
 template <class T>
-void Node<T>::setData(const py::array_t<T>& data, const bool normalize) {
+void Node<T>::setData(const py::array_t<T>& data, const bool normalize, const bool positional) {
     log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
     this->input_data = ConvertData::totensor(data);
     if (normalize == true) {
         this->input_data = BaseOperator::standardize(this->input_data); 
     }
+    if (positional == true) {
+        this->input_data = PositionalEncoder<T>::encode(this->input_data);
+    }
 }
  
 template <class T>
-void Node<T>::setData(const aitensor<T> data, const bool normalize) {
+void Node<T>::setData(const aitensor<T> data, const bool normalize, const bool positional) {
     this->input_data =  data;
     if (normalize == true) {
         this->input_data = BaseOperator::standardize(this->input_data);
+    }
+    if (positional == true) {
+        this->input_data = PositionalEncoder<T>::encode(this->input_data);
     }
 }
 
 // For Transformer Decoders
 template <class T>
-void Node<T>::setDecoderData(const py::array_t<T>& data, const bool normalize) {
+void Node<T>::setDecoderData(const py::array_t<T>& data, const bool normalize, const bool positional) {
     log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
     this->decoder_data = ConvertData::totensor(data);
     if (normalize == true) {
         this->decoder_data = BaseOperator::standardize(this->decoder_data);
     }
+    if (positional == true) {
+        this->decoder_data = PositionalEncoder<T>::encode(this->decoder_data);
+    }
 }
  
 // For Transformer Decoders
 template <class T>
-void Node<T>::setDecoderData(const aitensor<T> data, const bool normalize) {
+void Node<T>::setDecoderData(const aitensor<T> data, const bool normalize, const bool positional) {
     this->decoder_data =  data;
     if (normalize == true) {
         this->decoder_data = BaseOperator::standardize(this->decoder_data);
+    }
+    if (positional == true) {
+        this->decoder_data = PositionalEncoder<T>::encode(this->decoder_data);
     }
 }
 
@@ -311,17 +323,17 @@ void Node<T>::forwardPass() {
             log_info("Returned FeedForward pass with the below output ...");
             log_matrix( output );
         } else
-        //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
-        if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
-            log_detail("Node [{0}] Encoder Operation (Forward Pass)", name );
+        //if (auto encoder = std::dynamic_pointer_cast<EncoderLayer<T>>(op)) {
+        if (EncoderLayer<T>* encoder = dynamic_cast<EncoderLayer<T>*>(op)) {
+            log_detail("Node [{0}] EncoderLayer Operation (Forward Pass)", name );
             output = encoder->forward(output);
-            log_info("Returned Encoder pass with the below output ...");
+            log_info("Returned EncoderLayer pass with the below output ...");
             log_matrix( output );
         } else
-        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
-        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+        //if (auto decoder = std::dynamic_pointer_cast<DecoderLayer<T>>(op)) {
+        if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Forward Pass)", name );
-            output = decoder->forward(output);
+            output = decoder->forward(this->decoder_data, output);
             log_info("Returned Decoder pass with the below output ...");
             log_matrix( output );
         } else
@@ -662,34 +674,34 @@ Node<T>* Graph<T>::createNode(const std::string& name, NodeType type) {
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize) {
+void Graph<T>::setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setData(data, normalize);
+        node->setData(data, normalize, positional);
     }
 }
 
 template <class T>
-void Graph<T>::setData(const std::string& nodename, const aitensor<T>& data, const bool normalize) {
+void Graph<T>::setData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {        
-        node->setData(data, normalize);
+        node->setData(data, normalize, positional);
     }
 }
 
 template <class T>
-void Graph<T>::setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize) {
+void Graph<T>::setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setDecoderData(data, normalize);
+        node->setDecoderData(data, normalize, positional);
     }
 }
 
 template <class T>
-void Graph<T>::setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize) {
+void Graph<T>::setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
-        node->setDecoderData(data, normalize);
+        node->setDecoderData(data, normalize, positional);
     }
 }
 
@@ -894,10 +906,6 @@ const aiscalar<T> Graph<T>::computeLoss(const std::string& losstype, const aiten
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
 
-    // this->lossobj = new Loss<T>(losstype);
-
-    // aiscalar<T> loss = this->lossobj->computeLoss(losstype, predicted, target);
-
     aiscalar<T> loss = Loss<T>::computeLoss(losstype, predicted, target);
 
     log_detail( "Loss calculated: " );
@@ -919,7 +927,6 @@ const aitensor<T> Graph<T>::computeGradients(const std::string& losstype, const 
     log_detail("Target:");
     log_matrix(target);
 
-    // aitensor<T> gradients = this->lossobj->computeGradients(losstype, predicted, target);
     aitensor<T> gradients = Loss<T>::computeGradients(losstype, predicted, target);
 
     log_matrix( gradients );
@@ -948,8 +955,6 @@ const PerfMetrics<T> Graph<T>::computeMetrics(const std::vector<std::string>& me
     log_info( "***************************************************" );
     log_info( "*****    Graph: Processing Loss Function  *********" );
     log_info( "***************************************************" );
-
-    // this->metricsobj = new Metrics<T>(metricstype);
 
     PerfMetrics<T> metrics = Metrics<T>::computeMetrics(metricstype, predicted, target);
 

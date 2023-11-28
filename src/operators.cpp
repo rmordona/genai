@@ -432,7 +432,7 @@ void Linear<T>::setInitialWeights(int M) {
 
     // Initialize Weights & Biases
     heInitMatrix(parameters.weights);
-    // heInitialization(parameters.biases);
+
     parameters.biases.setConstant(T(0.01));
 
 }
@@ -564,7 +564,7 @@ OperationParams<T> Linear<T>::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gr
     log_matrix( aimatrix<T> (gradients.weights) );
 
     // Compute the gradient with respect to the bias (db)
-    if (bias == true) {
+    if (this->bias == true) {
         log_detail( "Add the bias." );
         gradients.biases = new_gradients.colwise().sum();
         log_detail(  "gradient biases rows: {:d}, cols: {:d}" , gradients.biases.rows(), gradients.biases.cols() );
@@ -576,7 +576,7 @@ OperationParams<T> Linear<T>::gradient_Wrt_Weight_Bias(const aimatrix<T>& new_gr
     log_detail( "Normalized Gradient weights:" );
     log_matrix( aimatrix<T>  (gradients.weights) );
 
-    if (bias == true) {
+    if (this->bias == true) {
         gradients.biases /= N;   // db - gradients of bias (1xW)
         log_detail( "Normalized Gradient biases:" );
         log_rowvector( gradients.biases );
@@ -647,7 +647,7 @@ const aitensor<T> Linear<T>::backward(const aitensor<T>& gradients) {
         // dInput.chip(i, 0) = tensor_view(gradient);
         dInput.push_back(gradient);
 
-        vgradients.push_back(wbgradients); // Cache gradients
+        this->vgradients.push_back(wbgradients); // Cache gradients
     }
 
     log_detail( "Done with Gradients..." );
@@ -663,7 +663,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
 
     for (int i = 0; i < this->batch_size; ++i) {
 
-        OperationParams<T>  gradients = vgradients[i];
+        OperationParams<T>  gradients = this->vgradients[i];
 
         log_detail( "Assigning ..." );
 
@@ -684,7 +684,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
             opt_weights = new Optimizer<T>(optimizertype, learningRate);
         }
 
-        if (opt_biases == nullptr && bias == true) {
+        if (opt_biases == nullptr && this->bias == true) {
             opt_biases = new Optimizer<T>(optimizertype, learningRate);
         }
 
@@ -692,7 +692,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
         opt_weights->update(optimizertype, parameters.weights, gradients.weights, iter);
         log_detail( "Updating Linear biases" );
 
-        if (bias == true) {
+        if (this->bias == true) {
             opt_biases->update(optimizertype, parameters.biases, gradients.biases, iter);
         }
 
@@ -704,7 +704,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
     }
 
     // initialize gradients for next iteration.
-    vgradients.clear();
+    this->vgradients.clear();
 }
 
 template <class T>
@@ -1091,9 +1091,6 @@ void LayerNorm<T>::setInitialWeights(int N) {
     heInitVector(scale);
     shift.setConstant(0.01);
 
-    // Initialize Gradients     
-    // dScale.setZero();
-    // dShift.setZero();
 }
 
 template <class T>
@@ -1105,6 +1102,7 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> LayerNorm<T>::normalize(const 
 
     log_detail(" Input Data ...");
     log_matrix( input_data );
+
 
     // Calculate layer mean along the M dimension.
     aivector<T> layerMean = (aivector<T>) (input_data.rowwise().mean());
@@ -1155,6 +1153,8 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> LayerNorm<T>::normalize(const 
     log_matrix( normalizedOutput );
 
     return std::make_tuple(normalizedInput, normalizedOutput, Xmu);
+
+
 }
 
 template <class T>
@@ -1298,7 +1298,7 @@ const aitensor<T> LayerNorm<T>::backward(const aitensor<T>& gradients) {
         log_detail( "xmu" );
         log_matrix( (aimatrix<T>) (Xmu) );
 
-        // Compute the gradient with respect to the batch mean
+        // Compute the gradient with respect to the layer mean
         aivector<T> dLayerMean = -1.0 * dNormMinusMean1.array().rowwise().sum();
 
         log_detail( "dLayerMean" );
@@ -1316,7 +1316,7 @@ const aitensor<T> LayerNorm<T>::backward(const aitensor<T>& gradients) {
         log_matrix( (aimatrix<T>) (gradient) );
 
         dInput.push_back(gradient); // dInput.chip(i, 0) = tensor_view(gradient);
-    
+
     }
 
     return dInput;
@@ -1670,14 +1670,11 @@ const aitensor<T> Dropout<T>::forward(const aitensor<T>& input_data) {
 
         log_detail( "Linear output Dimension: {0}x{1}", input.rows(), input.cols());
 
-
         output_data.push_back(input);
 
     }
 
     this->mask_filter = filter;
-
-    // this->masked_data = output_data;
 
     log_info( "End DropOut ....\n" );
 
@@ -1755,9 +1752,6 @@ const aitensor<T> Flatten<T>::forward(const aitensor<T>& input_data) {
         output_data.push_back(input_view);
 
     }
-
-
-
     return output_data;
 }
 
@@ -1828,8 +1822,7 @@ const aiscalar<T> Loss<T>::bce(const aimatrix<T>& predicted, const aimatrix<T>& 
 
     aiscalar<T> batch_mean_bce_loss = overall_bce_loss.mean();
 
-    // aimatrix<T> averageLoss = loss.mean();
-    return batch_mean_bce_loss; // aimatrix<T>::Constant(1, 1, averageLoss);
+    return batch_mean_bce_loss; 
 }
 
 template <class T>

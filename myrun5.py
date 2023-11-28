@@ -4,15 +4,18 @@ ai.print_string("Hello", True)
 
 sample = ai.SampleClass(0.01);
 
-dtype = "float"
-modelgraph = ai.Model(datatype=dtype);
+dtype = "double"
+modelgraph = ai.Model(datatype=dtype, seed = 2024);
 
 node1  = modelgraph.addNode("node1", ai.NodeType.Input);
 #node1.setOperations([ 
 #             ai.Dense(size=12), ai.BatchNorm(), ai.Activation(type="leakyrelu", alpha=0.01),
 #             ai.Dense(size=6), ai.BatchNorm(), ai.Activation(type="leakyrelu", alpha=0.01),
 #              ]);
-node1.setOperations([ai.Encoder(heads=1, size=6, bias=True, type="leakyrelu", alpha=0.01)]);
+#node1.setOperations([ai.Encoder(heads=1, size=6, layers=1,bias=True, type="leakyrelu", alpha=0.01)]);
+node1.setOperations([ai.Encoder(heads=2,  attention_size=80, feed_size=40, output_size=20, layers=1, bias=True, type="leakyrelu",  alpha=0.01 ),
+                    ]
+                 );
 #node1.setOperations([ai.FeedForward(size=2, bias=True, type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.Attention(size=5, bias=False, masked=False), ai.Activation(type="leakyrelu", alpha=0.01)]);
 #node1.setOperations([ai.Dense(size=2, bias=True), ai.LayerNorm(), ai.Activation(type="leakyrelu", alpha=0.01)]);
@@ -29,8 +32,12 @@ node1.setOperations([ai.Encoder(heads=1, size=6, bias=True, type="leakyrelu", al
 
 node2  = modelgraph.addNode("node2", ai.NodeType.Input);
 #node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]) 
-node2.setOperations([ai.Decoder(heads=1, size=6, bias=True, type="leakyrelu", alpha=0.01), ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
-#node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]) 
+#node2.setOperations([ai.Decoder(heads=1, size=6, bias=True, type="leakyrelu", alpha=0.01), ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]);
+node2.setOperations([ai.Dense(size=4, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)]) 
+#node2.setOperations([ai.Decoder(heads=2,  size=20, layers=1, bias=True, type="gelu",  alpha=0.01 ),
+#                     ai.Dense(size=80, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)
+#                    ]
+#                 );
 
 xembedding1 = [
                [  [1.11,1.12,1.13,1.14],  [1.21,1.22,1.23,1.24], [1.31,1.32,1.33,1.34]  ], # sequence 1 of batch 1,2,3
@@ -66,8 +73,10 @@ embedding2 = [
 
 
 
-node1.setData(data = np.array(embedding1, dtype=np.float32), normalize=False);
-node2.setDecoderData(data = np.array(embedding2, dtype=np.float32), normalize=False);
+node1.setData(data = embedding1, normalize=True, positional=True);
+#node1.setData(data = np.array(embedding1, dtype=np.float32), normalize=False);
+#node2.setDecoderData(data = np.array(embedding2, dtype=np.float32), normalize=False);
+#node2.setDecoderData(data = embedding2, normalize=True, positional=True);
 
 modelgraph.connect(node1, node2);
 
@@ -98,8 +107,8 @@ target = [
                [  [0.13,0.14,2.13,2.14], [0.11,3.12,0.13,0.94], [0.94,0.77,0.88,0.22],[0.11,0.25,0.72,6.04], [0.15, 0.18, 0.14, 0.19] ] # sequence 1 thru 5 in batch 5
              ];
 
-modelgraph.setTarget(target);
-modelgraph.train(loss="mse", metrics=["precision", "recall"], optimizer="adam", learn_rate=0.01, max_epoch=10);
+modelgraph.setTarget(data = target, normalize=True);
+modelgraph.train(loss="mse", metrics=[], optimizer="adam", max_epoch=20, learn_rate=0.01, use_step_decay = False, decay_rate = 0.90);
 
 #yy_pred = modelgraph.getPredictions();
 

@@ -24,6 +24,7 @@
  */
 
 #include "topology.h"
+#include <cstdlib>  // For std::srand
 
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
@@ -51,7 +52,11 @@ private:
     std::vector<std::string> metricstype;
 
 public:
-    BaseModel() {}
+    BaseModel(int seed) { 
+        if (seed != 0) {
+            std::srand(seed);
+        }
+    }
 
     void setGraph(std::shared_ptr<Graph<T>>  graph);
 
@@ -68,6 +73,7 @@ public:
     void useCrossEntropy();
 
     void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+            int batch_size = 10, 
             const int max_epoch = 1, const T learn_rate = 0.01, const bool use_step_decay = false, const T decay_rate = 0.90);
 
     aitensor<T> predict();
@@ -98,6 +104,8 @@ private:
     aitensor<double> decoder_ddata; // (For Transformer Decoders)
 
     bool normalize = false;
+    bool positional = false;
+
 public: 
     ModelNode(std::string name, NodeType ntype, std::string datatype) { 
         this->name = name; 
@@ -109,15 +117,17 @@ public:
 
     NodeType getNodeType() { return this->ntype; }
 
-    void setDataFloat(const py::array_t<float>& data, const bool normalize);
+    void setDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
 
-    void setDataDouble(const py::array_t<double>& data, const bool normalize);
+    void setDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
 
-    void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize);
+    void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
 
-    void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize);
+    void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
 
     bool getNormalize() { return this->normalize; }
+
+    bool getPositional() { return this->positional; }
 
     ssize_t getDataSize() { 
         if (datatype == "float") {
@@ -159,6 +169,7 @@ public:
 class Model {
 private:
     std::string datatype = "float";
+    int seed = 0;
     std::shared_ptr<Graph<float>> graphXf;
     std::shared_ptr<Graph<double>> graphXd;
     std::shared_ptr<BaseModel<float>> modelXf;
@@ -176,7 +187,7 @@ private:
     }
 
 public:
-    Model(const std::string& datatype = "float");
+    Model(const std::string& datatype = "float", int seed = 0);
 
     std::shared_ptr<ModelNode> addNode(std::string name, NodeType ntype);
 
@@ -200,7 +211,7 @@ public:
 
     py::array_t<double> predictDouble();
 
-    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int max_epoch = 1,
+    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size = 10, int max_epoch = 1,
                     double learningRate = 0.01, bool useStepDecay = false, double decayRate = 0.90);
 
     std::string generateDotFormat(bool operators = false, bool weights = false);
@@ -391,13 +402,13 @@ private:
     std::string activationtype = "leakyrelu";
     float alpha = 0.01;
 public: 
-    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+    ModelFeedForward(int size = 3,  bool bias = true, const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
         this->W = size;
         this->bias = bias;
     }
 
-    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    ModelFeedForward(int size = 3,  bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
         this->W = size;
@@ -446,28 +457,38 @@ public:
 class ModelEncoder : public BaseOperator {
 private:
     std::string activationtype = "leakyrelu";
-    int W = 0;  // number of weights (or number of features)
+    int W       = 0;  // number of weights (or number of features) for K, V, Q (attention layer)
+    int F       = 0;  // number of weights (or number of features) for feedforward layer
     int H = 1;  // number of heads
+    int L = 1;  // number of layers
     bool bias = true;
     float alpha = 0.01;
 public: 
-    ModelEncoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+    ModelEncoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
+                 int layers = 1, bool bias = true, const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
-        this->W = size;
+        this->W    = attention_size;
+        this->F    = feed_size;
+        this->L    = layers;
         this->bias = bias;
-        this->H = heads;
+        this->H    = heads;
     }
 
-    ModelEncoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    ModelEncoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
+                 int layers = 1, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {       
         this->activationtype = activationtype;
         this->alpha = alpha;
-        this->W = size;
-        this->bias = bias;
-        this->H = heads;
+        this->W     = attention_size;
+        this->F     = feed_size;
+        this->L     = layers;
+        this->bias  = bias;
+        this->H     = heads;
     }
 
     int getHead() { return this->H; }
-    int getSize() { return this->W; }
+    int getAttentionSize() { return this->W; }
+    int getFeedSize() { return this->F; }
+    int getLayers() { return this->L; }
     bool getBias() { return this->bias; }
     std::string getActivationType() { return this->activationtype; }
     float getAlpha() { return this->alpha; }
@@ -483,28 +504,39 @@ public:
 class ModelDecoder : public BaseOperator {
 private:
     std::string activationtype = "leakyrelu";
-    int W = 0;  // number of weights (or number of features)
-    int H = 1;  // number of heads
-    bool  bias = true;
+    int W       = 0;  // number of weights (or number of features) for K, V, Q (attention layer)
+    int F       = 0;  // number of weights (or number of features) for feedforward layer
+    int H       = 1;  // number of heads
+    int L       = 1;  // number of layers
+
+    bool  bias  = true;
     float alpha = 0.01;
 public: 
-    ModelDecoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+    ModelDecoder(int heads = 1, int attention_size = 4, int feed_size = 4, 
+                 int layers = 1, bool bias = true, const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
-        this->W = size;
+        this->W    = attention_size;
+        this->F    = feed_size;
+        this->L    = layers;
         this->bias = bias;
-        this->H = heads;
+        this->H    = heads;
     }
 
-    ModelDecoder(int heads = 1, int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    ModelDecoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
+                 int layers = 1, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
-        this->W = size;
-        this->bias = bias;
-        this->H = heads;
+        this->W     = attention_size;
+        this->F     = feed_size;
+        this->L     = layers;
+        this->bias  = bias;
+        this->H     = heads;
     }
 
     int getHead() { return this->H; }
-    int getSize() { return this->W; }
+    int getAttentionSize() { return this->W; }
+    int getFeedSize() { return this->F; }
+    int getLayers() { return this->L; }
     bool getBias() { return this->bias; }
     std::string getActivationType() { return this->activationtype; }
     float getAlpha() { return this->alpha; }

@@ -43,13 +43,17 @@ using namespace py::literals;
 // We only need the M dimension from an BxNxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T>
-const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) { 
-
+const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data, const aitensor<T>& encoder_data) { 
+ 
     log_info("=====================================");
     log_info( "Entering Attention Forward Pass ..." );
 
     // Cache for later back propagation.
     this->input_data = input_data;
+
+    if (encoder_data.size() != 0) {
+        this->encoder_data = encoder_data;
+    }
 
     // dimension is BxNxW
     this->B = input_data.size();
@@ -61,15 +65,15 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
     log_detail( "Size of input:", input_data.size() );
 
     if (Q == nullptr || K == nullptr || V == nullptr || Wo == nullptr) {
-        Q  = new Linear<T>(this->W, this->bias);
-        K  = new Linear<T>(this->W, this->bias);
-        V  = new Linear<T>(this->W, this->bias);
+        Q  = new Linear<T>(this->W, false);  
+        K  = new Linear<T>(this->W, this->bias);  
+        V  = new Linear<T>(this->W, this->bias);  
         Wo = new Linear<T>(this->M, this->bias);
         if (this->masked) { // Apply Mask only for first multihead of decoder in transformer.
             T negative_infinity = -std::numeric_limits<T>::infinity();
             this->Mask = aimatrix<T>::Zero(this->N, this->N);    // Mask Kernel (NxN)
             for (int i = 0; i < this->N; i++) {
-                for (int j = i; j < this->N; j++) {
+                for (int j = i+1; j < this->N; j++) {
                     this->Mask(i,j) = negative_infinity;
                 }
             }
@@ -81,23 +85,23 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
     // Perform Linear Transformation.
     log_info( "Q Linear forward pass ..." );
 
-    if (this->decoder_data.size() != 0) { 
-        // expect  the input_data is the encoder which therefore is not to be
-        // used as Q. Instead, a decoder data is fed into the second multihead.
-        this->Qout = Q->forward(decoder_data);
+    // if we expect an encoder_data, then the data will be transformed to K and V
+    // Otherwise, the decoder_data will assume K and V.
+    this->Qout = Q->forward(input_data); 
+
+    if (encoder_data.size() != 0) { 
+        this->Kout = K->forward(encoder_data);
+        this->Vout = V->forward(encoder_data);
     } else {
-        this->Qout = Q->forward(input_data); 
+        this->Kout = K->forward(input_data);
+        this->Vout = V->forward(input_data);
     }
+
     log_detail( "Q Linear output" );
     log_matrix( this->Qout );
 
-    log_info( "K Linear forward pass ..." );
-    this->Kout = K->forward(input_data);
     log_detail( "K Linear output" );
     log_matrix( this->Kout );
-
-    log_info( "V Linear forward pass ..." );
-    this->Vout = V->forward(input_data);
 
     log_detail( "V Linear output" );
     log_matrix( this->Vout );
@@ -107,8 +111,6 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
     aimatrix<T> mQout, mKout, mVout, QKscore, QKscale, mQKweight, mQKweightV, QKweightV;
 
     log_detail( "Proceeding with main Attention steps (matmul, scale, softmax) ..." );
-
-
 
     for (int i = 0; i < this->B; ++i) {
 
@@ -123,8 +125,6 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data) {
 
         log_detail( "QK matmul" );
         log_matrix( QKscore );
-
-        // Include some Masking (still to be implemented)
 
         // Scale sqrt(Dk)
         QKscale = QKscore.array() / sqrt(this->Dk);
@@ -257,13 +257,10 @@ const aitensor<T> Attention<T>::backward(const aitensor<T>& gradients) {
     log_detail( "KdInput gradient" );
     log_matrix( KdInput );
 
-    // dInput = QdInput.data() + KdInput.data() + VdInput.data(); // BxNxM
-
     for (int i = 0; i < this->B; ++i) {
-        if (this->decoder_data.size() != 0) {
-            dInput.push_back(KdInput.at(i) + VdInput.at(i));
-            this->setDecoderGradient(dInput);
-            decoder_gradient.push_back(QdInput.at(i));
+        if (this->encoder_data.size() != 0) {
+            encoder_gradient.push_back(KdInput.at(i) + VdInput.at(i));
+            dInput.push_back(QdInput.at(i));
         } else {
             dInput.push_back(QdInput.at(i) +  KdInput.at(i) + VdInput.at(i));
         }
@@ -286,6 +283,8 @@ void Attention<T>::updateParameters(std::string& optimizertype, T& learningRate,
     V->updateParameters(optimizertype, learningRate, iter);
     log_detail("Wo Linear parameter update");
     Wo->updateParameters(optimizertype, learningRate, iter);
+
+    encoder_gradient.clear();
 }
 
 template <class T>
@@ -309,13 +308,18 @@ std::string Attention<T>::generateDotFormat(const std::string& name , bool opera
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T> 
-const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) { 
+const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data, const aitensor<T>& encoder_data) { 
 
     log_info("===============================================");
     log_info( "Entering Multi-Head Attention Forward Pass ..." );
 
     // Cache for later back propagation.
     this->input_data = input_data;
+
+    if (encoder_data.size() != 0) {
+        this->encoder_data = encoder_data;
+    }
+
 
     // dimension is BxNxW
     this->B = input_data.size();
@@ -329,7 +333,7 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     if (M1.empty()) {
         for (int i = 0; i < this->H; i++) {
-            Attention<T>* A1  = new Attention<T>(this->W, this->masked); // specify weight size.
+            Attention<T>* A1  = new Attention<T>(this->W, this->bias, this->masked); // specify weight size.
             M1.push_back(A1);
         }
     }
@@ -338,32 +342,31 @@ const aitensor<T> MultiHeadAttention<T>::forward(const aitensor<T>& input_data) 
 
     aitensor<T> output; 
 
-    std::vector<aitensor<T>> heads = head_split(input_data, this->H);
+    std::vector<aitensor<T>> decoder_heads = head_split(input_data, this->H);
 
-    std::vector<aitensor<T>> decoder_heads;
+    std::vector<aitensor<T>> encoder_heads;
 
-    if (this->decoder_data.size() != 0) {
-        std::vector<aitensor<T>> decoder_heads = head_split(this->decoder_data, this->H);
+    if (this->encoder_data.size() != 0) {
+        encoder_heads = head_split(encoder_data, this->H);
     }
 
+    aitensor<T> decoder_head;
     for (int i = 0; i < this->H; i++) {
         log_detail( "Multi Attention Forward at split ({0}) ...", i );
 
-        // Before the call to forward,
-        // if we have a target data, pass it to the Attention layer as Q for the forward pass
-        if (this->decoder_data.size() != 0) {
-            M1[i]->setDecoderData(decoder_heads[i]);
+        if (encoder_data.size() != 0) {
+            decoder_head = M1[i]->forward(decoder_heads[i], encoder_heads[i]);
+        } else {
+            decoder_head = M1[i]->forward(decoder_heads[i]);
         }
-
-        aitensor<T> head = M1[i]->forward(heads[i]);
         if (i == 0) {
             for (int j = 0; j < this->B; j++) {
-                output.push_back(head.at(j));
+                output.push_back(decoder_head.at(j));
             }
         } else {
             for (int j = 0; j < this->B; j++) {
-                aimatrix<T> C(output.at(j).rows(), output.at(j).cols() + head.at(j).cols());
-                C << output.at(j), head.at(j);
+                aimatrix<T> C(output.at(j).rows(), output.at(j).cols() + decoder_head.at(j).cols());
+                C << output.at(j), decoder_head.at(j);
                 output.at(j) = C;
             }
         }
@@ -388,23 +391,25 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
 
     log_detail( "Size of DK ...{:d}" , Dk );
 
-    aitensor<T> dInput, decoder_gradient;
+    aitensor<T> dInput, encoder_gradient;
 
-    aitensor<T> decoder_head;
+    aitensor<T> head;
+    aitensor<T> encoder_head;
     std::vector<aitensor<T>> heads = head_split(gradients, this->H);
 
     for (int i = 0; i < this->H; i++) {
         log_detail( "Multi Attention Backward at split ({0}) ...", i );
-        aitensor<T> head = M1[i]->backward(heads[i]);
+        head = M1[i]->backward(heads[i]);
         // if we have an encoder input, then take care of the gradient also.
-        if (this->decoder_data.size() != 0) {
-            decoder_head = M1[i]->getDecoderGradient();
+        if (this->encoder_data.size() != 0) {
+            encoder_head = M1[i]->getEncoderGradient();
         }
+        // Let us assemble  / join back all the heads.
         if (i == 0) {
             for (int j = 0; j < this->B; j++) {
                 dInput.push_back(head.at(j));
-                if (this->decoder_data.size() != 0) {
-                    decoder_gradient.push_back(decoder_head.at(j));
+                if (this->encoder_data.size() != 0) {
+                    encoder_gradient.push_back(encoder_head.at(j));
                 }
             }
         } else {
@@ -413,20 +418,17 @@ const aitensor<T> MultiHeadAttention<T>::backward(const aitensor<T>& gradients) 
                 C << dInput.at(j), head.at(j);
                 dInput.at(j) = C;
 
-                if (this->decoder_data.size() != 0) {
-                    aimatrix<T> C(decoder_gradient.at(j).rows(),decoder_gradient.at(j).cols() + decoder_head.at(j).cols());
-                    C << decoder_gradient.at(j), decoder_head.at(j);
-                    decoder_gradient.at(j) = C;
+                if (this->encoder_data.size() != 0) {
+                    aimatrix<T> C(encoder_gradient.at(j).rows(),encoder_gradient.at(j).cols() + encoder_head.at(j).cols());
+                    C << encoder_gradient.at(j), encoder_head.at(j);
+                    encoder_gradient.at(j) = C;
                 }
 
             }
         }
     }
 
-    // if we have an encoder input, then take care of the gradient also.
-    if (this->decoder_data.size() != 0) {
-        this->setDecoderGradient(decoder_gradient);    
-    }
+    this->encoder_gradient = encoder_gradient;
 
     return dInput;
 }
@@ -440,6 +442,7 @@ void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& lear
     for (int i = 0; i < this->H; i++) {
         M1[i]->updateParameters(optimizertype, learningRate, iter);
     }
+    encoder_gradient.clear();
 }
 
 template <class T>
@@ -477,10 +480,14 @@ const aitensor<T> FeedForward<T>::forward(const aitensor<T>& input_data) {
     this->N = input_data.at(0).rows();
     this->M = input_data.at(0).cols();
 
+    if (this->W == 0) {
+        this->W = input_data.at(0).cols();
+    }
+
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
-        L1 = new Linear<T>(this->W, bias);
-        L2 = new Linear<T>(this->M, bias); // requires to have dimension as the feedforward input
+        L1 = new Linear<T>(this->W, true);
         A1 = new Activation<T>(this->activationtype, this->alpha);
+        L2 = new Linear<T>(this->M, true); // requires to have dimension as the feedforward input
     }
 
     // Perform Linear Transformation.
@@ -550,7 +557,7 @@ std::string FeedForward<T>::generateDotFormat(const std::string& name , bool ope
 }
 
 /*****************************************************************************************************
-* Base Encoder  Layer
+* Base Encoder Layer
 *****************************************************************************************************/
 
 // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
@@ -560,7 +567,7 @@ template <class T>
 const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) { 
 
     log_info("=====================================================");
-    log_info( "Entering Encoder Forward Pass ..." );
+    log_info( "Entering Encoding  ..." );
 
     // Cache for later back propagation.
     this->input_data = input_data;
@@ -568,14 +575,14 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
     // dimension is BxNxW
     this->B = input_data.size();
     this->N = input_data.at(0).rows();
-    this->M = input_data.at(0).cols();
+    // this->M = input_data.at(0).cols();
 
     log_detail( "Size of input: {:d}", this->input_data.size() );
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr) {
-        M1  = new MultiHeadAttention<T>(this->H, this->W);
+        M1  = new MultiHeadAttention<T>(this->H, this->W, this->F, this->bias, false);
         LN1 = new LayerNorm<T>(); 
-        F1  = new FeedForward<T>(this->W, this->bias, this->activationtype,  this->alpha);
+        F1  = new FeedForward<T>(this->F, this->bias, this->activationtype,  this->alpha);
         LN2 = new LayerNorm<T>();
     }
 
@@ -590,6 +597,7 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
 
     aitensor<T> InputM1out;
     
+    // Add the residual from previous input
     for (int i = 0; i < (int) this->B; i++) {
         InputM1out.push_back( M1out.at(i) + input_data.at(i) );
     }
@@ -613,6 +621,7 @@ const aitensor<T> Encoder<T>::forward(const aitensor<T>& input_data) {
 
     aitensor<T> LN1F1out;
 
+    // Add the residual from previous input
     for (int i = 0; i < (int) this->B; i++) {
         LN1F1out.push_back( F1out.at(i) + LN1out.at(i) );
     }
@@ -643,22 +652,16 @@ const aitensor<T> Encoder<T>::backward(const aitensor<T>& gradients) {
     log_detail( "Encoder LN2 backprop output (dLN2) ..." );
     log_matrix( dLN2 );
 
-    // aitensor<T> F1LN2gradients = LN2gradients; // F1out.array() * LN2gradients.array();
-
     aitensor<T> dF1 = F1->backward(dLN2);  // (F1LN2gradients);  // dF1
 
     log_detail( "Encoder F1 backprop output (dF1) ..." );
     log_matrix( dF1 );
 
-    // aitensor<T> InputLN2gradients = LN2gradients; // LN1out.array() * LN2gradients.array();
-
     log_detail( "Encoder input * F1 backprop output ..." );
-    // log_matrix( InputLN2gradients );
 
+    // Add the gradients from F1 and gradient from L1
     for (int i = 0; i < (int) gradients.size(); i++) {
-
         dF1.at(i) = dLN2.at(i) + dF1.at(i);
-
     }
 
     log_detail( "Encoder (dLN2 + dF1) backprop output ..." );
@@ -669,21 +672,15 @@ const aitensor<T> Encoder<T>::backward(const aitensor<T>& gradients) {
     log_detail( "Encoder LN1 backprop output (dLN1) ..." );
     log_matrix( dLN1 );
 
-    // aitensor<T> M1LN1gradients = LN1gradients; // A1out.array() * LN1gradients.array();
-
     aitensor<T>  dM1 =  M1->backward(dLN1);
 
     log_detail( "Encoder M1 backprop output (dM1) ..." );
     log_matrix( dM1 );
 
-    // aitensor<T> LN1outLN1gradients = LN1gradients; // input_data.array() * LN1gradients.array();
-
     aitensor<T> dInput;
     
     for (int i = 0; i < (int) gradients.size(); i++) {
-
         dInput.push_back( dLN1.at(i) + dM1.at(i) );
-
     }
        
     return dInput;
@@ -721,50 +718,110 @@ std::string Encoder<T>::generateDotFormat(const std::string& name , bool operato
     return dot; 
 }
 
+// where weights is BxNxW and bias is W.
+template <class T>
+const aitensor<T> EncoderLayer<T>::forward(const aitensor<T>& input_data) { 
+
+    log_info("=====================================================");
+    log_info( "Entering EncoderLayer Forward Pass ..." );
+
+    aitensor<T> output = input_data;
+
+    // Perform Forward Pass for each layer
+    for (int i = 0; i < this->L; i++) {
+        Encoder<T> encoder = this->encoders.at(i);
+        output = encoder.forward(output);
+    }
+    return output;
+}
+
+// where weights is BxNxW and bias is W.
+template <class T>
+const aitensor<T> EncoderLayer<T>::backward(const aitensor<T>& gradients) { 
+
+    log_info("=====================================================");
+    log_info( "Entering EncoderLayer Backward Pass ..." );
+
+    aitensor<T> dInput = gradients;
+
+    // Perform Backward Prop for each layer
+    for (int i = 0; i < this->L; i++) {
+        Encoder<T> encoder = this->encoders.at(i);
+        dInput = encoder.backward(dInput);
+    }
+    return dInput;
+}
+
+// where weights is BxNxW and bias is W.
+template <class T>
+void EncoderLayer<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+
+    log_info("=====================================================");
+    log_info( "Entering EncoderLayer Update Parameter ..." );
+
+    // Perform Parameter Update for each layer
+    for (int i = 0; i < this->L; i++) {
+        Encoder<T> encoder = this->encoders.at(i);
+        encoder.updateParameters(optimizertype, learningRate, iter);
+    }
+}
+
+template <class T>
+std::string EncoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    std::string dot = "{* Encoder Layer *}|";
+
+    for (int i = 0; i < this->L; i++) {
+        Encoder<T> encoder = this->encoders.at(i);
+        dot += encoder.generateDotFormat("encoder " + i);
+    }
+
+    return dot; 
+}
 
 /*****************************************************************************************************
-* Base Decoder  Layer
+* Base Decoder  Block
 *****************************************************************************************************/
 
 // While the parameter weight has dimension BxMxW,  the resulting transformation has dimension of BxNxW.
 // We only need the M dimension from an NxM input to generate parameter matrix.
 // where weights is BxNxW and bias is W.
 template <class T>
-const aitensor<T> Decoder<T>::forward(const aitensor<T>& input_data) { 
+const aitensor<T> Decoder<T>::forward(const aitensor<T>& decoder_data, const aitensor<T>& encoder_data) { 
 
     log_info("=====================================================");
     log_info( "Entering Decoder Forward Pass ..." );
 
     // Cache for later back propagation.
-    this->input_data = input_data;
+    this->input_data = decoder_data;
 
     // dimension is BxNxW
-    this->B = input_data.size();
-    this->N = input_data.at(0).rows();
-    this->M = input_data.at(0).cols();
+    this->B = this->input_data.size();
+    this->N = this->input_data.at(0).rows();
+    // this->M = this->input_data.at(0).cols();
 
     log_detail( "Size of input: {:d}", this->input_data.size() );
 
     if (M1 == nullptr || M2 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr) {
-        M1  = new MultiHeadAttention<T>(this->H, this->W, true); // masked is set.
+        M1  = new MultiHeadAttention<T>(this->H, this->W, this->F,  this->bias, true); // masked is set.
         LN1 = new LayerNorm<T>(); 
-        M2  = new MultiHeadAttention<T>(this->H, this->W);
+        M2  = new MultiHeadAttention<T>(this->H, this->W, this->F, this->bias, false);
         LN2 = new LayerNorm<T>(); 
-        F1  = new FeedForward<T>(this->W, this->bias, this->activationtype,  this->alpha);
+        F1  = new FeedForward<T>(this->F, this->bias, this->activationtype,  this->alpha);
         LN3 = new LayerNorm<T>();
     }
 
     // Perform First MultiHead Operation.
-    M1out = M1->forward(input_data);
+    M1out = M1->forward(this->input_data);
 
     log_detail( "Input Data ...." );
-    log_matrix( input_data  );
+    log_matrix( this->input_data  );
 
     log_detail( "Encoder Attention forward output (M1out)..." );
     log_matrix( M1out );
 
     aitensor<T> InputM1out;
     
+    // Add the residual from previous input
     for (int i = 0; i < (int) this->B; i++) {
         InputM1out.push_back( M1out.at(i) + input_data.at(i) );
     }
@@ -780,7 +837,7 @@ const aitensor<T> Decoder<T>::forward(const aitensor<T>& input_data) {
 
 
     // Perform Second MultiHead Operation.
-    M2out = M2->forward(input_data);
+    M2out = M2->forward(input_data, encoder_data);
 
     log_detail( "Input Data ...." );
     log_matrix( input_data  );
@@ -790,6 +847,7 @@ const aitensor<T> Decoder<T>::forward(const aitensor<T>& input_data) {
 
     aitensor<T> InputM2out;
     
+    // Add the residual from previous input
     for (int i = 0; i < (int) this->B; i++) {
         InputM2out.push_back( M2out.at(i) + LN1out.at(i) );
     }
@@ -851,9 +909,7 @@ const aitensor<T> Decoder<T>::backward(const aitensor<T>& gradients) {
 
 
     for (int i = 0; i < (int) gradients.size(); i++) {
-
         dF1.at(i) = dLN3.at(i) + dF1.at(i);
-
     }
 
     log_detail( "Decoder (dLN2 + dF1) backprop output ..." );
@@ -866,13 +922,14 @@ const aitensor<T> Decoder<T>::backward(const aitensor<T>& gradients) {
 
     aitensor<T>  dM2 =  M2->backward(dLN2);
 
+    // Retrieve the gradient for the encoder output.
+    this->encoder_gradient = M2->getEncoderGradient();
+
     log_detail( "Encoder M1 backprop output (dM2) ..." );
     log_matrix( dM2 );
 
     for (int i = 0; i < (int) gradients.size(); i++) {
-
         dM2.push_back( dLN2.at(i) + dM2.at(i) );
-
     }
 
     aitensor<T>  dLN1 = LN1->backward(dM2);
@@ -888,14 +945,12 @@ const aitensor<T> Decoder<T>::backward(const aitensor<T>& gradients) {
     aitensor<T> dInput;
     
     for (int i = 0; i < (int) gradients.size(); i++) {
-
         dInput.push_back( dLN1.at(i) + dM1.at(i) );
-
     }
        
     return dInput;
 }  
- 
+  
 template <class T>
 void Decoder<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
 
@@ -935,8 +990,77 @@ std::string Decoder<T>::generateDotFormat(const std::string& name , bool operato
         dot +=  LN2->generateDotFormat("add_norm2") + "|";
         dot +=  F1->generateDotFormat() + "|";
         dot +=  LN3->generateDotFormat("add_norm3");
-
     }
+    return dot; 
+}
+
+// where weights is BxNxW and bias is W.
+template <class T>
+const aitensor<T> DecoderLayer<T>::forward(const aitensor<T>& decoder_data, const aitensor<T>& encoder_data) { 
+
+    log_info("=====================================================");
+    log_info( "Entering DecoderLayer Forward Pass ..." );
+
+    aitensor<T> output = decoder_data;
+
+    // Perform Forward Pass for each layer
+    for (int i = 0; i < this->L; i++) {
+        Decoder<T> decoder = this->decoders.at(i);
+        output = decoder.forward(output, encoder_data);
+    }
+    return output;
+}
+
+// where weights is BxNxW and bias is W.
+template <class T>
+const aitensor<T> DecoderLayer<T>::backward(const aitensor<T>& gradients) { 
+
+    log_info("=====================================================");
+    log_info( "Entering DecoderLayer Backward Pass ..." );
+
+    aitensor<T> decoder_gradient = gradients;
+    aitensor<T> encoder_gradient, dInput = {};
+
+    // Perform Backward Prop for each layer
+    for (int i = 0; i < this->L; i++) {
+        Decoder<T> decoder = this->decoders.at(i);
+        decoder_gradient = decoder.backward(decoder_gradient);
+        encoder_gradient = decoder.getEncoderGradient();
+        if (dInput.size() == 0) {
+            dInput = encoder_gradient;
+        } else {
+            int enc_gradient_size = encoder_gradient.size();
+            for (int j = 0; j < enc_gradient_size; j++) {
+                dInput.at(j).array() += encoder_gradient.at(j).array();
+            }
+        }
+    }
+    return dInput;
+}
+
+// where weights is BxNxW and bias is W.
+template <class T>
+void DecoderLayer<T>::updateParameters(std::string& optimizertype, T& learningRate, int& iter) {
+
+    log_info("=====================================================");
+    log_info( "Entering DecoderLayer Update Parameter ..." );
+
+    // Perform Parameter Update for each layer
+    for (int i = 0; i < this->L; i++) {
+        Decoder<T> decoder = this->decoders.at(i);
+        decoder.updateParameters(optimizertype, learningRate, iter);
+    }
+}
+
+template <class T>
+std::string DecoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    std::string dot = "{* Decoder Layer *}|";
+
+    for (int i = 0; i < this->L; i++) {
+        Decoder<T> decoder = this->decoders.at(i);
+        dot += decoder.generateDotFormat("decoder " + i);
+    }
+
     return dot; 
 }
 
@@ -956,3 +1080,13 @@ template class Encoder<double>;  // Instantiate with double
 
 template class Decoder<float>;  // Instantiate with float
 template class Decoder<double>;  // Instantiate with double
+
+template class EncoderLayer<float>;  // Instantiate with float
+template class EncoderLayer<double>;  // Instantiate with double
+
+template class DecoderLayer<float>;  // Instantiate with float
+template class DecoderLayer<double>;  // Instantiate with double
+ 
+template class PositionalEncoder<float>;  // Instantiate with float
+template class PositionalEncoder<double>;  // Instantiate with double
+

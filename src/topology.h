@@ -52,10 +52,10 @@ private:
     std::unordered_set<Node<T>*> outputs;
     std::unordered_set<Node<T>*> inputs;
     std::vector<BaseOperator*> operations;
-    aitensor<T> input_data;
-    aitensor<T> decoder_data;
-    aitensor<T> output_data;
-    aitensor<T> gradients;
+    aitensor<T> input_data = {};
+    aitensor<T> decoder_data = {};
+    aitensor<T> output_data = {};
+    aitensor<T> gradients = {};
     ssize_t repeat = 1;
     std::string reduce = "add";
 
@@ -77,15 +77,15 @@ public:
 
     // The input is assumed to have BxNxM where B=Batch, N=number of samples, M=embedding vector size
     // This allows to compute for the output size,  MxW where W is the number of weights (features) to use.
-    void setData(const py::array_t<T>& data, const bool normalize);
+    void setData(const py::array_t<T>& data, const bool normalize, const bool positional);
 
     // Invoked by Graph.setData from Model.setData class
-    void setData(const aitensor<T> data, const bool normalize);
+    void setData(const aitensor<T> data, const bool normalize, const bool positional);
 
-    void setDecoderData(const py::array_t<T>& data, const bool normalize);
+    void setDecoderData(const py::array_t<T>& data, const bool normalize, const bool positional);
 
     // Invoked by Graph.setData from Model.setData class
-    void setDecoderData(const aitensor<T> data, const bool normalize);
+    void setDecoderData(const aitensor<T> data, const bool normalize, const bool positional);
 
     // Let's handle Tensors
     //void setDataTensor(const py::array_t<T>& embedding);
@@ -174,13 +174,13 @@ public:
 
     Node<T>* findNode(const std::string& nodename);
 
-    void setData(const std::string& nodename, const aitensor<T>& data, const bool normalize);
+    void setData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional);
 
-    void setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize);
+    void setData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional);
 
-    void setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize);
+    void setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional);
 
-    void setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize);
+    void setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional);
 
     void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
 

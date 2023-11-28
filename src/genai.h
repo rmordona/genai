@@ -684,7 +684,6 @@ class BaseOperator {
             mean += input_data.at(i).mean();
             input_max = (input_data.at(i).maxCoeff() > input_max) ? input_data.at(i).maxCoeff() : input_max;
             input_min = (input_data.at(i).minCoeff() < input_min) ? input_data.at(i).minCoeff() : input_min;
-
         }
 
         // Calculate the mean 
@@ -693,10 +692,8 @@ class BaseOperator {
         aitensor<float> standard = input_data;
 
         for (int i = 0; i < input_size; i++) {
-
             standard.at(i).array() = (input_data.at(i).array() - input_min) / (input_max - input_min);
             standard.at(i).array() = standard.at(i).array() * (max - min) + min;
-
         }
 
         return standard;
@@ -705,7 +702,6 @@ class BaseOperator {
     static aitensor<double> standardize(const aitensor<double>& input_data ) {
 
         int input_size = input_data.size();
-
 
         aiscalar<double> mean = 0;
         aiscalar<double> input_max = -1e13;
@@ -717,10 +713,7 @@ class BaseOperator {
             mean += input_data.at(i).mean();
             input_max = (input_data.at(i).maxCoeff() > input_max) ? input_data.at(i).maxCoeff() : input_max;
             input_min = (input_data.at(i).minCoeff() < input_min) ? input_data.at(i).minCoeff() : input_min;
-
         }
-
-
 
         // Calculate the mean 
         mean = mean / input_size;
@@ -728,10 +721,8 @@ class BaseOperator {
         aitensor<double> standard = input_data;
 
         for (int i = 0; i < input_size; i++) {
-
             standard.at(i).array() = (input_data.at(i).array() - input_min) / (input_max - input_min);
             standard.at(i).array() = standard.at(i).array() * (max - min) + min;
-
         }
 
   

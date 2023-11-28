@@ -540,6 +540,7 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
  
 LOGGER* ai_log;
 
+
 PYBIND11_MODULE(genai, m) {
     m.doc() = "Example C++ module for Python";
 
@@ -589,14 +590,14 @@ PYBIND11_MODULE(genai, m) {
 
     py::class_<ModelNode, std::shared_ptr<ModelNode>>(m, "Node")
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
-        .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, "Function with double argument")
-        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, "Function with float argument")
-            .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool)) &ModelNode::setDecoderDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, "Function with double argument")
-        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool)) &ModelNode::setDecoderDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, "Function with float argument");
+        .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
+        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument")
+            .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDecoderDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
+        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDecoderDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument");
 
     
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
@@ -618,22 +619,26 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<const int, const int, const int, const int, bool>(), py::arg("kernel_size") = 2,
         py::arg("stride") = 1, py::arg("padding") =1, py::arg("dilation") = 1, py::arg("bias") = true);
     py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
-        .def(py::init<int, bool, bool>(), py::arg("size") = 3, py::arg("bias") = false, py::arg("masked") = false); 
+        .def(py::init<int, bool, bool>(), py::arg("size") = 3, py::arg("bias") = true, py::arg("masked") = false); 
     py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")
-        .def(py::init<int, bool, const std::string&, const float>(), 
-                py::arg("size") = 3, py::arg("bias") = true,
+        .def(py::init<int,   bool, const std::string&, const float>(), 
+                py::arg("feed_size") = 3,   py::arg("bias") = true,
                 py::arg("type") = "relu", py::arg("alpha") = 0.01);
     py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
-        .def(py::init<int, int, bool, const std::string&, const float>(), 
+        .def(py::init<int, int, int, int, bool, const std::string&, const float>(), 
                 py::arg("heads") = 1,
-                py::arg("size") = 3, 
+                py::arg("attention_size") = 3, 
+                py::arg("feed_size") = 3, 
+                py::arg("layers") = 1, 
                 py::arg("bias") = true,
                 py::arg("type") = "relu", 
                 py::arg("alpha") = 0.01);
     py::class_<ModelDecoder, BaseOperator, std::shared_ptr<ModelDecoder>>(m, "Decoder")
-        .def(py::init<int, int, bool, const std::string&, const float>(), 
+        .def(py::init<int, int, int, int,  bool, const std::string&, const float>(), 
                 py::arg("heads") = 1,
-                py::arg("size") = 3, 
+                py::arg("attention_size") = 3, 
+                py::arg("feed_size") = 3, 
+                py::arg("layers") = 1, 
                 py::arg("bias") = true,
                 py::arg("type") = "relu", 
                 py::arg("alpha") = 0.01);
@@ -665,7 +670,7 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
  
     py::class_<Model>(m, "Model")
-        .def(py::init<const std::string&>(),  py::arg("datatype") = "float")
+        .def(py::init<const std::string&, int>(),  py::arg("datatype") = "float", py::arg("seed") = 0)
         .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
                   py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
         .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
@@ -677,16 +682,18 @@ PYBIND11_MODULE(genai, m) {
                     py::arg("data"), py::arg("normalize") = false, "Function with float argument")
         .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
         .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
-        .def("train", &Model::train, py::arg("loss") = "mse",  
-                py::arg("metrics"),  py::arg("optimizer") = "adam", 
+        .def("train", &Model::train, 
+                py::arg("loss") = "mse",  
+                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("batch_size") = 10,
                 py::arg("max_epoch")=1, py::arg("learn_rate") = 0.01, py::arg("use_step_decay") = false, py::arg("decay_rate") = 0.1, 
                  "Training a model")
         .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
                 py::arg("operators") = true, py::arg("weights") = true);
- 
-    // Definitions for TokenModel APIs
+
+
     py::class_<TokenModel>(m, "TokenModel")
-        .def(py::init<const std::string&, const std::string&>(), py::arg("tokenizer") = "bpetokenizer", py::arg("datatype") = "float")
+        .def(py::init<const std::string&, const std::string&, int>(), 
+                py::arg("tokenizer") = "bpetokenizer", py::arg("datatype") = "float", py::arg("seed") = 0)
         .def("tokenize",  (std::vector<std::wstring> (TokenModel::*)(const std::wstring&)) &TokenModel::tokenize, 
                 "Tokenize a Sentence")
         .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::tokenize, 
@@ -695,16 +702,22 @@ PYBIND11_MODULE(genai, m) {
             py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
         .def("merge", (void (TokenModel::*)(const std::vector<std::wstring>&, int)) &TokenModel::merge, 
             py::arg("corpus"), py::arg("merges"), "Merge Tokens from new Corpus")
-        .def("train", (void (TokenModel::*)(const std::vector<std::wstring>&, int, const std::string&, const std::string&,
+        .def("train", (void (TokenModel::*)( const std::vector<std::wstring>&, int, const std::string&, const std::string&,
                              double, int, double, double)) &TokenModel::train,
-            py::arg("corpus"),  py::arg("batchsize"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
+            py::arg("corpus"),  py::arg("batch_size"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
             py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
             py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
-        .def("sequence",  (py::array_t<double> (TokenModel::*)(const std::vector<std::wstring>&, bool)) &TokenModel::sequenceDouble, 
-                   py::arg("corpus"), py::arg("rowwise") = false,  "Get sequence a Sentence")
-        .def("sequence",  (py::array_t<float> (TokenModel::*)(const std::vector<std::wstring>&, bool)) &TokenModel::sequenceFloat, 
-                    py::arg("corpus"), py::arg("rowwise") = false, "Get sequence a Sentence")
+        .def("sequence",  (std::tuple<py::array_t<double>, 
+                    py::array_t<double>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
+                    &TokenModel::sequenceDouble, 
+                    py::arg("corpus"), py::arg("sample_size") = 10, py::arg("chunk_size") = 10, 
+                    py::arg("sequential_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
+        .def("sequence",  (std::tuple<py::array_t<float>, 
+                    py::array_t<float>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
+                    &TokenModel::sequenceFloat, 
+                    py::arg("corpus"), py::arg("sample_size") = 10,py::arg("chunk_size") = 10, 
+                    py::arg("sequential_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
 
@@ -712,7 +725,7 @@ PYBIND11_MODULE(genai, m) {
     py::class_<Scraper>(m, "Scraper")
         .def(py::init<>())
         .def("crawl", (void (Scraper::*)(std::string&, int)) &Scraper::crawl, py::arg("url"), py::arg("depth") = 0, "Simple crawler");
-  
+    
     // Define function to print hello
     m.def("print_string", &print_string, "Print 'string'");
     m.def("print_double", &print_double, "Print 'double'");
@@ -729,6 +742,4 @@ PYBIND11_MODULE(genai, m) {
 
     // Set std::cout precision display
     std::cout.precision(12);
-
- 
 }

@@ -171,27 +171,19 @@ std::vector<std::wstring> BPETokenizer<T>::tokenize_to_char(const std::vector<st
     log_info( "===========================" );
     log_info( "Tokenizing into Corpus  ..." );
 
+    std::wstring token;
     for (const std::wstring& sentence : corpus) {
         for (auto it = sentence.begin(); it != sentence.end(); ++it) {
             wchar_t ch = *it;
-            std::wstring token(1, ch);
-            // Access the next character using the iterator
-            // Check if the iterator has reached the second-to-last character
-            if (ch == L' ') {
-                continue;
-            } else
-            if (std::next(it) != sentence.end()) {
-                wchar_t nextCh = *(std::next(it));
-                if (nextCh == L' ') {
-                    token += TK_SPACE_;
-                }
-            } else {
-                token += TK_SPACE_;
-            }
-
+            token = std::wstring(1, ch);
             tokens.push_back(token);
-            this->vocab[token]++;
+            if (ch != L' ') {
+                this->vocab[token]++;
+            }
         }
+        token = TK_EOS_;  // End of Sequence
+        tokens.push_back(token);
+        this->vocab[token]++;
     }
 
     return tokens;
@@ -216,6 +208,13 @@ std::unordered_map<std::wstring, int> BPETokenizer<T>::mergeTokens(std::vector<s
 
     std::unordered_map<std::wstring, int> vocab;
 
+    // Add standard tokens
+    vocab[TK_MASK_] = 1;
+    vocab[TK_PAD_] = 1;
+    vocab[TK_SOS_] = 1;
+    vocab[TK_EOS_] = 1;
+    vocab[TK_UNK_] = 1;
+
     for (int merge = 0; merge < numMerges; ++merge) {
         std::map<std::pair<std::wstring, std::wstring>, int> pairCounts;
 
@@ -224,11 +223,9 @@ std::unordered_map<std::wstring, int> BPETokenizer<T>::mergeTokens(std::vector<s
             const std::wstring& token1 = tokens[i];
             const std::wstring& token2 = tokens[i + 1];
 
-            // if first token is end of words, then ignore merging
-            if (endsWith(tokens[i], TK_SPACE_)) {
-              // noops
-            } else {
-               pairCounts[std::make_pair(token1, token2)]++;
+            if (token1.compare(L" ") != 0 && token2.compare(L" ") != 0 &&
+                token1.compare(TK_EOS_) != 0 && token2.compare(TK_EOS_) != 0) {
+                pairCounts[std::make_pair(token1, token2)]++;
             }
         }
 
@@ -386,7 +383,7 @@ std::vector<std::wstring> BaseTokenModel<T>::tokenize(const std::wstring& senten
 
     for (const auto& word : words) {
         bool found = false;
-        std::wstring unit = word + TK_SPACE_;
+        std::wstring unit = word;
 
         if (this->embeddings->isInVocabulary(unit)) { 
             found = true;
@@ -422,7 +419,6 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
     log_info( "=================================" );
     log_info( "Tokenizing Sentences  ..." );
 
-
     const std::unordered_map<std::wstring, int> vocabulary = this->vocab;
     std::vector<std::vector<std::wstring>> corpus;
     std::wstring currentToken;
@@ -433,11 +429,15 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
         std::vector<std::wstring> words;
         words = splitString(sentence);
 
+        //std::wstring sos = TK_SOS_; // Start of Sequence
+        //tokens.push_back(sos);
+
         for (const auto& word : words) {
-            std::wstring unit = word + TK_SPACE_;
-            tokens.push_back(unit);
+            tokens.push_back(word);
         }
 
+        std::wstring eos = TK_EOS_; // End of Sequence
+        tokens.push_back(eos);
 
         corpus.push_back(tokens);
     }
@@ -452,7 +452,7 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
 * Prefetch the vocabulary and embeddings associated with the sentences.
 ********************************************************************************************************************/
 template <class T>
-void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit, int batchSize) {
+void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit, int batch_size) {
 
     // Generate the corpus.
     std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
@@ -463,7 +463,7 @@ void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sent
     this->embeddings->prefetchVocabularyToCache(corpus);
 
     // Next, let's build the co-occurrence matrix;
-    this->embeddings->buildCoMatrix(corpus, batchSize);
+    this->embeddings->buildCoMatrix(corpus, batch_size);
 
     // Now, let us generate the Token Indices
     this->embeddings->generateTokenIndices();
@@ -484,7 +484,7 @@ void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sent
 * requires already the existence of the constructed vocabulary via BPE (preload and merge functions).
 ********************************************************************************************************************/
 template <class T>
-void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSize, 
+void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batch_size, 
         const std::string& losstype, const std::string& optimizertype,
         T learningRate, int max_epoch, T clipThreshold,  T regularization) {
 
@@ -500,7 +500,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
     this->regularization = regularization;
 
     // Prefetch the Embeddings for given corpus
-    prefetchEmbeddings(sentences, 4000, batchSize);
+    prefetchEmbeddings(sentences, 4000, batch_size);
 
     std::unordered_map<std::wstring, int> comatrix = this->embeddings->getCoMatrix();
     std::unordered_map<std::wstring, std::vector<std::wstring>> tokens = this->embeddings->getTokens();
@@ -554,7 +554,10 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
     std::chrono::duration<double> elapsed_seconds;
 
-    for (int iter = 0; iter < max_epoch; ++iter) {
+    aiscalar<T> stopping_criteria = 1e-5;
+    // aiscalar<T> old_loss = inf();
+
+    for (int iter = 1; iter <= max_epoch; ++iter) {
 
         totalloss = 0.0;
         totalcount = 0;
@@ -639,7 +642,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
 
 
         // Print Progress
-        if (iter == 1 || iter % mod_epoch == 0) {
+        if (iter == 1 || iter % mod_epoch == 0 || iter == max_epoch) {
 
             // Calculate Time, then display loss
             double avg_microseconds = (total_seconds / total_iteration) * 1000000;
@@ -659,12 +662,15 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batchSiz
         }
  
         // Checkpointing at every 10th iteration
-        if (iter % mod_epoch == 0 || iter == max_epoch - 1) {
+        if (iter % mod_epoch == 0 || iter == max_epoch) {
             // Here, we add both V and U matrices and biases instead of averaging.
             aimatrix<T> weights = (weights_V + weights_U);
             aivector<T> biases  = (biases_V + biases_U);
             this->embeddings->updateEmbeddingsInDatabase(weights, biases);
         }
+
+        if (totalloss <= stopping_criteria) break;
+
         agradient_U.setConstant(T(1.0));
         agradient_V.setConstant(T(1.0));
         agradient_Bu.setConstant(T(1.0));
@@ -688,75 +694,238 @@ aimatrix<T> BaseTokenModel<T>::listEmbeddings() {
 
 
 template <class T>
-aitensor<T> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring>& sentences, bool rowwise) {
+std::tuple<aitensor<T>,aitensor<T>> BaseTokenModel<T>::sequenceEmbeddings(const std::vector<std::wstring>& sentences, 
+                int sample_size, int chunk_size, const std::string& sequential_type,  bool rowwise) {
 
-    typename Embeddings<T>::RecordStruct record;  
+    typename Embeddings<T>::RecordStruct inp_record, tgt_record;
 
-    aimatrix<T> sequence;
+    aitensor<T> inp_sequences, tgt_sequences;
 
-    aitensor<T> sequences;
+    aimatrix<T> inp_sequence, tgt_sequence; 
 
-    bool initialized = false;
+    std::vector<std::wstring> flattened_corpus;
+
+    std::wstring inp_token;
+    std::wstring tgt_token;
+
+    int sequence_size  = 0;
+
+    int embedding_size = 0;
+
+    int corpus_size    = 0;
 
     // Generate the corpus.
     std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
 
-    int corpus_size = corpus.size(); 
-    int sequence_size = 0;
-    int embedding_size = 0;
-     
-    // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
-    for (int i = 0; i < (int) corpus_size; i++) {
-        sequence_size = ((int) corpus[i].size() > sequence_size) ? (int) corpus[i].size() : sequence_size;
+    corpus_size = corpus.size(); 
+
+    // Get the embedding size using the first token
+    inp_token = corpus[0][0];
+    bool result = this->embeddings->retrieveEmbeddings(sha256(inp_token), inp_record);
+    if (result) {
+        embedding_size = inp_record.embedding.size();
+    } else {
+        throw AIException("BaseTokenModel::sequenceEmbeddings: No Embedding Found");
     }
 
-    if (rowwise) {
-        // The tensor will have dimension (BxSxE) where B = Batch, S = Sequence, E = Embedding
-        // Used by Encoder-Decoder Transformer
-        for (int i = 0; i <   corpus_size; i++) {
-            initialized = false;
+    if (sequential_type == "chunk") {
+        // Applicable to situations in which we process a series of text which can be randomly chunked.
+
+        // Flatten The corpus if sequential type is to chunk.
+        for (int i = 0; i < corpus_size; i++) {
             for (int j = 0; j < (int) corpus[i].size(); j++) {
                 std::wstring token = corpus[i][j];
-                bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
-
-                if (result) {
-                    if (!initialized) {    
-                        embedding_size = record.embedding.size();
-                        sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
-                        initialized = true;
-                    }
-                    sequence.row(j) = record.embedding.array();
-                }
-            }    
-            sequences.push_back(sequence);
-        }
-    } else {
-        // The tensor will have dimension (SxBxE) where S = Sequence, B = Batch, E = Embedding
-        // Used by RNN/LSTM/GRU
-        for (int i = 0; i < sequence_size; i++) {
-            initialized = false;
-            for (int j = 0; j < corpus_size; j++) {
-                if (i < (int) corpus[j].size()) {
-                    std::wstring token = corpus[j][i];
-
-                    bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
-
-                    if (result) {
-                        if (!initialized) {    
-                            embedding_size = record.embedding.size();
-                            sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
-                            initialized = true;
-                        }
-                        sequence.row(j) = record.embedding.array();
-                    }
-                }
+                flattened_corpus.push_back(token);
             }
-            sequences.push_back(sequence);
+        }
+
+        corpus_size = flattened_corpus.size();
+
+        if (rowwise) {
+            // Used by Encoder-Decoder Transformer
+            // Generate random sampling from the corpus, each sample is a chunk that  contains 
+            // an ordered sequence of tokens. 
+            // The dimension is S x T x E where S = number of sample chunks, T = sequenced tokens per chunk, E = embedding size.
+            for (int i = 0; i < sample_size; i++) {
+
+                inp_sequence = aimatrix<T>::Zero(chunk_size, embedding_size);
+                tgt_sequence = aimatrix<T>::Zero(chunk_size, embedding_size);
+
+                int startIndex = std::rand() % (corpus_size - chunk_size + 1);
+                int endIndex = startIndex + chunk_size - 1;
+                int row = 0;
+
+                for (int j = startIndex; j <= endIndex; j++) {
+
+                    inp_token = flattened_corpus[j];
+
+                    if (j + 1 <= corpus_size) {
+                        tgt_token = flattened_corpus[j + 1];
+                    } else {
+                        tgt_token = TK_EOS_;
+                    }
+
+                    bool result1 = this->embeddings->retrieveEmbeddings(sha256(inp_token), inp_record);
+                    bool result2 = this->embeddings->retrieveEmbeddings(sha256(tgt_token), tgt_record);
+
+                    if (result1) {
+
+                        inp_sequence.row(row) = inp_record.embedding.array();
+
+                        if (result2) {
+                            tgt_sequence.row(row) = tgt_record.embedding.array();
+                        }
+                        row++;
+                    } 
+                }
+                inp_sequences.push_back(inp_sequence);
+                tgt_sequences.push_back(tgt_sequence);
+            }
+
+        } else { // non-rowwise
+
+            // Used by RNN/LSTM/GRU
+            // Generate random sampling from the corpus, each sample is a chunk that contains 
+            // an ordered sequence of tokens. 
+            // The dimension is T x S x E where  T = sequenced tokens per chunk, S = number of sample chunks, E = embedding size.
+
+            std::vector<int> startIndices;
+
+            // Generate the matrices for the sequence
+            for (int i = 0; i < chunk_size; i++) {
+                inp_sequence = aimatrix<T>::Zero(sample_size, embedding_size);
+                tgt_sequence = aimatrix<T>::Zero(sample_size, embedding_size);
+
+                inp_sequences.push_back(inp_sequence);
+                tgt_sequences.push_back(tgt_sequence);
+            }
+
+            // Generate the starting index of each sample. 
+            for (int j = 0; j < sample_size; j++) {
+                int startIndex = std::rand() % (corpus_size - chunk_size + 1);
+                startIndices.push_back(startIndex);
+            }
+
+            for (int i = 0; i < chunk_size; i++) {
+
+                for (int j = 0; j < sample_size; j++) {
+
+                    int idx = startIndices[j];
+
+                    inp_token = flattened_corpus[idx];
+
+                    if (idx + 1 <= corpus_size) {
+                        tgt_token = flattened_corpus[idx + 1];
+                    } else {
+                        tgt_token = TK_EOS_;
+                    }
+
+                    bool result1 = this->embeddings->retrieveEmbeddings(sha256(inp_token), inp_record);
+                    bool result2 = this->embeddings->retrieveEmbeddings(sha256(tgt_token), tgt_record);
+
+                    if (result1) {
+
+                        inp_sequences.at(i).row(j) = inp_record.embedding.array();
+
+                        if (result2) {
+                            tgt_sequences.at(i).row(j) = tgt_record.embedding.array();
+                        }
+                    } 
+                }
+
+            }
+
+        }
+    } else
+    if (sequential_type == "sentence") {
+        // Applicable to situations in which we process a sentence as a sequence in entirety
+        // and cannot be randomly chunked.
+
+        // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
+        for (int i = 0; i < (int) corpus_size; i++) {
+            sequence_size = ((int) corpus[i].size() > sequence_size) ? (int) corpus[i].size() : sequence_size;
+        }
+
+        if (rowwise) { // For encoder-decoder Transformer
+
+            for (int i = 0; i <   corpus_size; i++) {
+                inp_sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
+                tgt_sequence = aimatrix<T>::Zero(sequence_size, embedding_size);
+
+                for (int j = 0; j < sequence_size; j++) {
+                    inp_token = corpus[i][j];
+
+                    if (j + 1 <= corpus_size) {
+                        tgt_token = corpus[i][j + 1];
+                    } else {
+                        tgt_token = TK_EOS_;
+                    }
+
+                    bool result1 = this->embeddings->retrieveEmbeddings(sha256(inp_token), inp_record);
+                    bool result2 = this->embeddings->retrieveEmbeddings(sha256(tgt_token), tgt_record);
+
+                    if (result1) {
+
+                        inp_sequence.row(j) = inp_record.embedding.array();
+
+                        if (result2) {
+                            tgt_sequence.row(j) = tgt_record.embedding.array();
+                        }
+
+                    }
+                }    
+                inp_sequences.push_back(inp_sequence);
+                tgt_sequences.push_back(tgt_sequence);
+            }
+
+        } else { // For RNN / LSTM /GRU
+
+            // Generate the matrices for the sequence
+            for (int i = 0; i < sequence_size; i++) {
+                inp_sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
+                tgt_sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
+
+                inp_sequences.push_back(inp_sequence);
+                tgt_sequences.push_back(tgt_sequence);
+            }
+
+            for (int i = 0; i < sequence_size; i++) {
+
+                for (int j = 0; j < corpus_size; j++) {
+
+                    if (i < (int) sequence_size) {
+
+                        std::wstring token = corpus[j][i];
+
+                        if (j + 1 <= corpus_size) {
+                            tgt_token = corpus[j + 1][i];
+                        } else {
+                            tgt_token = TK_EOS_;
+                        }
+
+                        bool result1 = this->embeddings->retrieveEmbeddings(sha256(inp_token), inp_record);
+                        bool result2 = this->embeddings->retrieveEmbeddings(sha256(tgt_token), tgt_record);
+
+                        if (result1) {
+
+                            inp_sequences.at(i).row(j) = inp_record.embedding.array();
+
+                            if (result2) {
+                                tgt_sequences.at(i).row(j) = tgt_record.embedding.array();
+                            }
+
+                        }
+                    }
+                }
+
+            }
 
         }
 
     }
-    return sequences;
+
+
+    return std::make_tuple(inp_sequences, tgt_sequences);
 }
 
 /************************************************************************************************
@@ -800,23 +969,22 @@ void BaseTokenModel<T>::printWordEmbeddings(int rows) {
 
 }
 
-
 /************************************************************************************************
 * Model::Model
 * This is the Model Constructor Implementation - Note that this is only a meta model.
 * The actual model is the BaseModel Class.
 *************************************************************************************************/
-TokenModel::TokenModel(const std::string& tokenizer, const std::string& datatype) {
+TokenModel::TokenModel(const std::string& tokenizer, const std::string& datatype, int seed) {
     try {
         this->datatype = datatype;
         this->tokenizer = tokenizer;
 
         if (tokenizer == "bpetokenizer") {
             if (datatype == "float") {
-                this->tokenizerf =  std::make_shared<BPETokenizer<float>>();
+                this->tokenizerf =  std::make_shared<BPETokenizer<float>>(seed);
             } else
             if (datatype == "double") {
-                this->tokenizerd =  std::make_shared<BPETokenizer<double>>();
+                this->tokenizerd =  std::make_shared<BPETokenizer<double>>(seed);
             } else {
                 throw std::invalid_argument("Unsupported datatype");            
             }
@@ -833,7 +1001,6 @@ TokenModel::TokenModel(const std::string& tokenizer, const std::string& datatype
         // Catch all other exceptions
         std::cerr << "(TokenModel:TokenModel) Unknown Error:" << std::endl;
     }
-
 }
 
 std::vector<std::wstring> TokenModel::tokenize(const std::wstring& sentence) {
@@ -880,14 +1047,14 @@ void TokenModel::merge(const std::vector<std::wstring>& sentences, int numMerges
 * TokenModel::train
 * Function to train (glove-like) a model
 *************************************************************************************************/
-void TokenModel::train(std::vector<std::wstring>& sentences, int batchSize, 
+void TokenModel::train(std::vector<std::wstring>& sentences, int batch_size, 
         const std::string& losstype , const std::string& optimizertype,
         double learningRate, int maxIteration, double clipThreshold ,double regularization ) {
     if (this->datatype == "float") {
-        this->tokenizerf->train(sentences, batchSize, losstype, optimizertype, static_cast<float>(learningRate), maxIteration);
+        this->tokenizerf->train(sentences, batch_size, losstype, optimizertype, static_cast<float>(learningRate), maxIteration);
     } else 
     if (this->datatype == "double") {
-        this->tokenizerd->train(sentences, batchSize, losstype, optimizertype, static_cast<double>(learningRate), maxIteration);
+        this->tokenizerd->train(sentences, batch_size, losstype, optimizertype, static_cast<double>(learningRate), maxIteration);
     }
 }
 
@@ -939,33 +1106,43 @@ py::array_t<float> TokenModel::embeddingsFloat() {
 * TokenModel::sequenceDouble and sequenceFloat
 * Functions to generate sequence of embeddings based on given list of sentences
 *************************************************************************************************/
-py::array_t<double> TokenModel::sequenceDouble(const std::vector<std::wstring>& sentences, bool rowwise) {
-    aitensor<double> embeddingd;
+std::tuple<py::array_t<double>, py::array_t<double>> TokenModel::sequenceDouble(const std::vector<std::wstring>& sentences,
+         int sample_size, int chunk_size, const std::string& sequential_type, bool rowwise) {
+    aitensor<double> inp_embeddingd;
+    aitensor<double> tgt_embeddingd;
     if (this->datatype == "double") {
-        embeddingd = this->tokenizerd->sequenceEmbeddings(sentences, rowwise);
+        std::tie(inp_embeddingd, tgt_embeddingd) = this->tokenizerd->sequenceEmbeddings(sentences, sample_size, chunk_size, sequential_type, rowwise);
 
     } else 
     if (this->datatype == "float") {
-        aitensor<float> embeddingf = this->tokenizerf->sequenceEmbeddings(sentences, rowwise);
-        for (int i = 0; i < (int) embeddingf.size(); i++) {
-            embeddingd.push_back( embeddingf[i].cast<double>() );
+        aitensor<float> inp_embeddingf;
+        aitensor<float> tgt_embeddingf;
+        std::tie(inp_embeddingf, tgt_embeddingf) = this->tokenizerf->sequenceEmbeddings(sentences, sample_size, chunk_size, sequential_type, rowwise);
+        for (int i = 0; i < (int) inp_embeddingf.size(); i++) {
+            inp_embeddingd.push_back( inp_embeddingf[i].cast<double>() );
+            tgt_embeddingd.push_back( tgt_embeddingf[i].cast<double>() );
         }
     }
-    return ConvertData::topyarray(embeddingd);
+    return std::make_tuple( ConvertData::topyarray(inp_embeddingd),  ConvertData::topyarray(tgt_embeddingd) );
 }
 
-py::array_t<float> TokenModel::sequenceFloat(const std::vector<std::wstring>& sentences, bool rowwise) {
-    aitensor<float> embeddingf;
+std::tuple<py::array_t<float>, py::array_t<float>> TokenModel::sequenceFloat(const std::vector<std::wstring>& sentences, 
+            int sample_size, int chunk_size, const std::string& sequential_type, bool rowwise) {
+    aitensor<float> inp_embeddingf;
+    aitensor<float> tgt_embeddingf;
     if (this->datatype == "double") {
-        aitensor<double> embeddingd = this->tokenizerd->sequenceEmbeddings(sentences, rowwise);
-        for (int i = 0; i < (int) embeddingf.size(); i++) {
-            embeddingf.push_back( embeddingd[i].cast<float>() );
+        aitensor<double> inp_embeddingd;
+        aitensor<double> tgt_embeddingd;
+        std::tie(inp_embeddingd, tgt_embeddingd)= this->tokenizerd->sequenceEmbeddings(sentences, sample_size, chunk_size, sequential_type, rowwise);
+        for (int i = 0; i < (int) inp_embeddingd.size(); i++) {
+            inp_embeddingf.push_back( inp_embeddingd[i].cast<float>() );
+            tgt_embeddingf.push_back( tgt_embeddingd[i].cast<float>() );
         }
     } else 
     if (this->datatype == "float") {
-        embeddingf = this->tokenizerf->sequenceEmbeddings(sentences, rowwise);
+        std::tie(inp_embeddingf, tgt_embeddingf) = this->tokenizerf->sequenceEmbeddings(sentences, sample_size, chunk_size, sequential_type, rowwise);
     }
-    return ConvertData::topyarray(embeddingf);
+    return std::make_tuple( ConvertData::topyarray(inp_embeddingf),  ConvertData::topyarray(tgt_embeddingf) );
 }
 
 /************ Tokenizer / Embeddings initialize template ************/

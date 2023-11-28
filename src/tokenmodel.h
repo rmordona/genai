@@ -25,10 +25,23 @@
 
 #include "embeddings.h"
 #include "logger.h"
+#include <cstdlib>  // For std::srand
 
 #ifndef TOKENMODEL_H
 #define TOKENMODEL_H
 
+// Define a struct to hold named elements
+/*
+struct SequenceTupleDouble {
+    py::array_t<double> input;
+    py::array_t<double> target;
+};
+
+struct SequenceTupleFloat {
+    py::array_t<float> input;
+    py::array_t<float> target;
+};
+*/
 
 /*************************************************************************************************
  * BaseTokenModel is the actual structure we use to perform tokenization.
@@ -98,10 +111,10 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // Prefetch vocabulary and vector for given corpus
-    void prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit = 4000, int batchSize = 1);
+    void prefetchEmbeddings(const std::vector<std::wstring>& sentences, int token_limit = 4000, int batch_size = 1);
 
     // Now train a GloVe model
-    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
+    void train(std::vector<std::wstring>& sentences, int batch_size = 2, 
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
             T learningRate = 0.01, int mod_epoch = 1, T clipThreshold = 5.0, T regularization = 1.0);
 
@@ -110,7 +123,8 @@ public:
 
     aimatrix<T> listEmbeddings();
 
-    aitensor<T> sequenceEmbeddings(const std::vector<std::wstring>& sentences, bool rowwise = false);
+    std::tuple<aitensor<T>,aitensor<T>> sequenceEmbeddings(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -133,7 +147,10 @@ private:
     // int vocabSize = 0;
 
 public:
-    BPETokenizer() {
+    BPETokenizer(int seed) {
+        if (seed != 0) {
+            std::srand(seed);
+        }
         root = new TrieNode();
     }
 
@@ -183,7 +200,7 @@ private:
 
 public: 
 
-    TokenModel(const std::string& tokenizer = "bpetokenizer", const std::string& datatype = "float");
+    TokenModel(const std::string& tokenizer = "bpetokenizer", const std::string& datatype = "float", int seed = 0);
 
     // set Tokenizer
     // void setTokenizer(const std::string& name);
@@ -201,7 +218,7 @@ public:
     std::vector<std::vector<std::wstring>> tokenize(const std::vector<std::wstring>& sentences);
 
     // train: Function to train corpus using GloVe
-    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
+    void train(std::vector<std::wstring>& sentences, int batch_size = 10, 
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
             double learningRate = 0.01, int maxIteration = 1, double clipThreshold = 5.0, double regularization = 1.0);
 
@@ -211,19 +228,14 @@ public:
 
     py::array_t<float> embeddingsFloat();
 
-    py::array_t<double> sequenceDouble(const std::vector<std::wstring>& sentences, bool rowwise = false);
+    std::tuple<py::array_t<double>, py::array_t<double>> sequenceDouble(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
 
-    py::array_t<float> sequenceFloat(const std::vector<std::wstring>& sentences, bool rowwise = false);
+    std::tuple<py::array_t<float>, py::array_t<float>> sequenceFloat(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
 
-/*
-    // Overload the train function
-    void train(std::vector<std::wstring>& sentences, int batchSize = 2, 
-            const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
-            double learningRate = 0.01, int maxIteration = 1) {
-        train(sentences, batchSize, losstype, optimizertype,  learningRate, maxIteration, (double) 5.0, (double) 1.0);
-    }
-*/
 
 };
+
 
 #endif
