@@ -690,7 +690,6 @@ PYBIND11_MODULE(genai, m) {
         .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
                 py::arg("operators") = true, py::arg("weights") = true);
 
-
     py::class_<TokenModel>(m, "TokenModel")
         .def(py::init<const std::string&, const std::string&, int>(), 
                 py::arg("tokenizer") = "bpetokenizer", py::arg("datatype") = "float", py::arg("seed") = 0)
@@ -712,12 +711,12 @@ PYBIND11_MODULE(genai, m) {
                     py::array_t<double>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
                     &TokenModel::sequenceDouble, 
                     py::arg("corpus"), py::arg("sample_size") = 10, py::arg("chunk_size") = 10, 
-                    py::arg("sequential_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
+                    py::arg("sequence_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
         .def("sequence",  (std::tuple<py::array_t<float>, 
                     py::array_t<float>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
                     &TokenModel::sequenceFloat, 
                     py::arg("corpus"), py::arg("sample_size") = 10,py::arg("chunk_size") = 10, 
-                    py::arg("sequential_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
+                    py::arg("sequence_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
 

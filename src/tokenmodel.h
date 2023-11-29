@@ -94,6 +94,9 @@ public:
         this->embeddings = new Embeddings<T>(embeddingSize);
     }
 
+    // Retrieve Embedding from DB
+    airowvector<T> retrieveEmbeddings(const std::wstring& token);
+                    
     // Get the Embedding
     Embeddings<T>* getEmbeddings() { return this->embeddings; }
 

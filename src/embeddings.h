@@ -70,7 +70,7 @@ private:
 
         // For the Embedding
         std::string hashKey;
-        aivector<T> embedding;
+        airowvector<T> embedding;
         T bias;
     };
 

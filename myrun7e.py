@@ -78,7 +78,7 @@ for i, token in enumerate(tokens):
 
 
 # Fifty Sentences
-sequences = tokenizer.sequence(corpus = cleaned_sentences, rowwise = True)
+sequences = tokenizer.sequence(corpus = cleaned_sentences, sample_size=10, chunk_size=10, sequence_type = "sentence", rowwise = False)
 inp_sequences = sequences[0]
 tgt_sequences = sequences[1]
 
