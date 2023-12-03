@@ -594,9 +594,13 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
         .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDataFloat, 
                 py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument")
-            .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDecoderDataDouble, 
+        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDecoderDataDouble, 
                 py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
         .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDecoderDataFloat, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument")
+        .def("setEncoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setEncoderDataDouble, 
+                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
+        .def("setEncoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setEncoderDataFloat, 
                 py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument");
 
     
@@ -707,18 +711,23 @@ PYBIND11_MODULE(genai, m) {
             py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
             py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
-        .def("sequence",  (std::tuple<py::array_t<double>, 
+        .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
+        .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument")
+        .def("encode",  (std::tuple<py::array_t<double>, 
                     py::array_t<double>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
-                    &TokenModel::sequenceDouble, 
+                    &TokenModel::encodeDouble, 
                     py::arg("corpus"), py::arg("sample_size") = 10, py::arg("chunk_size") = 10, 
                     py::arg("sequence_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
-        .def("sequence",  (std::tuple<py::array_t<float>, 
+        .def("encode",  (std::tuple<py::array_t<float>, 
                     py::array_t<float>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
-                    &TokenModel::sequenceFloat, 
+                    &TokenModel::encodeFloat, 
                     py::arg("corpus"), py::arg("sample_size") = 10,py::arg("chunk_size") = 10, 
                     py::arg("sequence_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
-        .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
-        .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument");
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&)) &TokenModel::decodeDouble, 
+                    py::arg("sequences"), "Function with float argument")
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&)) &TokenModel::decodeFloat, 
+                    py::arg("sequences"), "Function with float argument");
+
 
     // Definitions for Scraper APIs
     py::class_<Scraper>(m, "Scraper")

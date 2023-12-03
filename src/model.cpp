@@ -89,6 +89,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->learningRate  = learn_rate;
     this->useStepDecay  = use_step_decay;
     this->decayRate     = decay_rate;
+    this->batch_size    = batch_size;
 
     int mod_epoch = std::ceil(max_epoch * 0.10);
 
@@ -109,11 +110,15 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 
     py_cout << "Fitting the model ..." << std::endl;
 
+
+ 
     for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
-        this->graph->nextBatch();
- 
+
+        // Note that batch processing is done at the node level.
+        this->graph->nextBatch(batch_size);
+
         log_detail( "Entering Forward Propagation ..." );
         this->predicted = this->graph->forwardPropagation();
 
@@ -208,7 +213,7 @@ aitensor<T> BaseModel<T>::predict() {
     //MPI_Init(NULL, NULL);
 
     log_info( "******************************************************************************************" );
-    log_info( "********************************* Start Training *****************************************")
+    log_info( "********************************* Start Training *****************************************" );
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
@@ -252,7 +257,6 @@ aitensor<T> BaseModel<T>::predict() {
     py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
     py_cout << " at " << std::ctime(&next_time) << std::endl;
 
-
     // Also, log the result if Logging INFO is enabled
     log_detail( "Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", 
             this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
@@ -293,33 +297,6 @@ void ModelNode::setDataFloat(const py::array_t<float>& data, const bool normaliz
     }
 }
 
-void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
-    try {
-        if (datatype == "double") {
-            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
-        }
-
-        this->decoder_fdata = ConvertData::totensor(data);
-        this->normalize   = normalize;
-        this->positional  = positional;
-
-    } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
-    } catch (...) {
-        // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
-    }
-}
-
-/**************************************************************************************************
-* ModelNode::setDataDouble and setDecoderDataDouble
-* Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
-* Upon training entry, the double pointer will be transformed to an aitensor and handed over
-* to the Node class.
-**************************************************************************************************/
 void ModelNode::setDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
 
     try {
@@ -342,6 +319,12 @@ void ModelNode::setDataDouble(const py::array_t<double>& data, bool const normal
     }
 }
 
+/**************************************************************************************************
+* ModelNode::setDecoderDataDouble and setDecoderDataFloat
+* Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
+* Upon training entry, the double pointer will be transformed to an aitensor and handed over
+* to the Node class.
+**************************************************************************************************/
 void ModelNode::setDecoderDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
 
     try {
@@ -350,6 +333,78 @@ void ModelNode::setDecoderDataDouble(const py::array_t<double>& data, bool const
         }
 
         this->decoder_ddata = ConvertData::totensor(data);
+        this->normalize   = normalize;
+        this->positional  = positional;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
+        }
+
+        this->decoder_fdata = ConvertData::totensor(data);
+        this->normalize   = normalize;
+        this->positional  = positional;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+/**************************************************************************************************
+* ModelNode::setEncoderDataDouble and setEncoderDataFloat
+* Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
+* Upon training entry, the double pointer will be transformed to an aitensor and handed over
+* to the Node class.
+**************************************************************************************************/
+
+
+void ModelNode::setEncoderDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
+
+    try {
+        if (datatype == "float") {
+            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+        }
+
+        this->encoder_ddata = ConvertData::totensor(data);
+        this->normalize   = normalize;
+        this->positional  = positional;
+
+    } catch (const AIException& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        // Catch standard exceptions
+        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+    } catch (...) {
+        // Catch all other exceptions
+        std::cerr << "Unknown Error:" << std::endl;
+    }
+}
+
+void ModelNode::setEncoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
+    try {
+        if (datatype == "double") {
+            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
+        }
+
+        this->encoder_fdata = ConvertData::totensor(data);
         this->normalize   = normalize;
         this->positional  = positional;
 
@@ -418,7 +473,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (datatype == "double") { 
                 Activation<double>* newop = new Activation<double>(
                                                             activate->getActivationType(), 
                                                             activate->getAlpha()
@@ -461,7 +516,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (datatype == "double") { 
                 Convolution<double>* newop = new Convolution<double>(
                                                             convolution->getKernelSize(),
                                                             convolution->getStride(),
@@ -735,6 +790,7 @@ void Model::seedNodes(bool setOps) {
 
         // First, let's seed with decoder data (For Transformer Decoders)
         ssize_t dsize = node->getDecoderDataSize();
+        ssize_t esize = node->getEncoderDataSize();
 
         // set Node Input Data
         if (size != 0) {
@@ -753,6 +809,16 @@ void Model::seedNodes(bool setOps) {
             } else
             if (datatype == "double") {
                 modelXd->getGraph()->setDecoderData(node->getName(), node->getDecoderDataDouble(), node->getNormalize(), node->getPositional());
+            }
+        }
+
+        // set Node Decoder Data (For Transformer Decoders)
+        if (esize != 0) {
+            if (datatype == "float") {
+                modelXf->getGraph()->setEncoderData(node->getName(), node->getEncoderDataFloat(), node->getNormalize(), node->getPositional());
+            } else
+            if (datatype == "double") {
+                modelXd->getGraph()->setEncoderData(node->getName(), node->getEncoderDataDouble(), node->getNormalize(), node->getPositional());
             }
         }
 

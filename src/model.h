@@ -48,6 +48,7 @@ private:
     T learningRate = 0.01;
     bool useStepDecay = false;
     float decayRate = 0.90;
+    int batch_size  = 10;
 
     std::vector<std::string> metricstype;
 
@@ -103,6 +104,9 @@ private:
     aitensor<float> decoder_fdata;  // (For Transformer Decoders)
     aitensor<double> decoder_ddata; // (For Transformer Decoders)
 
+    aitensor<float> encoder_fdata;  // (For Transformer Decoders, in the case there's no encoder )
+    aitensor<double> encoder_ddata; // (For Transformer Decoders, in the case there's no encoder )
+
     bool normalize = false;
     bool positional = false;
 
@@ -124,6 +128,10 @@ public:
     void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
 
     void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
+
+    void setEncoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
+
+    void setEncoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
 
     bool getNormalize() { return this->normalize; }
 
@@ -149,11 +157,24 @@ public:
         return 0;
     }
 
+    ssize_t getEncoderDataSize() { 
+        if (datatype == "float") {
+            return this->encoder_fdata.size(); 
+        } else 
+        if (datatype == "double") {
+            return this->encoder_ddata.size(); 
+        }
+        return 0;
+    }
+
     aitensor<float> getDataFloat() { return this->input_fdata; }
     aitensor<double> getDataDouble() { return this->input_ddata; }
 
     aitensor<float> getDecoderDataFloat() { return this->decoder_fdata; }
     aitensor<double> getDecoderDataDouble() { return this->decoder_ddata; }
+
+    aitensor<float> getEncoderDataFloat() { return this->encoder_fdata; }
+    aitensor<double> getEncoderDataDouble() { return this->encoder_ddata; }
 
     void setOperations(std::vector<std::shared_ptr<BaseOperator>>& operations); // accept as ModelNode operations
 
@@ -472,6 +493,7 @@ public:
         this->L    = layers;
         this->bias = bias;
         this->H    = heads;
+        if (attention_size % heads != 0) throw AIException("heads is not multiple of attention_size ...");
     }
 
     ModelEncoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
@@ -483,6 +505,7 @@ public:
         this->L     = layers;
         this->bias  = bias;
         this->H     = heads;
+        if (attention_size % heads != 0) throw AIException("heads is not multiple of attention_size ...");
     }
 
     int getHead() { return this->H; }
@@ -520,6 +543,7 @@ public:
         this->L    = layers;
         this->bias = bias;
         this->H    = heads;
+        if (attention_size % heads != 0) throw AIException("heads is not multiple of attention_size ...");
     }
 
     ModelDecoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
@@ -531,6 +555,7 @@ public:
         this->L     = layers;
         this->bias  = bias;
         this->H     = heads;
+        if (attention_size % heads != 0) throw AIException("heads is not multiple of attention_size ...");
     }
 
     int getHead() { return this->H; }

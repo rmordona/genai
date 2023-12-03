@@ -372,16 +372,6 @@ void log_msg(const std::string& text);
 
 double inf();
 
-/*
-void print_string(const std::string& text, bool printNextLine);
-
-void print_double(double value, bool printNextLine);
-
-std::string scalar_to_string(const float& value);
-
-std::string scalar_to_string(const double& value);
-*/
-
 double* allocate_matrix(ssize_t rows, ssize_t cols);
 
 namespace py = pybind11;
@@ -396,22 +386,6 @@ using namespace py::literals;
 #include <openssl/sha.h>
 #include <iomanip>
 #include <fstream>
-
-/*
-std::string wstringToUtf8(const std::wstring& wstr);
-
-std::wstring utf8ToWstring(const std::string& utf8Str);
-
-// Function to serialize std::wstring to UTF-8 encoded std::vector<unsigned char>
-std::vector<unsigned char> serializeWString(const std::wstring& wstr);
-
-// Function to deserialize UTF-8 encoded std::vector<unsigned char> back to std::wstring
-std::wstring deserializeWString(const std::vector<unsigned char>& bytes);
-
-// Function to hash a given word token using SHA256
-std::string sha256(const std::wstring& str);
-*/
-
 
 void log_msg(const std::string& text);
  
@@ -604,7 +578,7 @@ public:
             throw AIException(" Incorrect data dimension (Use 2D or 3D only)...");
         } 
 
-        log_detail( "Size: {:d} {:d} {:d}", dim0, dim1,  dim2 );
+        log_detail( "Dimension Sizes: {:d} {:d} {:d}", dim0, dim1,  dim2 );
 
         aitensor<T> eigenMatrices;
         eigenMatrices.reserve(dim0);
@@ -614,6 +588,8 @@ public:
             std::memcpy(eigenMatrix.data(), &dataPtr[i * dim1 * dim2], dim1 * dim2 * sizeof(T));
             eigenMatrices.push_back(eigenMatrix);
         }
+
+        log_detail("Size after memcopy: {0}", eigenMatrices.size());
 
         return eigenMatrices;
     }

@@ -84,19 +84,19 @@ private:
     aitensor<T> encoder_data = {};      // If we are passing an encoded input
     aitensor<T> encoder_gradient = {};  // If we are passing an encoded input 
 
-    Linear<T>* Q  = nullptr;  // BxNxW
-    Linear<T>* K  = nullptr;  // BxNxW
-    Linear<T>* V  = nullptr;  // BxNxW
+    Linear<T>* Wk  = nullptr;  // BxNxW  where W = dmodel (typically), though in practise, W can be explicit
+    Linear<T>* Wv  = nullptr;  // BxNxW  where W = dmodel (typically), though in practise, W can be explicit
+    Linear<T>* Wq  = nullptr;  // BxNxW  where W = dmodel (typically), though in practise, W can be explicit
     Linear<T>* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
 
     aimatrix<T> Mask; // Mask Kernel for Decoder in Transformer
 
-    aitensor<T> Qout;
-    aitensor<T> Kout;
-    aitensor<T> Vout;
+    aitensor<T> Q;  // Q projection
+    aitensor<T> K;  // K projection
+    aitensor<T> V;  // V projection
 
     aitensor<T> QKweight;
-    aitensor<T> QKweightV;
+    // aitensor<T> QKweightV;
 
     int B = 0;  // batch size
     int N = 0;  // input size
@@ -107,12 +107,16 @@ private:
 
     bool bias = true;
     bool masked = false;
-
+    bool output_projection = true; // By setting it to true, we perform the output projection (Wo)
+                                   // otherwise, we defer that step as last operation in multihead
+                                   // so that when we split attention unit into multi heads, we only
+                                   // project K, V, and Q and calculate all the way to the softmax(KQ/sqrt(dk))V
 public:
-    Attention(int size = 3, bool bias = true, bool masked = false)  {
-        this->W = size;
-        this->bias = bias;
-        this->masked = masked;
+    Attention(int size = 3, bool bias = true, bool masked = false, bool output_projection = true)  {
+        this->W                 = size;
+        this->bias              = bias;
+        this->masked            = masked;
+        this->output_projection = output_projection;
         log_info( "**** Attention instance created ****" );
     }
 
@@ -151,6 +155,8 @@ private:
 
     std::vector<Attention<T>*> M1;
 
+    Linear<T>* Wo = nullptr; // this extra weight matrix will align the output dimension the same as the input. // BxNxM
+
     int B = 0;  // batch size
     int N = 0;  // number of samples
     int M = 0;  // number of features (embedding vector size) for Q, K, V layer
@@ -173,6 +179,7 @@ public:
         this->H = heads;
         this->bias = bias;
         this->masked = masked;
+
         // M1.setZero();
         log_info( "**** MultiHeadAttention instance created ****" );
     }
@@ -319,6 +326,43 @@ public:
 
 /*****************************************************************************************************
 * Base Encoder Layer
+*
+* The Transformer Encoder allows two types of training (in tandem with the Decoder Layer):
+*
+* - Inference (Without Teacher Forcing):
+*
+* 1. Encode the Input Sequence:
+*    Pass the input sequence through the encoder to obtain the context vectors.
+*
+* 2. Initialize Decoder Input:
+*    Set the input to the decoder as the start-of-sequence (SOS) token.
+*
+* 3. Decoding Loop:
+*    Repeat until an end-of-sequence (EOS) token is generated or a maximum sequence length is reached:
+*       Forward pass through the decoder to get the next token.
+*       The next token is appended to the previously generated sequence.
+*       The newly generated token becomes the input for the next decoding step.
+*
+*
+* - Training (With Teacher Forcing):
+*
+* 1. Encode the Input Sequence:
+*    Pass the input sequence through the encoder to obtain the context vectors.
+*
+* 2. Initialize Decoder Input:
+*    Set the input to the decoder as the start-of-sequence (SOS) token.
+*
+* 3. Decoding Loop:
+*    Repeat until an end-of-sequence (EOS) token is generated or a maximum sequence length is reached:
+*       Forward pass through the decoder to get the next token.
+*       The ground truth token from the target sequence is used as the input for the 
+*          next decoding step instead of the model's own prediction.
+*       The actual ground truth token is also used to calculate the loss during backpropagation.
+*
+* 4. Backpropagation:
+*    Calculate the loss between the predicted sequence and the target sequence.
+*    Perform backpropagation to update the model's parameters.
+*
 *****************************************************************************************************/
 template <class T>
 class EncoderLayer : public BaseOperator {
@@ -367,9 +411,26 @@ public:
 
 };
 
-/*****************************************************************************************************
+/********************************************************************************************************
 * Base Decoder  Block
-*****************************************************************************************************/
+*
+* The Transformer Decoder allows two types of training:
+*
+* Without Teacher Forcing (Inference):
+*
+*    During inference or generation, the decoder's input at each step is its own previously generated 
+*    token. This token is fed back into the decoder to predict the next token.
+*
+* With Teacher Forcing (Training):
+*
+*    During training, the true target sequence is known. Instead of using the decoder's own predictions 
+*    as input for the next step, the actual ground truth (target) token is fed as input to the decoder 
+*    at each step.
+*
+*    This means that, during training, the decoder is provided with the correct information at each step, 
+*    allowing it to learn more effectively.
+*
+*********************************************************************************************************/
 template <class T>
 class Decoder : public BaseOperator {
 private:

@@ -30,6 +30,7 @@
 #ifndef TOKENMODEL_H
 #define TOKENMODEL_H
 
+
 // Define a struct to hold named elements
 /*
 struct SequenceTupleDouble {
@@ -126,8 +127,12 @@ public:
 
     aimatrix<T> listEmbeddings();
 
-    std::tuple<aitensor<T>,aitensor<T>> sequenceEmbeddings(const std::vector<std::wstring>& sentences, 
-                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
+    // We sequence the sentences into embeddings
+    std::tuple<aitensor<T>,aitensor<T>> encode(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
+
+    // Convert embeddings to interpetable words
+    std::vector<std::wstring> decode(const aitensor<T>& sequences);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -225,19 +230,28 @@ public:
             const std::string& losstype = "mse", const std::string& optimizertype = "adagrad",
             double learningRate = 0.01, int maxIteration = 1, double clipThreshold = 5.0, double regularization = 1.0);
 
+    // Extract the tokens  (only use after training)
     std::vector<std::wstring> tokens();
 
+    // Extract the corresponding embeddings (only use after training)
     py::array_t<double> embeddingsDouble();
 
+    // Extract the corresponding embeddings (only use after training)
     py::array_t<float> embeddingsFloat();
 
-    std::tuple<py::array_t<double>, py::array_t<double>> sequenceDouble(const std::vector<std::wstring>& sentences, 
-                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
+    // Encode - We sequence the sentences into embeddings
+    std::tuple<py::array_t<double>, py::array_t<double>> encodeDouble(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
-    std::tuple<py::array_t<float>, py::array_t<float>> sequenceFloat(const std::vector<std::wstring>& sentences, 
-                int sample_size = 10, int chunk_size = 10, const std::string& sequential_type = "chunk", bool rowwise = false);
+    // Encode - We sequence the sentences into embeddings
+    std::tuple<py::array_t<float>, py::array_t<float>> encodeFloat(const std::vector<std::wstring>& sentences, 
+                int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
+    // Decode - Convert embeddings to interpetable words
+    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences);
 
+    // Decode - Convert embeddings to interpetable words
+    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences);
 };
 
 

@@ -83,7 +83,7 @@ void Embeddings<T>::initializeVectorDB() {
         //closeDB();
     }
 }
-
+ 
 /************************************************************************************************
 * Embeddings::seedVocabularyDB
 * Function to seed the Vocabulary DB
@@ -290,7 +290,7 @@ void Embeddings<T>::saveEmbeddings(sqlite3* db, const Record& record) {
     if (rc != SQLITE_OK) {
         sqlite3_finalize(stmt); // Release the stmt memory
     }
-
+ 
     // Bind the vector embedding
     sqlite3_bind_blob(stmt, 2, record.embedding.data(), record.embedding.size() * sizeof(T), SQLITE_STATIC);
     if (rc != SQLITE_OK) {
@@ -645,8 +645,8 @@ void Embeddings<T>::generateTokenIndices() {
 
     log_detail("Initial size of TokenIndex: {0}", this->tokenHashToIndex.size());
 
-    int currentIndex = 0;  // This is an in-memory index only
-    // Let's generate the Token Indices
+    int currentIndex = 0;  
+    // Let's generate the Token Indices. Note that this->tokens is generated from buildCoMatrix().
     for (const auto& token : this->tokens) {
 
         // Prepare the query to fetch embeddings for tokens in the corpus
@@ -750,6 +750,7 @@ void Embeddings<T>::prefetchEmbeddingsToCache() {
 
         log_detail("Size of Tokens: {0} ", this->tokens.size());
 
+        // Note that this->tokens is generated from buildCoMatrix().
         for (const auto& token : this->tokens) {
             Record record;
             bool row = retrieveEmbeddings(sha256(token.first), record);
@@ -832,8 +833,6 @@ void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& 
 
     int corpus_size = static_cast<int>(corpus.size());
 
-    int x = 0;
-
     // Global Vector
     std::unordered_map<std::wstring, int> comatrix;
     std::unordered_map<std::wstring, std::vector<std::wstring>> tokens; 
@@ -859,13 +858,20 @@ void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& 
                     // Skip the target token itself
                     if (j == k) continue;
                     std::wstring contextWord = sentence[k]; 
+
+                    if (targetWord == TK_SOS_) continue;
+                    if (targetWord == TK_EOS_) continue;
                     if (targetWord == TK_PAD_) continue;
+
+                    if (contextWord == TK_SOS_) continue;
+                    if (contextWord == TK_EOS_) continue;
                     if (contextWord == TK_PAD_) continue;
+
                     // include only pairs with co-occurrence, eliminating building a sparse matrix
-                    std::wstring cooccur= targetWord + contextWord;
+                    std::wstring cooccur = targetWord + contextWord;
                     comatrix[ cooccur ] ++;  
                     if (comatrix[cooccur] < 2) { // capture only unique context words
-                        x++;
+                        //x++;
                         tokens[ targetWord ].push_back(contextWord);
                     }
 
@@ -878,12 +884,19 @@ void Embeddings<T>::buildCoMatrix(const std::vector<std::vector<std::wstring>>& 
     this->comatrix = comatrix;
     this->tokens = tokens;
 
+    this->tokens[TK_SOS_] = {}; //.push_back(TK_SOS_);
+    this->tokens[TK_EOS_] = {}; //.push_back(TK_EOS_);
+    this->tokens[TK_PAD_] = {}; //.push_back(TK_PAD_);
+
     log_detail("Size of comatrices: {0}", this->comatrix.size());
-    log_detail("Size of comatrices: {0}", x);
+    //log_detail("Size of comatrices: {0}", x);
 
 }
 
 /************ Tokenizer / Embeddings initialize template ************/
+
+template class Distance<float>;  // Instantiate with float
+template class Distance<double>;  // Instantiate with double
 
 template class Embeddings<float>;  // Instantiate with float
 template class Embeddings<double>;  // Instantiate with double

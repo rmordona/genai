@@ -87,6 +87,31 @@ void Node<T>::setDecoderData(const aitensor<T> data, const bool normalize, const
     }
 }
 
+// For Transformer Decoders, if encoder is not used
+template <class T>
+void Node<T>::setEncoderData(const py::array_t<T>& data, const bool normalize, const bool positional) {
+    log_detail("Node: [{0}] Setting Data of Size: {1}", this->getName());
+    this->encoder_data = ConvertData::totensor(data);
+    if (normalize == true) {
+        this->encoder_data = BaseOperator::standardize(this->encoder_data);
+    }
+    if (positional == true) {
+        this->encoder_data = PositionalEncoder<T>::encode(this->encoder_data);
+    }
+}
+ 
+// For Transformer Decoders, if encoder is not used
+template <class T>
+void Node<T>::setEncoderData(const aitensor<T> data, const bool normalize, const bool positional) {
+    this->encoder_data =  data;
+    if (normalize == true) {
+        this->encoder_data = BaseOperator::standardize(this->encoder_data);
+    }
+    if (positional == true) {
+        this->encoder_data = PositionalEncoder<T>::encode(this->encoder_data);
+    }
+}
+
 template <class T>
 const aitensor<T>& Node<T>::getInput() {
     return this->input_data;
@@ -243,7 +268,7 @@ void Node<T>::propagateGradients(const aitensor<T>& gradients) {
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
 template <class T>
-void Node<T>::forwardPass() {
+void Node<T>::forwardPass(int batch_size) {
     // Propagate forward data to connected nodes
     std::string name = this->getName();
 
@@ -327,13 +352,15 @@ void Node<T>::forwardPass() {
         if (EncoderLayer<T>* encoder = dynamic_cast<EncoderLayer<T>*>(op)) {
             log_detail("Node [{0}] EncoderLayer Operation (Forward Pass)", name );
             output = encoder->forward(output);
+            this->encoder_data = output;
             log_info("Returned EncoderLayer pass with the below output ...");
             log_matrix( output );
         } else
         //if (auto decoder = std::dynamic_pointer_cast<DecoderLayer<T>>(op)) {
         if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Forward Pass)", name );
-            output = decoder->forward(this->decoder_data, output);
+            output = decoder->forward(this->decoder_data, this->encoder_data );
+            this->decoder_data = output;
             log_info("Returned Decoder pass with the below output ...");
             log_matrix( output );
         } else
@@ -706,6 +733,22 @@ void Graph<T>::setDecoderData(const std::string& nodename, const aitensor<T>& da
 }
 
 template <class T>
+void Graph<T>::setEncoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional) {
+    Node<T>* node = this->findNode(nodename);
+    if (node != nullptr) {
+        node->setEncoderData(data, normalize, positional);
+    }
+}
+
+template <class T>
+void Graph<T>::setEncoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional) {
+    Node<T>* node = this->findNode(nodename);
+    if (node != nullptr) {
+        node->setEncoderData(data, normalize, positional);
+    }
+}
+
+template <class T>
 void Graph<T>::setOperations(const std::string& nodename, std::vector<BaseOperator*> operations) {
     Node<T>* node = this->findNode(nodename);
     if (node != nullptr) {
@@ -812,7 +855,7 @@ const aitensor<T> Graph<T>::forwardPropagation() {
         log_detail( "*** Graph: Entering forward pass for {0} ***", nodename );
  
         // Perform the forward pass. 
-        node->forwardPass();     
+        node->forwardPass(this->batch_size);     
 
         // The last output becomes the final prediction.
         output = node->getOutput();
@@ -994,12 +1037,37 @@ std::string Graph<T>::generateDotFormat(bool operators, bool weights) {
 }
 
 template <class T>
-void Graph<T>::nextBatch() {
-    for (auto& node: nodes) {
-        if (node->nodeType() == NodeType::Input)  {
+void Graph<T>::nextBatch(int batch_size) {
 
+    // Sample only based on Batch Size
+    return;
+
+/*
+    for (auto& node: nodes) {
+
+        int input_size = node->dataset.size();
+
+        if (input_size > 0) {
+            int startIndex = std::rand() % (input_size - batch_size + 1);
+            int endIndex = startIndex + batch_size - 1;
+
+            if (input_size < batch_size) {
+                startIndex = 0;
+                endIndex = input_size;
+            }
+
+            aitensor<T> batch;
+
+            for (int i = startIndex; i < endIndex; i++) {
+                batch.push_back(this->dataset.at(i));
+            }
         }
+
+        node->input_data = batch;
+
     }
+    */
+
 }
 
 template <class T>

@@ -53,6 +53,7 @@ private:
     std::unordered_set<Node<T>*> inputs;
     std::vector<BaseOperator*> operations;
     aitensor<T> input_data = {};
+    aitensor<T> encoder_data = {};
     aitensor<T> decoder_data = {};
     aitensor<T> output_data = {};
     aitensor<T> gradients = {};
@@ -87,6 +88,11 @@ public:
     // Invoked by Graph.setData from Model.setData class
     void setDecoderData(const aitensor<T> data, const bool normalize, const bool positional);
 
+    void setEncoderData(const py::array_t<T>& data, const bool normalize, const bool positional);
+
+    // Invoked by Graph.setData from Model.setData class
+    void setEncoderData(const aitensor<T> data, const bool normalize, const bool positional);
+
     // Let's handle Tensors
     //void setDataTensor(const py::array_t<T>& embedding);
 
@@ -118,7 +124,7 @@ public:
 
     // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
     // nodes whose source nodes are already processed.
-    void forwardPass();
+    void forwardPass(int batch_size);
 
     void backwardPass();
 
@@ -164,6 +170,8 @@ private:
     Loss<T>* lossobj;
     Metrics<T>* metricsobj;
 
+    int batch_size = 10;
+
 public:
 
     ~Graph() { // release nodes.
@@ -181,6 +189,10 @@ public:
     void setDecoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional);
 
     void setDecoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional);
+
+    void setEncoderData(const std::string& nodename, const aitensor<T>& data, const bool normalize, const bool positional);
+
+    void setEncoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional);
 
     void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
 
@@ -216,7 +228,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    void nextBatch();
+    void nextBatch(int batch_size);
 
     const std::unordered_map<Node<T>*, int>& getIndegree() const;
 
