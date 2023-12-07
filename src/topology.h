@@ -53,10 +53,14 @@ private:
     std::unordered_set<Node<T>*> inputs;
     std::vector<BaseOperator*> operations;
     aitensor<T> input_data = {};
-    aitensor<T> encoder_data = {};
-    aitensor<T> decoder_data = {};
     aitensor<T> output_data = {};
     aitensor<T> gradients = {};
+
+    aitensor<T> encoder_data = {};
+    aitensor<T> decoder_data = {};
+    aitensor<T> encoder_gradients = {};
+
+
     ssize_t repeat = 1;
     std::string reduce = "add";
 

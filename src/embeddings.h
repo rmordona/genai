@@ -322,8 +322,6 @@ public:
 
 };
 
-
-
 template <class T>
 class Embeddings {
 private:

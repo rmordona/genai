@@ -347,7 +347,14 @@ void Node<T>::forwardPass(int batch_size) {
             output = feedforward->forward(output);
             log_info("Returned FeedForward pass with the below output ...");
             log_matrix( output );
-        } else
+        } else 
+        //if (auto feedforward = std::dynamic_pointer_cast<MultiHeadAttention<T>>(op)) {
+        if (MultiHeadAttention<T>* multiheadattention = dynamic_cast<MultiHeadAttention<T>*>(op)) {
+            log_detail("Node [{0}] MultiHeadAttention Operation (Forward Pass)", name );
+            output = multiheadattention->forward(output);
+            log_info("Returned FeedForward pass with the below output ...");
+            log_matrix( output );
+        } else  
         //if (auto encoder = std::dynamic_pointer_cast<EncoderLayer<T>>(op)) {
         if (EncoderLayer<T>* encoder = dynamic_cast<EncoderLayer<T>*>(op)) {
             log_detail("Node [{0}] EncoderLayer Operation (Forward Pass)", name );
@@ -359,8 +366,10 @@ void Node<T>::forwardPass(int batch_size) {
         //if (auto decoder = std::dynamic_pointer_cast<DecoderLayer<T>>(op)) {
         if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Forward Pass)", name );
-            output = decoder->forward(this->decoder_data, this->encoder_data );
-            this->decoder_data = output;
+            if (this->decoder_data.size() != 0) {
+                output = this->decoder_data;
+            }
+            output = decoder->forward(output, this->encoder_data );
             log_info("Returned Decoder pass with the below output ...");
             log_matrix( output );
         } else
@@ -466,17 +475,27 @@ void Node<T>::backwardPass() {
             log_detail("Node [{0}] Feedforward Operation (Backward Pass)", name );
             dInput = feedforward->backward(dInput);
             log_matrix( dInput );
+        } else    
+        //if (auto attention = std::dynamic_pointer_cast<MultiHeadAttention<T>>(op)) {
+        if (MultiHeadAttention<T>* multiheadattention = dynamic_cast<MultiHeadAttention<T>*>(op)) {
+            log_detail("Node [{0}] MultiHeadAttention Operation (Backward Pass)", name );
+            dInput = multiheadattention->backward(dInput);
+            log_matrix( dInput );
         } else           
-        //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
-        if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
+        //if (auto encoder = std::dynamic_pointer_cast<EncoderLayer<T>>(op)) {
+        if (EncoderLayer<T>* encoder = dynamic_cast<EncoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Encoder Operation (Backward Pass)", name );
+            if (this->encoder_gradients.size() != 0) {
+                dInput = this->encoder_gradients;
+            }
             dInput = encoder->backward(dInput);
             log_matrix( dInput );
-        } else      
-        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
-        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+        } else
+        //if (auto decoder = std::dynamic_pointer_cast<DecoderLayer<T>>(op)) {
+        if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Backward Pass)", name );
             dInput = decoder->backward(dInput);
+            this->encoder_gradients = decoder->getEncoderGradients();
             log_matrix( dInput );
         } else     
         //if (auto rnn = std::dynamic_pointer_cast<RNN<T>>(op)) {
@@ -489,7 +508,7 @@ void Node<T>::backwardPass() {
         if (LSTM<T>* lstm = dynamic_cast<LSTM<T>*>(op)) {
             log_detail("Node [{0}] LSTM Operation (Backward Pass)", name );
             dInput = lstm->backward(dInput);
-            log_matrix( dInput );
+            log_matrix( dInput ); 
         } else           
         //if (auto gru = std::dynamic_pointer_cast<GRU<T>>(op)) {
         if (GRU<T>* gru = dynamic_cast<GRU<T>*>(op)) {
@@ -550,14 +569,19 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
         if (FeedForward<T>* feedforward = dynamic_cast<FeedForward<T>*>(op)) {
             log_detail("Node [{0}] Feedforward Operation (Update Params)", name );
             feedforward->updateParameters(optimizertype, learningRate, iter);
-        } else            
-        //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
-        if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
+        } else     
+        //if (auto attention = std::dynamic_pointer_cast<MultiHeadAttention<T>>(op)) {
+        if (MultiHeadAttention<T>* multiheadattention = dynamic_cast<MultiHeadAttention<T>*>(op)) {
+            log_detail("Node [{0}] MultiHeadAttention Operation (Update Params)", name );
+            multiheadattention->updateParameters(optimizertype, learningRate, iter);
+        } else           
+        //if (auto encoder = std::dynamic_pointer_cast<EncoderLayer<T>>(op)) {
+        if (EncoderLayer<T>* encoder = dynamic_cast<EncoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Encoder Operation (Update Params)", name );
             encoder->updateParameters(optimizertype, learningRate, iter);
         }  else 
-        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
-        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
+        //if (auto decoder = std::dynamic_pointer_cast<DecoderLayer<T>>(op)) {
+        if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Update Params)", name );
             decoder->updateParameters(optimizertype, learningRate, iter);
         }  else    
@@ -577,6 +601,7 @@ void Node<T>::updateParameters(std::string& optimizertype, T& learningRate, int&
             gru->updateParameters(optimizertype, learningRate, iter);
         } 
     }
+
 }
 
 template <class T>
@@ -636,6 +661,10 @@ std::string Node<T>::generateDotFormat(bool operators, bool weights) {
         //if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
         if (FeedForward<T>* feedforward = dynamic_cast<FeedForward<T>*>(op)) {
             dot_ += feedforward->generateDotFormat("", operators, weights);
+        } else   
+        //if (auto attention = std::dynamic_pointer_cast<MultiHeadAttention<T>>(op)) {
+        if (MultiHeadAttention<T>* multiheadattention = dynamic_cast<MultiHeadAttention<T>*>(op)) {
+            dot_ += multiheadattention->generateDotFormat("", operators, weights);
         } else            
         //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
         if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
@@ -755,7 +784,7 @@ void Graph<T>::setOperations(const std::string& nodename, std::vector<BaseOperat
         node->setOperations(operations);
     }
 }
-
+ 
 template <class T>
 void Graph<T>::connect(std::string from_name, std::string to_name) {
     Node<T>* from = this->findNode(from_name);

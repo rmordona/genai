@@ -83,7 +83,7 @@ public:
         if (ltype == "CRITICAL")     { log->critical(msg); };
         std::cout << msg << std::endl;
     }
-
+ 
     template <class T>
     std::string loggingEigenMatrix(const aimatrix<T>& matrix) {
         std::stringstream ss;
@@ -100,11 +100,9 @@ public:
     template <class T>
     std::string loggingEigenVector(const aivector<T>& vect) {
         std::stringstream ss;
-        for (Eigen::Index i = 0; i < vect.rows(); ++i) {
+        for (int i = 0; i < vect.size(); ++i) {
             ss << "                                          ";
-            for (Eigen::Index j = 0; j < vect.cols(); ++j) {
-                ss << fmt::format("{: 8.8f} ", vect(i, j));
-            }
+            ss << fmt::format("{: 8.8f} ", vect[i]);
             ss << '\n';
         }
         return ss.str();
@@ -113,13 +111,11 @@ public:
     template <class T>
     std::string loggingEigenRowVector(const airowvector<T>& vect) {
         std::stringstream ss;
-        for (Eigen::Index i = 0; i < vect.rows(); ++i) {
-            ss << "                                          ";
-            for (Eigen::Index j = 0; j < vect.cols(); ++j) {
-                ss << fmt::format("{: 8.8f} ", vect(i, j));
-            }
-            ss << '\n';
+        ss << "                                          ";
+        for (int i = 0; i < vect.size(); ++i) {
+            ss << fmt::format("{: 8.8f} ", vect[i]);
         }
+        ss << '\n';
         return ss.str();
     }
 
@@ -166,13 +162,14 @@ public:
             aimatrix<T> tmp_mat = mat.at(i);  
             msg = msg + fmt::format("{:>1}Matrix:\n{}", "", loggingEigenMatrix(tmp_mat));
         }
-        log->info(msg);
+        log->info(msg); 
     }
 
     template <class T>
     void eigen_vector(const aivector<T>& vec) {
         aivector<T> tmp_vec = vec;
         std::string msg = fmt::format("{:>1}Vector:\n{}", "", loggingEigenVector(tmp_vec));
+        std::cout << "tab(xyz): " << msg << std::endl;
         log->info(msg);
     }
 
@@ -180,6 +177,7 @@ public:
     void eigen_rowvector(const airowvector<T>& vec) {
         airowvector<T> tmp_vec = vec;
         std::string msg = fmt::format("{:>1}Row Vector:\n{}", "", loggingEigenRowVector(tmp_vec));
+        std::cout << "tab(xyz): " << msg << std::endl;
         log->info(msg);
     }
 

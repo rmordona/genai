@@ -97,7 +97,7 @@ private:
 
     aitensor<T> QKweight;
     // aitensor<T> QKweightV;
-
+ 
     int B = 0;  // batch size
     int N = 0;  // input size
     int M = 0;  // number of features (embedding vector size)
@@ -112,7 +112,7 @@ private:
                                    // so that when we split attention unit into multi heads, we only
                                    // project K, V, and Q and calculate all the way to the softmax(KQ/sqrt(dk))V
 public:
-    Attention(int size = 3, bool bias = true, bool masked = false, bool output_projection = true)  {
+    Attention(int size = 2, bool bias = true, bool masked = false, bool output_projection = true)  {
         this->W                 = size;
         this->bias              = bias;
         this->masked            = masked;
@@ -161,7 +161,6 @@ private:
     int N = 0;  // number of samples
     int M = 0;  // number of features (embedding vector size) for Q, K, V layer
     int W = 0;  // number of weights (or number of features)
-    int F = 0;  // number of weights for First FeedForward Layer
     int H = 1;  // number of heads
     int Dk = 0; // number of dimensions per head (M/H)
     int split = 0; // number of values in an array to jump.
@@ -173,10 +172,9 @@ private:
     float alpha = 0.01; // for leakyReLU
 
 public:
-    MultiHeadAttention(int heads = 3, int attention_size = 3, int feed_size = 3, bool bias = true, bool masked = false)  {
-        this->W = attention_size;
-        this->F = feed_size;
+    MultiHeadAttention(int heads = 1, int attention_size = 2,  bool bias = true, bool masked = false)  {
         this->H = heads;
+        this->W = attention_size;
         this->bias = bias;
         this->masked = masked;
 
@@ -293,14 +291,14 @@ private:
 
 public:
 
-    Encoder(int heads = 1, int attention_size = 3, int feed_size = 3, 
+    Encoder(int heads = 1, int attention_size = 2, int feed_size = 4, 
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
-        this->activationtype = activationtype;
-        this->alpha = alpha;
+        this->H = heads;
         this->W = attention_size;
         this->F = feed_size;
         this->bias = bias;
-        this->H = heads;
+        this->alpha = alpha;
+        this->activationtype = activationtype;
         log_info( "**** Encoder instance created ****" );
     }
 
@@ -379,21 +377,22 @@ private:
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
 
-    std::vector<Encoder<T>> encoders;
+    std::vector<Encoder<T>*> encoders;
 
 public:
 
-    EncoderLayer(int heads = 1, int attention_size = 3, int feed_size = 3,  int layers = 1, 
+    EncoderLayer(int heads = 1, int attention_size = 2, int feed_size = 4,  int layers = 1, 
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
-        this->activationtype = activationtype;
-        this->alpha = alpha;
+        this->H = heads;
         this->W = attention_size;
         this->F = feed_size;
         this->L = layers;
         this->bias = bias;
-        this->H = heads;
+        this->activationtype = activationtype;
+        this->alpha = alpha;
+
         for (int i = 0; i < this->L; i++) {
-            Encoder<T> encoder(heads, attention_size, feed_size, bias, activationtype, alpha);
+            Encoder<T>*  encoder = new Encoder<T>(heads, attention_size, feed_size, bias, activationtype, alpha);
             encoders.push_back(encoder);
         }
     }
@@ -464,14 +463,14 @@ private:
 public:
 
 
-    Decoder(int heads = 1, int attention_size = 3, int feed_size = 3, 
+    Decoder(int heads = 1, int attention_size = 2, int feed_size = 34, 
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
-        this->activationtype = activationtype;
-        this->alpha = alpha;
+        this->H = heads;
         this->W = attention_size;
         this->F = feed_size;
         this->bias = bias;
-        this->H = heads;
+        this->activationtype = activationtype;
+        this->alpha = alpha;
         log_info( "**** Encoder instance created ****" );
     }
 
@@ -515,21 +514,24 @@ private:
     std::string activationtype = "leakyrelu";
     float alpha = 0.01; // for leakyReLU
 
-    std::vector<Decoder<T>> decoders;
+    std::vector<Decoder<T>*> decoders;
+
+    aitensor<T> encoder_gradients = {};
 
 public:
 
-    DecoderLayer(int heads = 1, int attention_size = 3, int feed_size = 3, int layers = 1, 
+    DecoderLayer(int heads = 1, int attention_size = 2, int feed_size = 4, int layers = 1, 
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
-        this->activationtype = activationtype;
-        this->alpha = alpha;
+        this->H = heads;
         this->W = attention_size;
         this->F = feed_size;
         this->L = layers;
         this->bias = bias;
-        this->H = heads;
+        this->activationtype = activationtype;
+        this->alpha = alpha;
         for (int i = 0; i < this->L; i++) {
-            Decoder<T> decoder(heads, attention_size, feed_size, bias, activationtype, alpha);
+            // Decoder<T> decoder(heads, attention_size, feed_size, bias, activationtype, alpha);
+            Decoder<T>*  decoder = new Decoder<T>(heads, attention_size, feed_size, bias, activationtype, alpha);
             decoders.push_back(decoder);
         }
     }
@@ -539,6 +541,9 @@ public:
     const aitensor<T> backward(const aitensor<T>&  gradients);
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
+
+    // If an encoder gradient is preserved ...
+    const aitensor<T> getEncoderGradients() { return this->encoder_gradients; }
 
     std::string generateDotFormat(const std::string& name , bool operators, bool weights);
 
@@ -558,16 +563,19 @@ public:
     PositionalEncoder() {}
     
     // Get the positional encoding for a given position
-    static airowvector<T> generate_positional_embedding(int pos,int N, int M)  {
+    static airowvector<T> generate_positional_embedding(int pos, int N, int M)  {
         airowvector<T> encoding(M);
         for (int i = 0; i < M; i++) {
-            T angle = pos / static_cast<T>(N); // the max length of tokens in a token matrix
-            T exponent_term = i / static_cast<T>(M);
-            encoding(i) = sin(angle * pow(10000, 2 * exponent_term))  + cos(angle * pow(10000, 2 * exponent_term));
+            T angle = pos / static_cast<T>(10000); // the max length of tokens in a token matrix
+            T exponent_term = (2 * i) / static_cast<T>(M);
+            if (i % 2 == 0) {
+                encoding(i) = sin(angle * pow(10000, exponent_term));
+              } else {
+                encoding(i) = cos(angle * pow(10000, exponent_term));
+            }
         }
         return encoding;
     }
-
 
     static aitensor<T>  encode(const aitensor<T>& input_data) {
 
@@ -575,17 +583,18 @@ public:
         log_info( "Entering Positional Encoding ..." );
 
         // aimatrix<T> input_matrix;
-        std::vector<airowvector<T>> pos_encoding;  // Placeholder structure for the Encoding
+        // aimatrix<T> pos_encoding;  // Placeholder structure for the Encoding
 
         // dimension is BxNxW
-        int B = input_data.size();
-        int N = input_data.at(0).rows();
-        int M = input_data.at(0).cols();  
+        int B = input_data.size();        // Batch Size
+        int N = input_data.at(0).rows();  // Sequence Size
+        int M = input_data.at(0).cols();  // Embedding Dimension
 
         // initialize the Positional Embedding
-        pos_encoding.resize(N, airowvector<T>(M));
+        aimatrix<T> pos_encoding(N, M);
+        
         for (int pos = 0; pos < N; ++pos) {
-            pos_encoding[pos] = generate_positional_embedding(pos, N, M);
+            pos_encoding.row(pos) = generate_positional_embedding(pos, N, M);
         }
 
         aitensor<T> standard = input_data;
@@ -593,11 +602,13 @@ public:
         // Adding positional embedding
         for (int i = 0; i < B; ++i) {
             for (int j = 0; j < N; ++j) {
-                standard.at(i).row(j) += pos_encoding[j % N];
+                standard.at(i).row(j) += pos_encoding.row(j);
             }
         }
         return standard;
     }
+
+
 };
 
 

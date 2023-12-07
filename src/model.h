@@ -454,18 +454,20 @@ private:
     int W = 0;  // number of weights (or number of features)
     int H = 1;  // number of heads
     bool bias = true;
+    bool masked = false;
 public: 
-    ModelMultiHeadAttention(int heads = 3, int size = 3, bool bias = false)  {
+    ModelMultiHeadAttention(int heads = 3, int size = 3, bool bias = false, bool masked = false)  {
         this->W = size;
         this->H = heads;
         this->bias = bias;
-        // M1.setZero();
+        this->masked = masked;
         log_info( "**** MultiHeadAttention instance created ****" );
     }
 
     int getHead() { return this->H; }
-    int getSize() { return this->W; }
+    int getAttentionSize() { return this->W; }
     bool getBias() { return this->bias; }
+    bool getMasked() { return this->masked; }
 
     void forwardPass() {}
     void backwardPass() {}

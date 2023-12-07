@@ -90,13 +90,13 @@ node1  = modelgraph.addNode("node1", ai.NodeType.Generic);
 node2  = modelgraph.addNode("node2", ai.NodeType.Generic);
 
 # Four Layered Encoder
-node1.setOperations([ai.Encoder(heads=8, attention_size=80, feed_size=20, layers=1, bias=True, type="leakyrelu",  alpha=0.01 ),
+node1.setOperations([ai.Encoder(heads=8, attention_size=80, feed_size=20, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
 
                     ]
                  );
 
 node2.setOperations([
-                     # ai.Decoder(heads=8,   attention_size=80, feed_size=20, layers=1, bias=True, type="leakyrelu",  alpha=0.01 ),
+                     ai.Decoder(heads=8,   attention_size=80, feed_size=20, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
                      #ai.Dense(size=80, bias=True), ai.Activation(type="leakyrelu", alpha=0.01),
                      ai.Dense(size=10, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)
                     ]
@@ -104,23 +104,23 @@ node2.setOperations([
 
 modelgraph.connect(node1, node2);
 
-encoder_input = input_sequences
+encoder_input = input_sequences[:15]
 
-decoder_input = shifted_sequences  # shifted
+decoder_input = shifted_sequences[:15]  # shifted
 
-target  = input_sequences
+target  = input_sequences[:15]
 
 # Set the Data. Normalize if required. Apply Positional Encoding if required
 node1.setData(data = encoder_input, normalize=True, positional=True);
 
 # Set the Decoder Data. Normalize if required. Apply Positional Encoding if required
-# node2.setDecoderData(data = decoder_input, normalize=True, positional=True);
+node2.setDecoderData(data = decoder_input, normalize=True, positional=True);
 
 # Set The target
 modelgraph.setTarget(data = target, normalize=True);
 
 # Perform fitting
-modelgraph.train(loss="mse", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=1, learn_rate=0.0003, use_step_decay = False, decay_rate = 0.90)
+modelgraph.train(loss="mse", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=2800, learn_rate=0.001, use_step_decay = False, decay_rate = 0.90)
 
 
 #yy_pred = modelgraph.predict();
@@ -129,6 +129,6 @@ modelgraph.train(loss="mse", metrics=[], optimizer="nadam", batch_size = 10, max
 
 #print("Predicted YY dimension:");
 #print(yy_pred.shape);
-#pdecoded = tokenizer.decode(sequences = input_sequences);
+#pdecoded = tokenizer.decode(sequences = yy_pred);
 #print("Decoded YY dimension:");
 #pdecoded

@@ -222,7 +222,7 @@ std::unordered_map<std::wstring, int> BPETokenizer<T>::mergeTokens(std::vector<s
             const std::wstring& token1 = tokens[i];
             const std::wstring& token2 = tokens[i + 1];
 
-            if (token1.compare(L" ") == 0)    continue; 
+            if (token1.compare(L" ") == 0)     continue; 
             if (token1.compare(TK_SOS_) == 0)  continue;  
             if (token1.compare(TK_EOS_) == 0)  continue;
             if (token1.compare(TK_PAD_) == 0)  continue;
@@ -398,14 +398,12 @@ std::vector<std::vector<std::wstring>> BaseTokenModel<T>::tokenize(const std::ve
         std::vector<std::wstring> words;
         words = splitString(sentence);
 
-        // std::wstring sos = TK_SOS_; // Start of Sequence
-        // tokens.push_back(sos);
+        // tokens.push_back(TK_SOS_); // Start of Sequence
 
         for (const auto& word : words) {
             tokens.push_back(word);
         }
 
-        // std::wstring eos = TK_EOS_; 
         tokens.push_back(TK_EOS_); // End of Sequence
 
         if (max_seq < (int) tokens.size()) {
@@ -463,14 +461,13 @@ void BaseTokenModel<T>::prefetchEmbeddings(const std::vector<std::wstring>& sent
     // Generate the corpus.
     std::vector<std::vector<std::wstring>> corpus = this->tokenize(sentences);
 
-/*
+
     for (int i = 0; i < (int) corpus.size(); i++) {
         std::cout << "New Sentence " << i << std::endl;
         for (int j = 0; j < (int) corpus[i].size(); j++) {
             std::wcout << "token " << j << ": " << corpus[i][j] << std::endl;
         }
     }
-*/
 
     log_detail("Size of tokenized corpus: {0}", corpus.size());
 
@@ -578,7 +575,7 @@ void BaseTokenModel<T>::train(std::vector<std::wstring>& sentences, int batch_si
         totalloss = 0.0;
         totalcount = 0;
 
-        for (const auto& token : tokens) {
+        for (const auto& token : tokens) { // tokens produced from buildCoMatrix()
 
             target = token.first;
 
@@ -715,7 +712,7 @@ aimatrix<T> BaseTokenModel<T>::listEmbeddings() {
 
 template <class T>
 airowvector<T> BaseTokenModel<T>::retrieveEmbeddings(const std::wstring& token) {
-
+ 
     typename Embeddings<T>::RecordStruct record;
 
     bool result = this->embeddings->retrieveEmbeddings(sha256(token), record);
@@ -723,6 +720,16 @@ airowvector<T> BaseTokenModel<T>::retrieveEmbeddings(const std::wstring& token) 
     if (!result) {  // if no result, then token must be unknown
         result = this->embeddings->retrieveEmbeddings(sha256(TK_UNK_), record);
     }
+
+
+    int embedding_size = record.embedding.size();
+    // T inf =  -std::numeric_limits<T>::infinity();
+
+    // Mask with zeroes.
+    if (token == TK_PAD_) { record.embedding = airowvector<T>::Constant(embedding_size, 0); }  
+    if (token == TK_SOS_) { record.embedding = airowvector<T>::Constant(embedding_size, 0); }  
+    if (token == TK_EOS_) { record.embedding = airowvector<T>::Constant(embedding_size, 0); } 
+    if (token == TK_UNK_) { record.embedding = airowvector<T>::Constant(embedding_size, 0); }  
 
     return record.embedding;
 }
@@ -770,8 +777,6 @@ std::tuple<aitensor<T>,aitensor<T>> BaseTokenModel<T>::encode(const std::vector<
     airowvector<T> tk_pad_ = retrieveEmbeddings(TK_PAD_);
 
     embedding_size = tk_unk_.size();
-
-
 
     log_detail( "Embedding Size : ... {0}", embedding_size );
 
@@ -896,7 +901,7 @@ std::tuple<aitensor<T>,aitensor<T>> BaseTokenModel<T>::encode(const std::vector<
     if (sequence_type == "sentence") {
         // Applicable to situations in which we process a sentence as a sequence in entirety
         // and cannot be randomly chunked.
-
+  
         // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
         int seq_size = 0;
         for (int i = 0; i < corpus_size; i++) {
@@ -962,11 +967,8 @@ std::tuple<aitensor<T>,aitensor<T>> BaseTokenModel<T>::encode(const std::vector<
                         tgt_sequences.at(i).row(j) = retrieveEmbeddings(tgt_token);
 
                     }
-
                 }
-
             }
-
         }
 
     } else {
@@ -1025,21 +1027,25 @@ std::vector<std::wstring>  BaseTokenModel<T>::decode(const aitensor<T>& sequence
                 // Read next embedding
                 embedding = sequences.at(i).row(j);
 
-                // Temporary use this bruteforce approach of searching
-                // until HNSW code is completed.
-                for (int k  = 0; k <  wsize; k++) {
-                    distance = Distance<T>::euclidean(embedding, wordEmbeddings.row(k));
-                    if (distance < closest_distance) {
-                            closest_distance = distance;
-                            closest_index = k;
+                T isnonzero = embedding.sum(); 
+
+                // If sum is zero, most likely it's a special token, e.g. PAD, SOS, EOS, etc. ...
+                // otherwise, for non-zero, let's retreive the embedding.
+                if (isnonzero) {
+                    // Temporary use this bruteforce approach of searching
+                    // until HNSW code is completed.
+                    for (int k  = 0; k <  wsize; k++) {
+                        distance = Distance<T>::euclidean(embedding, wordEmbeddings.row(k));
+                        if (distance < closest_distance) {
+                                closest_distance = distance;
+                                closest_index = k;
+                        }
                     }
+                
+                    token = tokens[closest_index];
+
+                    sentence += L" " + token;
                 }
-            
-
-                token = tokens[closest_index];
-
-                sentence += L" " + token;
-
 
             }
 

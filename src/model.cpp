@@ -563,6 +563,26 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             }
+        } else  // Transformer Component 
+        if (auto multiheadattention = std::dynamic_pointer_cast<ModelMultiHeadAttention>(op)) {
+            if (datatype == "float") {
+                MultiHeadAttention<float>* newop = new MultiHeadAttention<float>(
+                                                            multiheadattention->getHead(),
+                                                            multiheadattention->getAttentionSize(),
+                                                            multiheadattention->getBias(),
+                                                            multiheadattention->getMasked()
+                                                        );
+                this->operations.push_back(newop);
+            } else 
+            if (datatype == "double") {
+                MultiHeadAttention<double>* newop = new MultiHeadAttention<double>(
+                                                            multiheadattention->getHead(),
+                                                            multiheadattention->getAttentionSize(),
+                                                            multiheadattention->getBias(),
+                                                            multiheadattention->getMasked()
+                                                        );
+                this->operations.push_back(newop);
+            }
         } else   // Transformer Component
         if (auto encoder = std::dynamic_pointer_cast<ModelEncoder>(op)) {
             if (datatype == "float") {
@@ -603,7 +623,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (datatype == "double") { 
                 DecoderLayer<double>* newop = new DecoderLayer<double>(
                                                             decoder->getHead(),
                                                             decoder->getAttentionSize(),

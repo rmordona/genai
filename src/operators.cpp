@@ -161,8 +161,8 @@ const aimatrix<T> Optimizer<T>::adam(const aimatrix<T>& weights, const aimatrix<
 
 
     // Update momentum and velocity
-    moments = beta1 * moments.array() + (1 - beta1) * gradients.array();
-    velocity = beta2 * velocity.array() + (1 - beta2) * gradients.array().square();
+    moments = beta1 * moments.array() + (1.0 - beta1) * gradients.array();
+    velocity = beta2 * velocity.array() + (1.0 - beta2) * gradients.array().square();
 
     log_detail( "Weights" );
     log_matrix(  weights );
@@ -180,8 +180,8 @@ const aimatrix<T> Optimizer<T>::adam(const aimatrix<T>& weights, const aimatrix<
     log_matrix( velocity );
 
     // Compute bias-corrected moment estimates
-    aimatrix<T> m_hat = moments / (1 - beta1_t);
-    aimatrix<T> v_hat = velocity / (1 - beta2_t);
+    aimatrix<T> m_hat = moments / (1.0 - beta1_t);
+    aimatrix<T> v_hat = velocity / (1.0 - beta2_t);
 
     log_detail("momentum hat" );
     log_matrix( m_hat );
@@ -281,7 +281,7 @@ const aimatrix<T> Optimizer<T>::adagrad(const aimatrix<T>& weights, const aimatr
 
     return new_w;
 }
-
+ 
 template <class T>
 const aivector<T> Optimizer<T>::adagrad(const aivector<T>& weights, const aivector<T>& gradients, int currentEpoch, T epsilon) {
         // Optimizer requires aimatrix<T>, so let's use that data structure with dimenion Rx1
@@ -361,6 +361,9 @@ template <class T>
 const aimatrix<T> Optimizer<T>::nadam(const aimatrix<T>& weights, const aimatrix<T>& gradients, int currentEpoch , 
                 T beta1, T beta2, T epsilon) {
 
+    log_info("============================");
+    log_info("Entering Nadam Optimation ...");
+
     if (moments.cols() == 0 && moments.rows() == 0) {
         moments = aimatrix<T>::Zero(weights.rows(), weights.cols());
     }
@@ -368,20 +371,25 @@ const aimatrix<T> Optimizer<T>::nadam(const aimatrix<T>& weights, const aimatrix
         velocity = aimatrix<T>::Zero(weights.rows(), weights.cols());
     }
 
-
     T beta1_t = std::pow(beta1, currentEpoch + 1);
     T beta2_t = std::pow(beta2, currentEpoch + 1);
 
     // Update momentum and velocity
-    moments = beta1 * moments + (1 - beta1) * gradients;
-    velocity = beta2 * velocity + (1 - beta2) * (gradients.array() * gradients.array()).matrix();
+    moments = beta1 * moments.array() + (1.0 - beta1) * gradients.array();
+    velocity = beta2 * velocity.array() + (1.0 - beta2) * gradients.array().square();
+
+    log_detail( "moments" );
+    log_matrix(  moments );
+
+    log_detail( "velocity" );
+    log_matrix(  velocity );
 
     // Compute bias-corrected moment estimates
-    aimatrix<T> m_hat = moments / (1 - beta1_t);
-    aimatrix<T> v_hat = velocity / (1 - beta2_t);
+    aimatrix<T> m_hat = moments.array() / (1.0 - beta1_t);
+    aimatrix<T> v_hat = velocity.array() / (1.0 - beta2_t);
 
     // Update weights
-    aimatrix<T> new_w = weights.array() - learningRate * (beta1 * m_hat + (1 - beta1) * gradients).array()
+    aimatrix<T> new_w = weights.array() - this->learningRate * (beta1 * m_hat.array() + (1 - beta1) * gradients.array())
                 / (v_hat.array().sqrt() + epsilon);
 
     return new_w;
@@ -1105,14 +1113,14 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> LayerNorm<T>::normalize(const 
 
 
     // Calculate layer mean along the M dimension.
-    aivector<T> layerMean = (aivector<T>) (input_data.rowwise().mean());
+    aivector<T> layerMean =  (input_data.rowwise().mean());
 
     log_detail( "Mean ..." );
     log_vector( layerMean );
 
     // Calculate: X - mean
     aimatrix<T> Xmu = input_data.colwise() - layerMean;
-
+ 
     log_detail( "Xmu" );
     log_matrix( Xmu );
 
@@ -1121,7 +1129,7 @@ std::tuple<aimatrix<T>, aimatrix<T>, aimatrix<T>> LayerNorm<T>::normalize(const 
 
     log_detail( "Variance ..." );
     log_vector( layerVariance );
-
+ 
     // Add a small epsilon for numerical stability
     aivector<T> epsilonVector = aivector<T>::Constant(layerVariance.size(), epsilon);
 
@@ -1385,6 +1393,10 @@ std::string LayerNorm<T>::generateDotFormat(const std::string& name , bool opera
 *****************************************************************************************************/
 template <class T>
 const aimatrix<T> Activation<T>::softmax(const aimatrix<T>& x) {
+
+    log_info("==================================================");
+    log_info("Entering Activation (Softmax )...");
+
     return BaseOperator::softmax(x);
 }
 

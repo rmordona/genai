@@ -825,6 +825,9 @@ class BaseOperator {
             S.row(row) = exp_values / sum_exp_values;
         }
 
+        log_info("BaseOperation (Softmax output )...");
+        log_matrix(S);
+
         return S;
     }
 
