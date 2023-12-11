@@ -38,7 +38,7 @@ class BaseModel {
 private:
     std::shared_ptr<Graph<T>> graph;
     aitensor<T> target;
-    aitensor<T> predicted;
+    // aitensor<T> batch_output;
     aitensor<T> gradients;
     aiscalar<T> loss;
     PerfMetrics<T> metrics;
@@ -51,6 +51,8 @@ private:
     int batch_size  = 10;
 
     std::vector<std::string> metricstype;
+
+    int start_index = 0;  // start index of batch
 
 public:
     BaseModel(int seed) { 

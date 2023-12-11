@@ -353,7 +353,6 @@ bool Embeddings<T>::retrieveEmbeddings(const std::string& hashKey, Record& recor
     return false;
 }
 
-
 /************************************************************************************************
 * Embeddings::retrieveVocabulary
 * Function to retrieve a record from the database based on the hash key
@@ -363,7 +362,7 @@ template <class T>
 bool Embeddings<T>::retrieveVocabulary(const std::wstring& token, Record& record) {
     std::stringstream selectSQL;
     selectSQL << "SELECT frequency FROM vocabulary WHERE token = ?;";
-
+ 
     sqlite3_stmt* stmt;
     int rc = sqlite3_prepare_v2(this->db, selectSQL.str().c_str(), -1, &stmt, 0);
     if (rc != SQLITE_OK) {

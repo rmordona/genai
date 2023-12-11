@@ -715,20 +715,20 @@ PYBIND11_MODULE(genai, m) {
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument")
-        .def("encode",  (std::tuple<py::array_t<double>, 
-                    py::array_t<double>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
+        .def("encode",  (std::tuple<py::array_t<double>,  py::array_t<double>, py::array_t<double>> 
+                    (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
                     &TokenModel::encodeDouble, 
                     py::arg("corpus"), py::arg("sample_size") = 10, py::arg("chunk_size") = 10, 
                     py::arg("sequence_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
-        .def("encode",  (std::tuple<py::array_t<float>, 
-                    py::array_t<float>> (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
+        .def("encode",  (std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> 
+                    (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
                     &TokenModel::encodeFloat, 
                     py::arg("corpus"), py::arg("sample_size") = 10,py::arg("chunk_size") = 10, 
                     py::arg("sequence_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&)) &TokenModel::decodeDouble, 
-                    py::arg("sequences"), "Function with float argument")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&)) &TokenModel::decodeFloat, 
-                    py::arg("sequences"), "Function with float argument");
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&, bool)) &TokenModel::decodeDouble, 
+                    py::arg("sequences"), py::arg("isembedding") = true, "Function with float argument")
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&, bool)) &TokenModel::decodeFloat, 
+                    py::arg("sequences"), py::arg("isembedding") = true, "Function with float argument");
 
 
     // Definitions for Scraper APIs

@@ -71,14 +71,16 @@ void BaseModel<T>::useCrossEntropy() {
 
 }
 
-/**************************************************************************************************
+/*****************************************************************************************************************************
+******************************************************************************************************************************
 * BaseModel::train
 * This is the core function to fit a model
 * Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
-**************************************************************************************************/
+*******************************************************************************************************************************
+******************************************************************************************************************************/
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size, 
-                const int max_epoch, const T learn_rate , const bool use_step_decay, const T decay_rate) {
+void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+                int batch_size, const int max_epoch, const T learn_rate , const bool use_step_decay, const T decay_rate) {
 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -104,54 +106,86 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     auto start_time        = std::chrono::system_clock::now();
     auto end_time          = std::chrono::system_clock::now();
     std::time_t next_time  = std::chrono::system_clock::to_time_t(end_time);
-    double total_seconds = 0.0;
+    double total_seconds = 0.0, total_mins = 0.0, total_hrs = 0.0, total_days = 0.0, duration = 0.0;
     int    total_iteration = 0;
     std::chrono::duration<double> elapsed_seconds;
 
     py_cout << "Fitting the model ..." << std::endl;
 
+    aitensor<T> batch_target = {}; // Y
+    aitensor<T> batch_output = {}; // Y-hat
 
+    int target_size = this->target.size();
+
+    if (batch_size > target_size) {
+        batch_size = target_size;
+    }
  
     for (int iter = 1; iter <= max_epoch; iter++) {
 
         log_detail( "<<<<<<<<<<<<<<<<<<<<<<<<< Process batch (iteration {:d})  >>>>>>>>>>>>>>>>>>>>>>>>>>", (iter) );
 
         // Note that batch processing is done at the node level.
-        this->graph->nextBatch(batch_size);
 
-        log_detail( "Entering Forward Propagation ..." );
-        this->predicted = this->graph->forwardPropagation();
+        int total_loss = 0, tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
 
-        log_detail( "Predicted Result: Tensor Size {0}", this->predicted.size() );
-        log_matrix( this->predicted );
+        int total_loss_cnt = 0, total_metrics_cnt = 0;
 
-        log_detail( "Computing Loss ..." );
-        this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
+        for (int start_index = 0; start_index < ( target_size - batch_size + 1); start_index += batch_size) {
 
-        log_detail( "Computing Loss Gradient ..." );
-        this->gradients = this->graph->computeGradients(this->losstype, this->predicted, this->target);
-        log_matrix( this->gradients );
+            this->start_index = start_index; // std::rand() % (target_size - batch_size);
 
-        log_detail( "Entering Backward Propagation ..." );
-        this->gradients = this->graph->backwardPropagation(this->gradients); 
+            batch_target = BaseOperator::getBatch(this->target, this->start_index, this->batch_size);
 
-        log_detail( "Updating Parameters ..." );
-        this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
+            log_detail( "Entering Forward Propagation ..." );
+            batch_output = this->graph->forwardPropagation(this->start_index, this->batch_size);
 
+            log_detail( "Predicted Result: Tensor Size {0}", batch_output.size() );
+            log_matrix( batch_output );
 
-        if (this->losstype == "bce" || this->losstype == "cce") {
-            log_detail( "Calculate Performance Metrics ...");
-            this->metrics = this->graph->computeMetrics(metricstype, this->predicted, this->target);
+            log_detail( "Computing Loss ..." );
+            this->loss = this->graph->computeLoss(this->losstype, batch_output, batch_target); 
+
+            log_detail( "Computing Loss Gradient ..." );
+            this->gradients = this->graph->computeGradients(this->losstype, batch_output, batch_target);
+            log_matrix( this->gradients );
+
+            log_detail( "Entering Backward Propagation ..." );
+            this->gradients = this->graph->backwardPropagation(this->gradients); 
+
+            log_detail( "Updating Parameters ..." );
+            this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
+
+            if (this->losstype == "bce" || this->losstype == "cce") {
+                log_detail( "Calculate Performance Metrics ...");
+                this->metrics = this->graph->computeMetrics(metricstype, batch_output, batch_target);
+                tot_metrics_precision += this->metrics.precision;
+                tot_metrics_recall += this->metrics.recall;
+                tot_metrics_f1score += this->metrics.f1score;
+                total_metrics_cnt ++;
+            }
+
+            total_loss += this->loss;
+            total_loss_cnt ++;
+
+            // Calculate Time, then display loss
+            end_time = std::chrono::system_clock::now();
+            elapsed_seconds = end_time - start_time;
+            next_time = std::chrono::system_clock::to_time_t(end_time);
+            start_time = end_time;
+
+            total_seconds += elapsed_seconds.count();
+            duration += elapsed_seconds.count();
+            total_iteration++;
         }
 
-        // Calculate Time, then display loss
-        end_time = std::chrono::system_clock::now();
-        elapsed_seconds = end_time - start_time;
-        next_time = std::chrono::system_clock::to_time_t(end_time);
-        start_time = end_time;
-
-        total_seconds += elapsed_seconds.count();
-        total_iteration++;
+        total_loss = total_loss / total_loss_cnt;
+        
+        if (this->losstype == "bce" || this->losstype == "cce") {
+            tot_metrics_precision = tot_metrics_precision / total_metrics_cnt;
+            tot_metrics_recall    = tot_metrics_recall / total_metrics_cnt;
+            tot_metrics_f1score   = tot_metrics_f1score / total_metrics_cnt;
+        }
 
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0 || iter == max_epoch) {
@@ -166,23 +200,24 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 
             if (this->losstype == "bce" || this->losstype == "cce") {
                 if (this->metrics.isprecision) {
-                    py_cout << " ... Acc (P): " << this->metrics.precision;
+                    py_cout << " ... Acc (P): " << tot_metrics_precision;
                 }
                 if (this->metrics.isrecall) {
-                    py_cout << "... Acc (R): " << this->metrics.recall;
+                    py_cout << "... Acc (R): " << tot_metrics_recall;
                 }
                 if (this->metrics.isf1score) {
-                    py_cout << "... Acc (F1): " << this->metrics.f1score;
+                    py_cout << "... Acc (F1): " << tot_metrics_f1score;
                 }
             }
 
             double avg_microseconds = (total_seconds / total_iteration) * 1000000;
-            py_cout << " ... elapsed " << avg_microseconds << "us";
+            py_cout << " ... Avg Elapsed " << avg_microseconds << "us";
             py_cout << " at " << std::ctime(&next_time) << std::endl;
 
             // Also, log the result if Logging INFO is enabled
-            log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", iter, max_epoch, 
-                this->loss, this->metrics.precision, avg_microseconds, std::ctime(&next_time) );
+            log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Avg Elapsed {}us at {}", iter, max_epoch, 
+                total_loss, tot_metrics_precision, avg_microseconds, std::ctime(&next_time) );
+
 
             total_seconds = 0.0;
             total_iteration = 0;
@@ -192,8 +227,17 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
         if (this->loss <= stopping_criteria) break;
 
     }
+    
+    total_mins = std::floor( duration / 60 );
+    total_seconds = duration - total_mins * 60;
+    total_hrs = std::floor(total_mins / 60 );
+    total_mins = total_mins - total_hrs * 60;
+    total_days = std::floor(total_hrs / 24 );
+    total_hrs = total_hrs - total_days * 24;
 
-    log_detail( "Training done ..." );
+    log_detail( "Training done" );
+
+    py_cout << " Duration " << "D: " << total_days << ", HR: " << total_hrs << ", MN: " << total_mins << ", SC: " << total_seconds << std::endl;
 
     // Finalize MPI
     //MPI_Finalize();
@@ -208,30 +252,34 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 **************************************************************************************************/
 template <class T>
 aitensor<T> BaseModel<T>::predict() {
-
+ 
     // Initialize MPI
     //MPI_Init(NULL, NULL);
 
     log_info( "******************************************************************************************" );
-    log_info( "********************************* Start Training *****************************************" );
+    log_info( "********************************* Start Prediction ***************************************" );
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
+    int target_size = this->target.size();
+
     auto start_time = std::chrono::system_clock::now();
+
+    int tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
 
     py_cout << "Model Inference ..." << std::endl;
 
-    this->predicted = this->graph->forwardPropagation();
+    aitensor<T> predicted = this->graph->forwardPropagation(0, target_size);
 
-    log_detail( "Predicted Result: Tensor Size {0}", this->predicted.size() );
-    log_matrix( this->predicted );
-
-    log_detail( "Computing Loss ..." );
-    this->loss = this->graph->computeLoss(this->losstype, this->predicted, this->target); 
+    log_detail( "Predicted Result: Tensor Size {0}", predicted.size() );
+    log_matrix( predicted );
 
     if (this->losstype == "bce" || this->losstype == "cce") {
         log_detail( "Calculate Performance Metrics ...");
-        this->metrics = this->graph->computeMetrics(this->metricstype, this->predicted, this->target);
+        this->metrics = this->graph->computeMetrics(metricstype, predicted, this->target);
+        tot_metrics_precision = this->metrics.precision;
+        tot_metrics_recall = this->metrics.recall;
+        tot_metrics_f1score = this->metrics.f1score;
     }
 
     // Calculate Time, then display loss
@@ -241,29 +289,30 @@ aitensor<T> BaseModel<T>::predict() {
     start_time = end_time;
 
     // Print Progress
-    py_cout << "Loss: " << this->loss;
+
 
     if (this->losstype == "bce" || this->losstype == "cce") {
         if (this->metrics.isprecision) {
-            py_cout << " ... Acc (P): " << this->metrics.precision;
+            py_cout << " Acc (P): " << tot_metrics_precision;
         }
         if (this->metrics.isrecall) {
-            py_cout << "... Acc (R): " << this->metrics.recall;
+            py_cout << "Acc (R): " << tot_metrics_recall;
         }
         if (this->metrics.isf1score) {
-            py_cout << "... Acc (F1): " << this->metrics.f1score;
+            py_cout << "Acc (F1): " << tot_metrics_f1score;
         }
+        py_cout << " ... ";
     }
-    py_cout << " ... elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
+    py_cout << "Elapsed " <<  elapsed_seconds.count() * 1000000 << "us";
     py_cout << " at " << std::ctime(&next_time) << std::endl;
 
     // Also, log the result if Logging INFO is enabled
-    log_detail( "Loss: {:8.5f} ... Acc (P): {:8.5f} ... Elapsed {}us at {}", 
-            this->loss, this->metrics.precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+    log_detail( "Acc (P): {:8.5f} ... Elapsed {}us at {}", 
+            tot_metrics_precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
 
-    log_detail( "Training done ..." );
+    log_detail( "Prediction done ..." );
 
-    return this->predicted;
+    return predicted;
 
     // Finalize MPI
     //MPI_Finalize();
@@ -374,8 +423,6 @@ void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool n
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-
-
 void ModelNode::setEncoderDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
 
     try {

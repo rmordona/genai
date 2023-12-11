@@ -1901,8 +1901,6 @@ const aiscalar<T> Loss<T>::computeLoss(const std::string& losstype, const aitens
 
     // if input_data is from linear transform, then dimension is BxNxW
     int batch_size = predicted.size();
-    //int input_size = predicted.at(0).rows();
-    //int param_size = predicted.at(0).cols();
 
     aimatrix<T> batch_predicted, batch_target;
 
@@ -1916,7 +1914,7 @@ const aiscalar<T> Loss<T>::computeLoss(const std::string& losstype, const aitens
     if (p_size != t_size || p_row != t_row || p_col != t_col) {
         log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
                      p_size, p_row, p_col, t_size, t_row, t_col);
-        std::cout << "Dimension: " << p_size << "x" << p_row << "x" << p_col << "  " << t_size << "x" << t_row << "x" << t_col << std::endl;
+        std::cout << "Dimension - prediction: " << p_size << "x" << p_row << "x" << p_col << " target: " << t_size << "x" << t_row << "x" << t_col << std::endl;
         throw AIException("Dimension of Prediction and Target do not match");
 
     }

@@ -35,12 +35,12 @@ node2  = modelgraph.addNode("node2", ai.NodeType.Generic);
 
 # Four Layered Encoder
 node1.setOperations([
-                     # ai.Encoder(heads=1, attention_size=4, feed_size=20, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
+                       ai.Encoder(heads=1, attention_size=4, feed_size=4, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
                        #ai.Attention(attention_size=4),
-                       ai.MultiHeadAttention(heads=1, attention_size=4),
-                       ai.LayerNorm(),
-                       ai.FeedForward(feed_size = 4, bias = True, activation_type = "leakyrelu", alpha=0.01),
-                       ai.LayerNorm(),
+                       #ai.MultiHeadAttention(heads=1, attention_size=4),
+                       #ai.LayerNorm(),
+                       #ai.FeedForward(feed_size = 4, bias = True, activation_type = "leakyrelu", alpha=0.01),
+                       #ai.LayerNorm(),
                     ]
                  );
 
@@ -53,11 +53,11 @@ node2.setOperations([
 
 modelgraph.connect(node1, node2);
 
-encoder_input = input_sequences[:1]
+encoder_input = input_sequences[:5]
 
-decoder_input = shifted_sequences[:1]  # shifted
+decoder_input = shifted_sequences[:5]  # shifted
 
-target  = target_sequences[:1]
+target  = target_sequences[:5]
 
 # Set the Data. Normalize if required. Apply Positional Encoding if required
 node1.setData(data = encoder_input, normalize=True, positional=True);
@@ -69,7 +69,7 @@ node1.setData(data = encoder_input, normalize=True, positional=True);
 modelgraph.setTarget(data = target, normalize=True);
 
 # Perform fitting
-modelgraph.train(loss="cce", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=2000, learn_rate=0.001, use_step_decay = True, decay_rate = 0.90)
+modelgraph.train(loss="cce", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=1, learn_rate=0.001, use_step_decay = True, decay_rate = 0.90)
 
 
 #yy_pred = modelgraph.predict();

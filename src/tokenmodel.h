@@ -128,11 +128,11 @@ public:
     aimatrix<T> listEmbeddings();
 
     // We sequence the sentences into embeddings
-    std::tuple<aitensor<T>,aitensor<T>> encode(const std::vector<std::wstring>& sentences, 
+    std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> encode(const std::vector<std::wstring>& sentences, 
                 int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
     // Convert embeddings to interpetable words
-    std::vector<std::wstring> decode(const aitensor<T>& sequences);
+    std::vector<std::wstring> decode(const aitensor<T>& sequences, bool isembedding = true);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -240,18 +240,18 @@ public:
     py::array_t<float> embeddingsFloat();
 
     // Encode - We sequence the sentences into embeddings
-    std::tuple<py::array_t<double>, py::array_t<double>> encodeDouble(const std::vector<std::wstring>& sentences, 
+    std::tuple<py::array_t<double>, py::array_t<double>, py::array_t<double>> encodeDouble(const std::vector<std::wstring>& sentences, 
                 int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
     // Encode - We sequence the sentences into embeddings
-    std::tuple<py::array_t<float>, py::array_t<float>> encodeFloat(const std::vector<std::wstring>& sentences, 
+    std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> encodeFloat(const std::vector<std::wstring>& sentences, 
                 int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences);
+    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences, bool isembedding = true);
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences);
+    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences, bool isembedding = true);
 };
 
 

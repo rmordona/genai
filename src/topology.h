@@ -60,7 +60,6 @@ private:
     aitensor<T> decoder_data = {};
     aitensor<T> encoder_gradients = {};
 
-
     ssize_t repeat = 1;
     std::string reduce = "add";
 
@@ -86,6 +85,8 @@ public:
 
     // Invoked by Graph.setData from Model.setData class
     void setData(const aitensor<T> data, const bool normalize, const bool positional);
+
+    int getDataSize() { return this->input_data.size(); }
 
     void setDecoderData(const py::array_t<T>& data, const bool normalize, const bool positional);
 
@@ -128,7 +129,7 @@ public:
 
     // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
     // nodes whose source nodes are already processed.
-    void forwardPass(int batch_size);
+    void forwardPass(int start_index, int batch_size);
 
     void backwardPass();
 
@@ -174,6 +175,8 @@ private:
     Loss<T>* lossobj;
     Metrics<T>* metricsobj;
 
+
+    int start_index = 0;
     int batch_size = 10;
 
 public:
@@ -220,7 +223,7 @@ public:
     void addConnection(std::shared_ptr<Connection<T>> connection);
 
     // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
-    const aitensor<T> forwardPropagation();
+    const aitensor<T> forwardPropagation(int start_index, int batch_size);
 
     const aitensor<T> backwardPropagation(const aitensor<T>& gradients);
 
@@ -232,7 +235,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    void nextBatch(int batch_size);
+    int setBatch(int batch_size);
 
     const std::unordered_map<Node<T>*, int>& getIndegree() const;
 

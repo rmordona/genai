@@ -647,6 +647,28 @@ class BaseOperator {
     virtual void forwardPass() = 0;
     virtual void backwardPass() = 0;
 
+    template <class T>
+    static aitensor<T> getBatch(const aitensor<T>& sample, int start_index, int batch_size) {
+
+        aitensor<T> batch;
+        int sample_size = sample.size();
+        int end_index = start_index + batch_size - 1;
+
+        if (end_index > sample_size) {
+            end_index = sample_size;
+        }
+
+        if (sample_size != 0) {
+
+            for (int i = start_index; i <= end_index; i++) {
+                batch.push_back(sample.at(i));
+            }
+
+        }
+
+        return batch;
+    }
+
     static aitensor<float> standardize(const aitensor<float>& input_data) {
         int input_size = input_data.size();
 

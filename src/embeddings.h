@@ -343,7 +343,7 @@ private:
     int dbopened = 0;
 
     // Create the token hash-to-index mapping and index-to-token mapping
-    std::unordered_map<std::string,int> tokenHashToIndex;
+    std::unordered_map<std::string,unsigned long> tokenHashToIndex;
     // std::vector<std::wstring> indexToToken;
 
     struct Record {
@@ -502,10 +502,10 @@ public:
     // Get the bias terms for word Embeddings 
     const aivector<T> getWordBiases() { return this->wordBiases; }
 
-    const std::unordered_map<std::string,int>& getTokenHashIndex() { return this->tokenHashToIndex; }
+    const std::unordered_map<std::string, unsigned long>& getTokenHashIndex() { return this->tokenHashToIndex; }
 
-    int getTokenIndex(std::string token) {
-        int index = -1;
+    unsigned long getTokenIndex(std::string token) {
+        unsigned long index = 4294967295; // max
         try {
             index = this->tokenHashToIndex.at(token);
         } catch (const std::out_of_range& e) {}

@@ -268,7 +268,7 @@ void Node<T>::propagateGradients(const aitensor<T>& gradients) {
 // Because of Kahn Algorithm done (see Graph), this function runs forward pass only to 
 // nodes whose source nodes are already processed.
 template <class T>
-void Node<T>::forwardPass(int batch_size) {
+void Node<T>::forwardPass(int start_index, int batch_size) {
     // Propagate forward data to connected nodes
     std::string name = this->getName();
 
@@ -280,8 +280,18 @@ void Node<T>::forwardPass(int batch_size) {
 
     log_detail("Size of Input: {0}", this->input_data.size());
 
+    aitensor<T> batch_encoder = {};
+    aitensor<T> batch_decoder = {};
+
+
+    // get batch input
+    aitensor<T> batch_input = BaseOperator::getBatch(this->input_data, start_index, batch_size);
+
+    // py_cout << " Batch Input " << batch_input.size() << " Sample Size " << this->input_data.size() << std::endl;
+    // py_cout << " Start Index: " << start_index << " Batch Size: " << batch_size << std::endl;
+
     // See if we can perform reduction.
-    aitensor<T> output = aggregateData(this->input_data); // see Node.setData
+    aitensor<T> output = aggregateData(batch_input); // see Node.setData
 
     for (const auto& op : operations ) {
         // Check the dynamic type of the object using dynamic_cast
@@ -367,9 +377,15 @@ void Node<T>::forwardPass(int batch_size) {
         if (DecoderLayer<T>* decoder = dynamic_cast<DecoderLayer<T>*>(op)) {
             log_detail("Node [{0}] Decoder Operation (Forward Pass)", name );
             if (this->decoder_data.size() != 0) {
-                output = this->decoder_data;
+                batch_decoder = BaseOperator::getBatch(this->decoder_data, start_index, batch_size);
+                output = batch_decoder;
             }
-            output = decoder->forward(output, this->encoder_data );
+            if (output.size() < this->encoder_data.size()) { // We must be dealing with decoder-only
+                batch_encoder = BaseOperator::getBatch(this->encoder_data, start_index, batch_size);
+                output = decoder->forward(output, batch_encoder);
+            } else { // otherwise, it's probably an encoder-decoder setup.
+                output = decoder->forward(output, this->encoder_data );
+            }
             log_info("Returned Decoder pass with the below output ...");
             log_matrix( output );
         } else
@@ -847,7 +863,7 @@ void Graph<T>::addConnection(std::shared_ptr<Connection<T>> connection) {
 
 // Perform the Kahn's Algorithm by Arthur B. Khan based on his 1962 paper, "Topological Sorting of Large Networks"
 template <class T>
-const aitensor<T> Graph<T>::forwardPropagation() {
+const aitensor<T> Graph<T>::forwardPropagation(int start_index, int batch_size) {
 
     log_detail( "Entered forward pass in Graph ..." );
 
@@ -884,7 +900,7 @@ const aitensor<T> Graph<T>::forwardPropagation() {
         log_detail( "*** Graph: Entering forward pass for {0} ***", nodename );
  
         // Perform the forward pass. 
-        node->forwardPass(this->batch_size);     
+        node->forwardPass(start_index, batch_size);     
 
         // The last output becomes the final prediction.
         output = node->getOutput();
@@ -1063,40 +1079,6 @@ std::string Graph<T>::generateDotFormat(bool operators, bool weights) {
     dot += "}";
 
     return dot;
-}
-
-template <class T>
-void Graph<T>::nextBatch(int batch_size) {
-
-    // Sample only based on Batch Size
-    return;
-
-/*
-    for (auto& node: nodes) {
-
-        int input_size = node->dataset.size();
-
-        if (input_size > 0) {
-            int startIndex = std::rand() % (input_size - batch_size + 1);
-            int endIndex = startIndex + batch_size - 1;
-
-            if (input_size < batch_size) {
-                startIndex = 0;
-                endIndex = input_size;
-            }
-
-            aitensor<T> batch;
-
-            for (int i = startIndex; i < endIndex; i++) {
-                batch.push_back(this->dataset.at(i));
-            }
-        }
-
-        node->input_data = batch;
-
-    }
-    */
-
 }
 
 template <class T>

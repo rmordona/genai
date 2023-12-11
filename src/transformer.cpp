@@ -60,7 +60,7 @@ const aitensor<T> Attention<T>::forward(const aitensor<T>& input_data, const ait
     this->M = input_data.at(0).cols(); // M dimension from input will be the same dimension as output (Wo)
  
     this->Dk = this->W; // Each input_data matrix is already treated as one head from multiheader attention.
-
+ 
     log_detail( "Size of input:", input_data.size() );
 
     if (this->Wq == nullptr || this->Wk == nullptr || this->Wv == nullptr) {
@@ -571,6 +571,7 @@ void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRat
     log_detail("L2 Linear parameter update");
     L2->updateParameters(optimizertype, learningRate, iter);
 
+    // Note that there are no parameters to update in Activation functions.
 }
 
 template <class T>

@@ -34,7 +34,7 @@ dtype = "float"
 random_seed  = 2024
 tokenizer = ai.TokenModel(tokenizer="bpetokenizer", datatype=dtype, seed = random_seed);
 
-tokenizer.preload(corpus = cleaned_sentences, merges = 50, size=10);
+tokenizer.preload(corpus = cleaned_sentences, merges = 50, size=40);
 tokenizer.train(corpus=cleaned_sentences, 
                 batch_size=2, 
                 losstype = "mse", 
@@ -78,10 +78,17 @@ for i, token in enumerate(tokens):
 
 
 # Fifty Sentences
-sequences = tokenizer.encode(corpus = cleaned_sentences, sequence_type = "sentence", rowwise = True)
-# sequences = tokenizer.encode(corpus = cleaned_sentences, sample_size=200, chunk_size=40, sequence_type = "sentence", rowwise = True)
+#sequences = tokenizer.encode(corpus = cleaned_sentences[:2], sequence_type = "sentence", rowwise = True)
+sequences = tokenizer.encode(corpus = cleaned_sentences, sample_size=25, chunk_size=10, sequence_type = "chunk", rowwise = True)
 input_sequences = sequences[0]
 shifted_sequences = sequences[1]
+tgt_sequences = sequences[2]
+print(input_sequences.shape);
+print(shifted_sequences.shape);
+print(tgt_sequences.shape);
+tokenizer.decode(sequences = input_sequences );
+
+exit()
 
 dtype = "double"
 random_seed  = 2024
@@ -90,25 +97,25 @@ node1  = modelgraph.addNode("node1", ai.NodeType.Generic);
 node2  = modelgraph.addNode("node2", ai.NodeType.Generic);
 
 # Four Layered Encoder
-node1.setOperations([ai.Encoder(heads=8, attention_size=80, feed_size=20, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
+node1.setOperations([ai.Encoder(heads=10, attention_size=40, feed_size=10, layers=2, bias=True, activation_type="gelu",  alpha=0.01 ),
 
                     ]
                  );
 
 node2.setOperations([
-                     ai.Decoder(heads=8,   attention_size=80, feed_size=20, layers=1, bias=True, activation_type="leakyrelu",  alpha=0.01 ),
-                     #ai.Dense(size=80, bias=True), ai.Activation(type="leakyrelu", alpha=0.01),
-                     ai.Dense(size=10, bias=True), ai.Activation(type="leakyrelu", alpha=0.01)
+                     ai.Decoder(heads=10,   attention_size=40, feed_size=10, layers=2, bias=True, activation_type="gelu",  alpha=0.01 ),
+                     #ai.Dense(size=80, bias=True), ai.Activation(type="relu", alpha=0.01),
+                     ai.Dense(size=178, bias=True), ai.Activation(type="softmax", alpha=0.01)
                     ]
                  );
 
 modelgraph.connect(node1, node2);
 
-encoder_input = input_sequences[:15]
+encoder_input = input_sequences
 
-decoder_input = shifted_sequences[:15]  # shifted
+decoder_input = shifted_sequences
 
-target  = input_sequences[:15]
+target  = tgt_sequences
 
 # Set the Data. Normalize if required. Apply Positional Encoding if required
 node1.setData(data = encoder_input, normalize=True, positional=True);
@@ -120,15 +127,15 @@ node2.setDecoderData(data = decoder_input, normalize=True, positional=True);
 modelgraph.setTarget(data = target, normalize=True);
 
 # Perform fitting
-modelgraph.train(loss="mse", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=2800, learn_rate=0.001, use_step_decay = False, decay_rate = 0.90)
+modelgraph.train(loss="cce", metrics=[], optimizer="nadam", batch_size = 1, max_epoch=5000, learn_rate=0.001, use_step_decay = True, decay_rate = 0.90)
 
 
-#yy_pred = modelgraph.predict();
-#yyy_pred = yy_pred[0]
-#yy_pred.shape
+yy_pred = modelgraph.predict();
+yy_pred = yy_pred[0]
+yy_pred.shape
 
-#print("Predicted YY dimension:");
-#print(yy_pred.shape);
+print("Predicted YY dimension:");
+print(yy_pred.shape);
 #pdecoded = tokenizer.decode(sequences = yy_pred);
 #print("Decoded YY dimension:");
 #pdecoded
