@@ -30,7 +30,7 @@
 #include "logger.h"
 #include "recurrent.h"
 #include "topology.h"
-
+ 
 namespace py = pybind11;
 using namespace py::literals;
 
@@ -380,12 +380,10 @@ void Node<T>::forwardPass(int start_index, int batch_size) {
                 batch_decoder = BaseOperator::getBatch(this->decoder_data, start_index, batch_size);
                 output = batch_decoder;
             }
-            if (output.size() < this->encoder_data.size()) { // We must be dealing with decoder-only
+            if (this->encoder_data.size() != 0) { // We must be dealing with decoder-only
                 batch_encoder = BaseOperator::getBatch(this->encoder_data, start_index, batch_size);
-                output = decoder->forward(output, batch_encoder);
-            } else { // otherwise, it's probably an encoder-decoder setup.
-                output = decoder->forward(output, this->encoder_data );
             }
+            output = decoder->forward(output, batch_encoder );
             log_info("Returned Decoder pass with the below output ...");
             log_matrix( output );
         } else

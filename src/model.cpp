@@ -56,8 +56,9 @@ void BaseModel<T>::setLoss(std::string& losstype) {
 template <class T>
 void BaseModel<T>::setTarget(const py::array_t<T>& target, const bool normalize) {
     this->target = ConvertData::totensor(target);
+
     if (normalize == true) {
-        this->target = BaseOperator::standardize(this->target); 
+        this->target = BaseOperator::standardize(this->target);
     }
 }
 
@@ -76,10 +77,64 @@ void BaseModel<T>::useCrossEntropy() {
 * BaseModel::train
 * This is the core function to fit a model
 * Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
+*
+* If the cross-entropy loss for your decoder transformer is not converging and remains around a particular value (e.g., 4.0), 
+* there are several potential reasons for this behavior. Here are some common considerations to troubleshoot and improve convergence:
+*
+* Learning Rate:
+*
+* Check the learning rate used in your optimizer. If the learning rate is too high, the optimization process might oscillate or 
+* fail to converge. Conversely, if the learning rate is too low, the model may converge very slowly. Experiment with different 
+* learning rates to find an appropriate value.
+*
+* Model Capacity:
+*
+* Consider the capacity of your model. If the model is too small for the complexity of the task, it may struggle to learn 
+* meaningful representations. Consider increasing the model size (number of layers, hidden dimensions) if necessary.
+*
+* Gradient Clipping:
+* 
+* If you are using gradient clipping, ensure that the clipping threshold is appropriate. Gradient clipping can be beneficial 
+* for preventing exploding gradients, but an excessively low threshold may hinder learning.
+*
+* Data Issues:
+*
+* Check your input data and preprocessing. Ensure that your input sequences are correctly formatted, and the preprocessing
+* does not introduce issues. Check for class imbalances or any anomalies in your dataset.
+*
+* Initialization:
+*
+* Ensure that your model parameters are initialized properly. Poor initialization can lead to slow convergence or convergence 
+* to suboptimal solutions. Consider using techniques like Xavier/Glorot initialization.
+* 
+* Regularization:
+*
+* Experiment with regularization techniques such as dropout or layer normalization. Regularization can help prevent overfitting 
+* and improve generalization.
+*
+* Training Duration:
+* 
+* Allow the model to train for a sufficient number of epochs. If the loss is stable but high, it might need more training to 
+* converge to a better solution.
+*
+* Validation Loss:
+*
+* Monitor the validation loss in addition to the training loss. If the training loss is low but the validation loss is high, 
+* the model might be overfitting. Adjust regularization or consider early stopping.
+*
+* Check for NaN Values:
+*
+* Check for NaN (Not a Number) values in the gradients or loss. This can occur if there are numerical stability issues. 
+* Monitor the loss and gradients during training.
+*
+* Debugging Techniques:
+*
+* Gradually simplify your model and training pipeline for debugging. Ensure that a simpler version of your model can learn from 
+* the data before introducing complexity.
 *******************************************************************************************************************************
 ******************************************************************************************************************************/
 template <class T>
-void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
                 int batch_size, const int max_epoch, const T learn_rate , const bool use_step_decay, const T decay_rate) {
 
     // Initialize MPI
@@ -92,6 +147,8 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     this->useStepDecay  = use_step_decay;
     this->decayRate     = decay_rate;
     this->batch_size    = batch_size;
+
+    std::vector<float> losses = {};
 
     int mod_epoch = std::ceil(max_epoch * 0.10);
 
@@ -127,20 +184,22 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 
         // Note that batch processing is done at the node level.
 
-        int total_loss = 0, tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
+        // int total_loss = 0, 
+        int tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
 
-        int total_loss_cnt = 0, total_metrics_cnt = 0;
+        // int total_loss_cnt = 0;
+        int total_metrics_cnt = 0;
 
-        for (int start_index = 0; start_index < ( target_size - batch_size + 1); start_index += batch_size) {
+        // for (int start_index = 0; start_index < ( target_size - batch_size + 1); start_index += batch_size) {
 
-            this->start_index = start_index; // std::rand() % (target_size - batch_size);
+            this->start_index = std::rand() % (target_size - batch_size + 1);
 
             batch_target = BaseOperator::getBatch(this->target, this->start_index, this->batch_size);
 
             log_detail( "Entering Forward Propagation ..." );
             batch_output = this->graph->forwardPropagation(this->start_index, this->batch_size);
 
-            log_detail( "Predicted Result: Tensor Size {0}", batch_output.size() );
+            log_detail( "Forward Output: Tensor Size {0} {1}x{2}", batch_output.size(), batch_output.at(0).rows(), batch_output.at(0).cols() );
             log_matrix( batch_output );
 
             log_detail( "Computing Loss ..." );
@@ -165,8 +224,8 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
                 total_metrics_cnt ++;
             }
 
-            total_loss += this->loss;
-            total_loss_cnt ++;
+            // total_loss += this->loss;
+            // total_loss_cnt ++;
 
             // Calculate Time, then display loss
             end_time = std::chrono::system_clock::now();
@@ -177,9 +236,11 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             total_seconds += elapsed_seconds.count();
             duration += elapsed_seconds.count();
             total_iteration++;
-        }
+        // }
 
-        total_loss = total_loss / total_loss_cnt;
+        // total_loss = this->loss; // total_loss / total_loss_cnt;
+
+        losses.push_back(this->loss);
         
         if (this->losstype == "bce" || this->losstype == "cce") {
             tot_metrics_precision = tot_metrics_precision / total_metrics_cnt;
@@ -194,7 +255,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
             if (this->useStepDecay) {
                 this->learningRate = this->learningRate * (this->decayRate);
             }
-
+ 
             py_cout << "Epoch " << iter << "/" << max_epoch << " ... ";
             py_cout << "Loss: " << this->loss;
 
@@ -216,8 +277,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
 
             // Also, log the result if Logging INFO is enabled
             log_detail( "Epoch {}/{} ... Loss: {:8.5f} ... Acc (P): {:8.5f} ... Avg Elapsed {}us at {}", iter, max_epoch, 
-                total_loss, tot_metrics_precision, avg_microseconds, std::ctime(&next_time) );
-
+                this->loss, tot_metrics_precision, avg_microseconds, std::ctime(&next_time) );
 
             total_seconds = 0.0;
             total_iteration = 0;
@@ -242,6 +302,7 @@ void BaseModel<T>::train(std::string& losstype, std::vector<std::string>& metric
     // Finalize MPI
     //MPI_Finalize();
 
+    return losses;
 }
 
 /**************************************************************************************************
@@ -589,7 +650,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                             attention->getMasked()
                                                         );
                 this->operations.push_back(newop);
-            }
+            } 
         } else  // Transformer Component 
         if (auto feedforward = std::dynamic_pointer_cast<ModelFeedForward>(op)) {
             if (datatype == "float") {
@@ -1021,16 +1082,16 @@ std::string Model::generateDotFormat(bool operators, bool weights) {
 * Model::train
 * This is where training begins. We train the actual model by passing hyperparameters.
 *************************************************************************************************/
-void Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size, 
+std::vector<float> Model::train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size, 
                 const int max_epoch, const double learn_rate , const bool use_step_decay, const double decay_rate) {
     try {
         this->seedNodes(true);
         if (datatype == "float") {
-            this->modelXf->train(losstype, metricstype, optimizertype, batch_size,  max_epoch,  
+            return this->modelXf->train(losstype, metricstype, optimizertype, batch_size,  max_epoch,  
                                   static_cast<float>(learn_rate), use_step_decay, static_cast<float>(decay_rate));
         } else
         if (datatype == "double") {
-            this->modelXd->train(losstype, metricstype, optimizertype, batch_size,  max_epoch, 
+            return this->modelXd->train(losstype, metricstype, optimizertype, batch_size,  max_epoch, 
                                    static_cast<double>(learn_rate), use_step_decay, static_cast<double>(decay_rate));
         }
     } catch (const AIException& e) {
@@ -1042,6 +1103,8 @@ void Model::train(std::string& losstype, std::vector<std::string>& metricstype, 
         // Catch all other exceptions
         std::cerr << "(Model:train) Unknown Error:" << std::endl;
     }
+
+    return std::vector<float>();
 }
 
 /*

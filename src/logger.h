@@ -153,7 +153,7 @@ public:
         std::cout << "matrix(xyz): " << msg << std::endl;
         log->info(msg);
     }
-
+ 
     template <class T>
     void eigen_matrix(const aitensor<T>& mat) {
         ssize_t batches = mat.size();

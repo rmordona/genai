@@ -669,6 +669,14 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
     log_info( "Entering Linear Parameter Updates ..." );
     log_detail( "size: {:d}", this->W );
 
+    if (opt_weights == nullptr) {
+        opt_weights = new Optimizer<T>(optimizertype, learningRate);
+    }
+
+    if (opt_biases == nullptr && this->bias == true) {
+        opt_biases = new Optimizer<T>(optimizertype, learningRate);
+    }
+
     for (int i = 0; i < this->batch_size; ++i) {
 
         OperationParams<T>  gradients = this->vgradients[i];
@@ -688,13 +696,7 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
         log_detail( "Before Updated biases:" );
         log_rowvector( parameters.biases );
 
-        if (opt_weights == nullptr) {
-            opt_weights = new Optimizer<T>(optimizertype, learningRate);
-        }
 
-        if (opt_biases == nullptr && this->bias == true) {
-            opt_biases = new Optimizer<T>(optimizertype, learningRate);
-        }
 
         log_detail( "Updating Linear weights" );
         opt_weights->update(optimizertype, parameters.weights, gradients.weights, iter);
@@ -1023,12 +1025,12 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
     log_info("==================================================");
     log_info("Entering Batch Normalization Upgrade Parameters...");
 
-    for (int i = 0; i < this->batch_size; ++i) {
+    if (opt_scale == nullptr) {
+        opt_scale = new Optimizer<T>(optimizertype, learningRate);
+        opt_shift = new Optimizer<T>(optimizertype, learningRate);
+    }
 
-        if (opt_scale == nullptr) {
-            opt_scale = new Optimizer<T>(optimizertype, learningRate);
-            opt_shift = new Optimizer<T>(optimizertype, learningRate);
-        }
+    for (int i = 0; i < this->batch_size; ++i) {
 
         log_detail( "Updating Scale" );
 
@@ -1336,12 +1338,13 @@ void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
     log_info("==================================================");
     log_info("Entering Layer Normalization Upgrade Parameters...");
 
-    for (int i = 0; i < this->batch_size; ++i) {
+    if (opt_scale == nullptr) {
+        opt_scale = new Optimizer<T>(optimizertype, learningRate);
+        opt_shift = new Optimizer<T>(optimizertype, learningRate);
+    }
 
-        if (opt_scale == nullptr) {
-            opt_scale = new Optimizer<T>(optimizertype, learningRate);
-            opt_shift = new Optimizer<T>(optimizertype, learningRate);
-        }
+
+    for (int i = 0; i < this->batch_size; ++i) {
 
         log_detail( "Updating Scale" );
 
@@ -1848,8 +1851,25 @@ const aimatrix<T> Loss<T>::bceGradient(const aimatrix<T>& predicted, const aimat
 template <class T>
 const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& target) {
 
+    int p_row  = predicted.rows();
+    int p_col  = predicted.cols();
+    int t_col  = target.cols();
+
+    aimatrix<T> target_ = target; 
+
+    if (p_col > t_col && t_col == 1) {
+        T index = 0.0;
+
+        target_ = aimatrix<T>::Zero(p_row, p_col);
+
+        for (int i = 0; i < p_row; i++) {
+            index = target.row(i)[0];
+            target_.row(i)[index] = 1.0;
+        }
+    } 
+ 
     // Calculate the CCE loss for each batch and instance (log likelihood)
-    aimatrix<T> cce_loss = target.array() * predicted.array().log();
+    aimatrix<T> cce_loss = target_.array() * predicted.array().log();
     
     // Calculate the overall CCE loss by averaging along the class dimension (C)
     // aimatrix<T> overall_cce_loss = cce_loss.mean(Eigen::array<int, 1>({2}));
@@ -1865,7 +1885,25 @@ const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& 
 
 template <class T>
 const aimatrix<T> Loss<T>::cceGradient(const aimatrix<T>& predicted, const aimatrix<T>& target) {
-    aimatrix<T> gradient =   ( predicted.array() - target.array() );
+
+    int p_row  = predicted.rows();
+    int p_col  = predicted.cols();
+    int t_col  = target.cols();
+
+    aimatrix<T> target_ = target; 
+
+    if (p_col > t_col && t_col == 1) {
+        T index = 0.0;
+
+        target_ = aimatrix<T>::Zero(p_row, p_col);
+
+        for (int i = 0; i < p_row; i++) {
+            index = target.row(i)[0];
+            target_.row(i)[index] = 1.0;
+        }
+    } 
+
+    aimatrix<T> gradient =   ( predicted.array() - target_.array() );
     return gradient;
 }
 
@@ -1912,11 +1950,16 @@ const aiscalar<T> Loss<T>::computeLoss(const std::string& losstype, const aitens
     int t_col  = target.at(0).cols();
 
     if (p_size != t_size || p_row != t_row || p_col != t_col) {
-        log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
+        // this is an exception because we allow the target to use token index instead of one-hot encoding
+        if (p_size == t_size && p_row == t_row && losstype == "cce") {
+            // nop
+        } else {
+            log_detail( "(Loss::computeLoss) Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
                      p_size, p_row, p_col, t_size, t_row, t_col);
-        std::cout << "Dimension - prediction: " << p_size << "x" << p_row << "x" << p_col << " target: " << t_size << "x" << t_row << "x" << t_col << std::endl;
-        throw AIException("Dimension of Prediction and Target do not match");
-
+            std::cout << "(Loss::computeLoss)  Dimension - prediction: " << p_size << "x" << p_row << "x" << p_col << 
+            " target: " << t_size << "x" << t_row << "x" << t_col << std::endl;
+            throw AIException("Dimension of Prediction and Target do not match");
+        }
     }
 
     for (int i = 0; i < batch_size; ++i) {
@@ -2004,6 +2047,7 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
 
     aimatrix<T> batch_predicted, batch_target;
 
+/*
     int p_size = predicted.size();
     int p_row  = predicted.at(0).rows();
     int p_col  = predicted.at(0).cols();
@@ -2011,12 +2055,14 @@ const PerfMetrics<T> Metrics<T>::computeMetrics(const std::vector<std::string>& 
     int t_row  = target.at(0).rows();
     int t_col  = target.at(0).cols();
 
+
     if (p_size != t_size || p_row != t_row || p_col != t_col) {
-        log_detail( "Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
+        log_detail( "(Metrics::computeMEtrics) Dimension of Prediction {0}x{1}x{2} and Target {3}x{4}x{5} do not match",
                      p_size, p_row, p_col, t_size, t_row, t_col);
         throw AIException("Dimension of Prediction and Target do not match");
     } 
- 
+ */
+
     metrics.isprecision = findMetrics(metricstype, "precision"); 
     metrics.isrecall    = findMetrics(metricstype, "recall");   
     metrics.isf1score   = findMetrics(metricstype, "f1score");  

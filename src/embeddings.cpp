@@ -187,7 +187,6 @@ void Embeddings<T>::seedVectorDB() {
 *************************************************************************************************/
 template <class T>
 void Embeddings<T>::createVectorTable() {
-    std::cout << "Creating corpus embeddings ..." << std::endl;
     const char* createTableSQL = "CREATE TABLE IF NOT EXISTS corpus_embeddings ("
                                  "hash_key TEXT PRIMARY KEY, "
                                  "embedding BLOB, "

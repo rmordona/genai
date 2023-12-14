@@ -829,7 +829,8 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
 
                 inp_sequence = aimatrix<T>::Zero(chunk_size, embedding_size);
                 shifted_sequence = aimatrix<T>::Zero(chunk_size, embedding_size);
-                tgt_sequence = aimatrix<T>::Zero(chunk_size, vocab_size);
+                // tgt_sequence = aimatrix<T>::Zero(chunk_size, vocab_size); // use one-hot encoding
+                tgt_sequence = aimatrix<T>::Zero(chunk_size, 1);  // use indices instead of one-hot encoding
 
                 int startIndex = std::rand() % (corpus_size - chunk_size + 1);
                 int endIndex = startIndex + chunk_size - 1;
@@ -848,17 +849,18 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
 
                     inp_token = flattened_corpus[j];
             
-                    if (inp_token == TK_EOS_) { break; }
-                    if (inp_token == TK_PAD_) { break; }
+                    if (inp_token == TK_EOS_ && row < 3)  { break; }
+                    // if (inp_token == TK_PAD_) { break; }
 
                     token_index =  (T) this->embeddings->getTokenIndex(sha256(inp_token));
 
-                    tgt_sequence.row(row)[token_index] = 1.0; // one-hot encoding
+                    // tgt_sequence.row(row)[token_index] = 1.0; // use one-hot encoding
+                    tgt_sequence.row(row)[0] = token_index; // use indices instead  
 
                     if (j + 1 < corpus_size) {
                         tgt_token = flattened_corpus[j + 1];
                     } else {
-                        tgt_token = TK_EOS_;
+                        tgt_token = TK_UNK_;
                     }
 
                     inp_sequence.row(row) = retrieveEmbeddings(inp_token);
@@ -1014,7 +1016,7 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                     }
                 }
             }
-        }
+        } 
 
     } else {
         throw AIException("Please choose 'sentence' or 'chunk' for the sequence_type ...");
@@ -1093,14 +1095,14 @@ std::vector<std::wstring>  BaseTokenModel<T>::decode(const aitensor<T>& sequence
                         token = TK_EOS_;
                     }
 
-                } else { // data is in one-hot-encoding format
+                } else { // data is based on token index.
 
-                    Eigen::Index indexOfMax = 0;
-
+                    // Eigen::Index indexOfMax = 0;
                     // Get the ArgMax
-                    embedding.maxCoeff(&indexOfMax);
+                    // embedding.maxCoeff(&indexOfMax);
+                    //T probable_token_index = indexOfMax; 
 
-                    T probable_token_index = indexOfMax; 
+                    T probable_token_index = embedding[0];
 
                     token = tokens[probable_token_index];
                     
@@ -1108,11 +1110,10 @@ std::vector<std::wstring>  BaseTokenModel<T>::decode(const aitensor<T>& sequence
 
                 sentence += L" " + token;
 
-                if (token == TK_EOS_) break;
+                // if (token == TK_EOS_) break;
 
             }
 
-            std::wcout << L"Decoded Sentence: " << sentence << std::endl;
             sentences.push_back(sentence);
 
         }
@@ -1319,19 +1320,13 @@ std::tuple<py::array_t<double>, py::array_t<double>, py::array_t<double>> TokenM
         aitensor<float> inp_embeddingf;
         aitensor<float> shifted_embeddingf;
         aitensor<float> tgt_embeddingf;
-                        log_detail("Ending here 2a (double)...");
         std::tie(inp_embeddingf, shifted_embeddingf, tgt_embeddingf) = this->tokenizerf->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
         for (int i = 0; i < (int) inp_embeddingf.size(); i++) {
-            log_detail("Ending here 2b (double)... {0}", i);
             inp_embeddingd.push_back( inp_embeddingf[i].cast<double>() );
-            log_detail("Ending here 2c (double)... {0}", i);
             shifted_embeddingd.push_back( shifted_embeddingf[i].cast<double>() );
-            log_detail("Ending here 2d (double)... {0}", i);
             tgt_embeddingd.push_back( tgt_embeddingf[i].cast<double>() );
-            log_detail("Ending here 2e (double)... {0}", i);
         }
     }
-    log_detail("Ending here 1 (double)... ");
     return std::make_tuple( ConvertData::topyarray(inp_embeddingd),  
                             ConvertData::topyarray(shifted_embeddingd),
                             ConvertData::topyarray(tgt_embeddingd) 
@@ -1348,9 +1343,7 @@ std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> TokenMode
         aitensor<double> shifted_embeddingd;
         aitensor<double> tgt_embeddingd;
         std::tie(inp_embeddingd, shifted_embeddingd, tgt_embeddingd)= this->tokenizerd->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
-    log_detail("Ending here 1 (float)... ");
         for (int i = 0; i < (int) inp_embeddingd.size(); i++) {
-                log_detail("Ending here 1a (float)... {0}", i);
             inp_embeddingf.push_back( inp_embeddingd[i].cast<float>() );
             shifted_embeddingf.push_back( shifted_embeddingd[i].cast<float>() );
             tgt_embeddingf.push_back( tgt_embeddingd[i].cast<float>() );
@@ -1359,7 +1352,6 @@ std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> TokenMode
     if (this->datatype == "float") {
         std::tie(inp_embeddingf, shifted_embeddingf, tgt_embeddingf) = this->tokenizerf->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
     }
-    log_detail("Ending here 2 (float)... ");
     return std::make_tuple( ConvertData::topyarray(inp_embeddingf),  
                             ConvertData::topyarray(shifted_embeddingf),
                             ConvertData::topyarray(tgt_embeddingf) 

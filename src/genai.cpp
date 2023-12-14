@@ -623,29 +623,29 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<const int, const int, const int, const int, bool>(), py::arg("kernel_size") = 2,
         py::arg("stride") = 1, py::arg("padding") =1, py::arg("dilation") = 1, py::arg("bias") = true);
     py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
-        .def(py::init<int, bool, bool>(), py::arg("attention_size") = 3, py::arg("bias") = true, py::arg("masked") = false); 
+        .def(py::init<int, bool, bool>(), py::arg("attention_size") = 4, py::arg("bias") = true, py::arg("masked") = false); 
     py::class_<ModelMultiHeadAttention, BaseOperator, std::shared_ptr<ModelMultiHeadAttention>>(m, "MultiHeadAttention")
-        .def(py::init<int, int, bool, bool>(), py::arg("heads") = 3, py::arg("attention_size") = 3, py::arg("bias") = true, py::arg("masked") = false); 
+        .def(py::init<int, int, bool, bool>(), py::arg("heads") = 1, py::arg("attention_size") = 3, py::arg("bias") = true, py::arg("masked") = false); 
     py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")
-        .def(py::init<int,   bool, const std::string&, const float>(), 
-                py::arg("feed_size") = 3,   py::arg("bias") = true,
+        .def(py::init<int, bool, const std::string&, const float>(), 
+                py::arg("feed_size") = 4,  py::arg("bias") = true,
                 py::arg("activation_type") = "leakyrelu", py::arg("alpha") = 0.01);
     py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
         .def(py::init<int, int, int, int, bool, const std::string&, const float>(), 
-                py::arg("heads") = 1,
-                py::arg("attention_size") = 3, 
-                py::arg("feed_size") = 3, 
-                py::arg("layers") = 1, 
-                py::arg("bias") = true,
+                py::arg("heads")          = 1,
+                py::arg("attention_size") = 4, 
+                py::arg("feed_size")      = 4, 
+                py::arg("layers")         = 1, 
+                py::arg("bias")           = true,
                 py::arg("activation_type") = "leakyrelu", 
                 py::arg("alpha") = 0.01);
     py::class_<ModelDecoder, BaseOperator, std::shared_ptr<ModelDecoder>>(m, "Decoder")
-        .def(py::init<int, int, int, int,  bool, const std::string&, const float>(), 
-                py::arg("heads") = 1,
-                py::arg("attention_size") = 3, 
-                py::arg("feed_size") = 3, 
-                py::arg("layers") = 1, 
-                py::arg("bias") = true,
+        .def(py::init<int, int, int, int, bool, const std::string&, const float>(), 
+                py::arg("heads")          = 1,
+                py::arg("attention_size") = 4, 
+                py::arg("feed_size")      = 4, 
+                py::arg("layers")         = 1, 
+                py::arg("bias")           = true, 
                 py::arg("activation_type") = "leakyrelu", 
                 py::arg("alpha") = 0.01);
     py::class_<ModelRNN, BaseOperator, std::shared_ptr<ModelRNN>>(m, "RNN")
@@ -688,7 +688,7 @@ PYBIND11_MODULE(genai, m) {
                     py::arg("data"), py::arg("normalize") = false, "Function with float argument")
         .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
         .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
-        .def("train", &Model::train, 
+        .def("train", (std::vector<float> (Model::*)(std::string&, std::vector<std::string>&, std::string&, int, int, double, bool, double)) &Model::train, 
                 py::arg("loss") = "mse",  
                 py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("batch_size") = 10,
                 py::arg("max_epoch")=1, py::arg("learn_rate") = 0.01, py::arg("use_step_decay") = false, py::arg("decay_rate") = 0.1, 

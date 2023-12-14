@@ -75,7 +75,7 @@ public:
 
     void useCrossEntropy();
 
-    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
+    std::vector<float> train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, 
             int batch_size = 10, 
             const int max_epoch = 1, const T learn_rate = 0.01, const bool use_step_decay = false, const T decay_rate = 0.90);
 
@@ -234,7 +234,7 @@ public:
 
     py::array_t<double> predictDouble();
 
-    void train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size = 10, int max_epoch = 1,
+    std::vector<float> train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size = 10, int max_epoch = 1,
                     double learningRate = 0.01, bool useStepDecay = false, double decayRate = 0.90);
 
     std::string generateDotFormat(bool operators = false, bool weights = false);
@@ -425,13 +425,13 @@ private:
     std::string activationtype = "leakyrelu";
     float alpha = 0.01;
 public: 
-    ModelFeedForward(int size = 3,  bool bias = true, const std::string& activationtype = "leakyrelu") {
+    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
         this->W = size;
         this->bias = bias;
     }
 
-    ModelFeedForward(int size = 3,  bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    ModelFeedForward(int size = 3, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
         this->W = size;
@@ -550,7 +550,7 @@ public:
         if (attention_size % heads != 0) throw AIException("heads is not multiple of attention_size ...");
     }
 
-    ModelDecoder(int heads = 1, int attention_size = 4, int feed_size = 4,  
+    ModelDecoder(int heads = 1, int attention_size = 4, int feed_size = 4, 
                  int layers = 1, bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;

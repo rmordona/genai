@@ -228,14 +228,14 @@ private:
 
 public:
 
-    FeedForward(int feed_size = 3, bool bias = true, const std::string& activationtype = "leakyrelu") {
+    FeedForward(int feed_size = 4,  bool bias = true, const std::string& activationtype = "leakyrelu") {
         this->activationtype = activationtype;
         this->W = feed_size;
         this->bias = bias;
         log_info( "**** FeedForward instance created ****" );
     }
 
-    FeedForward(int feed_size = 3,  bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
+    FeedForward(int feed_size = 4,   bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->activationtype = activationtype;
         this->alpha = alpha;
         this->W = feed_size;
@@ -277,6 +277,7 @@ private:
     aitensor<T> M1out; // Cache output for use by attention backprop
     aitensor<T> F1out; // Cache output for use by feedforward backprop
     aitensor<T> LN1out; // Cache output for use by feedforward backprop
+    aitensor<T> LN2out; // Cache output for use by feedforward backprop
 
     bool bias = true;
     int B = 0;
@@ -381,7 +382,7 @@ private:
 
 public:
 
-    EncoderLayer(int heads = 1, int attention_size = 2, int feed_size = 4,  int layers = 1, 
+    EncoderLayer(int heads = 1, int attention_size = 2, int feed_size = 4,   int layers = 1, 
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->H = heads;
         this->W = attention_size;
@@ -447,6 +448,7 @@ private:
     aitensor<T> M2out; // Cache output for use by attention backprop
     aitensor<T> LN1out; // Cache output for use by feedforward backprop
     aitensor<T> LN2out; // Cache output for use by feedforward backprop
+    aitensor<T> LN3out; // Cache output for use by feedforward backprop
     aitensor<T> F1out; // Cache output for use by feedforward backprop
 
     bool bias = true;
@@ -463,7 +465,7 @@ private:
 public:
 
 
-    Decoder(int heads = 1, int attention_size = 2, int feed_size = 34, 
+    Decoder(int heads = 1, int attention_size = 2, int feed_size = 4,
                     bool bias = true, const std::string& activationtype = "leakyrelu", const float alpha=0.01) {
         this->H = heads;
         this->W = attention_size;
@@ -531,7 +533,7 @@ public:
         this->alpha = alpha;
         for (int i = 0; i < this->L; i++) {
             // Decoder<T> decoder(heads, attention_size, feed_size, bias, activationtype, alpha);
-            Decoder<T>*  decoder = new Decoder<T>(heads, attention_size, feed_size, bias, activationtype, alpha);
+            Decoder<T>*  decoder = new Decoder<T>(heads, attention_size, feed_size,  bias, activationtype, alpha);
             decoders.push_back(decoder);
         }
     }
@@ -565,13 +567,13 @@ public:
     // Get the positional encoding for a given position
     static airowvector<T> generate_positional_embedding(int pos, int N, int M)  {
         airowvector<T> encoding(M);
+        aiscalar<T> scalar = 10000.0;
         for (int i = 0; i < M; i++) {
-            T angle = pos / static_cast<T>(10000); // the max length of tokens in a token matrix
             T exponent_term = (2 * i) / static_cast<T>(M);
             if (i % 2 == 0) {
-                encoding(i) = sin(angle * pow(10000, exponent_term));
+                encoding(i) = sin(pos /  pow(scalar, exponent_term));
               } else {
-                encoding(i) = cos(angle * pow(10000, exponent_term));
+                encoding(i) = cos(pos / pow(scalar, exponent_term));
             }
         }
         return encoding;
@@ -592,10 +594,13 @@ public:
 
         // initialize the Positional Embedding
         aimatrix<T> pos_encoding(N, M);
-        
+
         for (int pos = 0; pos < N; ++pos) {
             pos_encoding.row(pos) = generate_positional_embedding(pos, N, M);
         }
+
+        log_detail("Positional Matrix");
+        log_matrix(pos_encoding);
 
         aitensor<T> standard = input_data;
 
