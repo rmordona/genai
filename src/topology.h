@@ -135,7 +135,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate,  int& iter);
 
-    std::string generateDotFormat(bool operators = false, bool weights = false);
+    Topology generateDotFormat(bool operators = false, bool weights = false);
 
 
 };
@@ -175,6 +175,7 @@ private:
     Loss<T>* lossobj;
     Metrics<T>* metricsobj;
 
+    Topology topology;
 
     int start_index = 0;
     int batch_size = 10;
@@ -202,6 +203,8 @@ public:
     void setEncoderData(const std::string& nodename, const py::array_t<T>& data, const bool normalize, const bool positional);
 
     void setOperations(const std::string& nodename, std::vector<BaseOperator*> operations);
+
+    int getDataSize();
 
     const std::vector<Node<T>*> getNodes() { return this->nodes; }
 
@@ -239,7 +242,7 @@ public:
 
     const std::unordered_map<Node<T>*, int>& getIndegree() const;
 
-    std::string generateDotFormat(bool operators = false, bool weights = false);
+    Topology generateDotFormat(bool operators = false, bool weights = false);
 
 };
 

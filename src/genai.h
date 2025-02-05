@@ -363,6 +363,16 @@ private:
 };
 
 #endif
+
+#ifndef DATATYPE_H
+#define DATATYPE_H
+
+enum class DataType {
+    float32,
+    float64,
+};
+
+#endif
  
 /**************************************************************************************************
   Helper Functions shared by other classes
@@ -544,6 +554,18 @@ enum class ActivationType {
 class ConvertData {
 public:
 
+    void isType(py::dtype dtype) {
+        if (dtype.is(py::dtype::of<double>())) {
+            std::cout << "Received dtype: float64 (C++ double)\n";
+        } else if (dtype.is(py::dtype::of<float>())) {
+            std::cout << "Received dtype: float32 (C++ float)\n";
+        } else if (dtype.is(py::dtype::of<int>())) {
+            std::cout << "Received dtype: int32 (C++ int)\n";
+        } else {
+            throw std::runtime_error("Unsupported dtype!");
+        }
+    }
+
     template <class T>
     static aitensor<T> totensor(const py::array_t<T>& parray) {
 
@@ -635,7 +657,7 @@ public:
 
 
 };
-
+ 
 /*****************************************************************************************************
 * Base Operators
 *  Linear, BatchNorm, LayerNorm, Reduct classes derive from BaseOperator class.
@@ -653,19 +675,14 @@ class BaseOperator {
         aitensor<T> batch;
         int sample_size = sample.size();
         int end_index = start_index + batch_size - 1;
-
         if (end_index > sample_size) {
             end_index = sample_size;
         }
-
-        if (sample_size != 0) {
-
+        if ((int) sample_size != 0) {
             for (int i = start_index; i <= end_index; i++) {
                 batch.push_back(sample.at(i));
             }
-
         }
-
         return batch;
     }
 

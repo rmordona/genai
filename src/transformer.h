@@ -136,7 +136,7 @@ public:
     // If an encoder gradient is preserved ...
     const aitensor<T> getEncoderGradient() { return this->encoder_gradient; }
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -198,7 +198,7 @@ public:
     // If an encoder gradient is preserved ...
     const aitensor<T> getEncoderGradient() { return this->encoder_gradient; }
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {} 
@@ -256,7 +256,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -316,7 +316,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -404,7 +404,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name , bool operators, bool weights);
+    Topology generateDotFormat(const std::string& name , bool operators, bool weights);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -492,7 +492,7 @@ public:
     // If an encoder gradient is preserved ...
     const aitensor<T> getEncoderGradient() { return this->encoder_gradient; }
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -547,7 +547,7 @@ public:
     // If an encoder gradient is preserved ...
     const aitensor<T> getEncoderGradients() { return this->encoder_gradients; }
 
-    std::string generateDotFormat(const std::string& name , bool operators, bool weights);
+    Topology generateDotFormat(const std::string& name , bool operators, bool weights);
 
     void forwardPass() {}
     void backwardPass() {}

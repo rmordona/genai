@@ -29,6 +29,7 @@
 #ifndef BASEMODEL_H
 #define BASEMODEL_H
 
+
 /*************************************************************************************************
  * BaseModel is the actual structure we use to build graphs, nodes, connections, and the
  * underlying operations needed to train a model.
@@ -79,7 +80,7 @@ public:
             int batch_size = 10, 
             const int max_epoch = 1, const T learn_rate = 0.01, const bool use_step_decay = false, const T decay_rate = 0.90);
 
-    aitensor<T> predict();
+    aitensor<T> predict(int sequence_length = 0);
 
     void test() {}
 
@@ -98,7 +99,7 @@ class ModelNode {
 private:
     std::string name;
     NodeType ntype;
-    std::string datatype;
+    DataType datatype = DataType::float32;
     std::vector<BaseOperator*> operations;
     aitensor<float> input_fdata;
     aitensor<double> input_ddata;
@@ -113,7 +114,7 @@ private:
     bool positional = false;
 
 public: 
-    ModelNode(std::string name, NodeType ntype, std::string datatype) { 
+    ModelNode(std::string name, NodeType ntype, DataType datatype) { 
         this->name = name; 
         this->ntype = ntype;
         this->datatype = datatype;
@@ -123,47 +124,53 @@ public:
 
     NodeType getNodeType() { return this->ntype; }
 
-    void setDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
+    void setData(const py::array& data, const bool normalize, const bool positional);
 
-    void setDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
+    // void setDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
 
-    void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
+    // void setDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
 
-    void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
+    void setDecoderData(const py::array& data, const bool normalize, const bool positional);
 
-    void setEncoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
+    // void setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
 
-    void setEncoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
+    // void setDecoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
+
+    void setEncoderData(const py::array& data, const bool normalize, const bool positional);
+
+    // void setEncoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional);
+
+    // void setEncoderDataDouble(const py::array_t<double>& data, const bool normalize, const bool positional);
 
     bool getNormalize() { return this->normalize; }
 
     bool getPositional() { return this->positional; }
 
     ssize_t getDataSize() { 
-        if (datatype == "float") {
+        if (this->datatype == DataType::float32) {
             return this->input_fdata.size(); 
         } else 
-        if (datatype == "double") {
+        if (this->datatype == DataType::float64) {
             return this->input_ddata.size(); 
         }
         return 0;
     }
 
     ssize_t getDecoderDataSize() { 
-        if (datatype == "float") {
+        if (this->datatype == DataType::float32) {
             return this->decoder_fdata.size(); 
         } else 
-        if (datatype == "double") {
+        if (this->datatype == DataType::float64) {
             return this->decoder_ddata.size(); 
         }
         return 0;
     }
 
     ssize_t getEncoderDataSize() { 
-        if (datatype == "float") {
+        if (this->datatype == DataType::float32) {
             return this->encoder_fdata.size(); 
         } else 
-        if (datatype == "double") {
+        if (this->datatype == DataType::float64) {
             return this->encoder_ddata.size(); 
         }
         return 0;
@@ -191,7 +198,7 @@ public:
 *************************************************************************************************/
 class Model {
 private:
-    std::string datatype = "float";
+    DataType datatype = DataType::float32;
     int seed = 0;
     std::shared_ptr<Graph<float>> graphXf;
     std::shared_ptr<Graph<double>> graphXd;
@@ -210,7 +217,7 @@ private:
     }
 
 public:
-    Model(const std::string& datatype = "float", int seed = 0);
+    Model(DataType dtype = DataType::float32, int seed = 2017);
 
     std::shared_ptr<ModelNode> addNode(std::string name, NodeType ntype);
 
@@ -218,9 +225,7 @@ public:
 
     // void unpackOperations();
 
-    void setTargetFloat(const py::array_t<float>& target, const bool normalize);
-    
-    void setTargetDouble(const py::array_t<double>& target, const bool normalize);
+    void setTarget(const py::array& target, const bool normalize);
 
     void connect(std::shared_ptr<ModelNode> from, std::shared_ptr<ModelNode> to);
 
@@ -230,17 +235,23 @@ public:
 
     void seedNodes(bool setOps = false);
 
-    py::array_t<float> predictFloat();
-
-    py::array_t<double> predictDouble();
+    py::array predict(int sequence_length = 0);
 
     std::vector<float> train(std::string& losstype, std::vector<std::string>& metricstype, std::string& optimizertype, int batch_size = 10, int max_epoch = 1,
                     double learningRate = 0.01, bool useStepDecay = false, double decayRate = 0.90);
 
-    std::string generateDotFormat(bool operators = false, bool weights = false);
+    Topology generateDotFormat(bool operators = false, bool weights = false);
+
+    //py::array_t<double> process_xarray(py::array_t<double> arr);
+
+    py::array process_array(py::array arr);
+
+    //py::array process_xtype(py::array arr);
+
+    //py::array array_with_dtype(py::dtype dtype);
 
 };
-
+ 
 /************************************************************************************************
 * We use ModelLinear class as a meta model only for use  as entry point for python API.
 * The actual model is the Linear class.

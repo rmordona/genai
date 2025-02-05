@@ -310,19 +310,25 @@ void Attention<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string Attention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) { 
-    std::string dot = "{* Attention *}|";  
+Topology Attention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) { 
+    Topology topology ;
+    topology.dot = "{* Attention *}|";  
+    topology.parameters = 0;
     if (Wq == nullptr || Wk == nullptr || Wv == nullptr) {
-        dot += "{- No training done yet -}";
+        topology.dot += "{- No training done yet -}";
     } else {
-        dot += Wq->generateDotFormat("Q") + "|";
-        dot += Wk->generateDotFormat("K") + "|";
-        dot += Wv->generateDotFormat("V") + "|";
+        Topology top1 = Wq->generateDotFormat("Q") ;
+        Topology top2 = Wk->generateDotFormat("K") ;
+        Topology top3 = Wv->generateDotFormat("V") ;
+        topology.dot += top1.dot + "|" + top2.dot + "|" + top3.dot + "|";
+        topology.parameters += top1.parameters + top2.parameters + top3.parameters;
         if (this->output_projection) {
-            dot += Wo->generateDotFormat("Wo");
+            Topology top4 = Wo->generateDotFormat("Wo");
+            topology.dot += top4.dot;
+            topology.parameters += top4.parameters;
         }
     }
-    return dot; 
+    return topology; 
 }
 
 /*****************************************************************************************************
@@ -479,14 +485,18 @@ void MultiHeadAttention<T>::updateParameters(std::string& optimizertype, T& lear
 }
 
 template <class T>
-std::string MultiHeadAttention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* MultiHeadAttention (" + name + ") *}|";  
+Topology MultiHeadAttention<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* MultiHeadAttention (" + name + ") *}|";
+    topology.parameters = 0;
     for (int i = 0; i < this->H; i++) {
-        dot += "{* Head " + std::to_string(i) + " *}|";  
-        dot +=  M1[i]->generateDotFormat() + "|";
+        topology.dot += "{* Head " + std::to_string(i) + " *}|";  
+        Topology top =  M1[i]->generateDotFormat() ;
+        topology.dot += top.dot + "|";
+        topology.parameters += top.parameters;
     }
-    dot.pop_back(); // Remove the last comma
-    return dot; 
+    topology.dot.pop_back(); // Remove the last comma
+    return topology; 
 }
 
 /*****************************************************************************************************
@@ -579,16 +589,20 @@ void FeedForward<T>::updateParameters(std::string& optimizertype, T& learningRat
 }
 
 template <class T>
-std::string FeedForward<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* FeedForward (" + name + ") *}|";  
+Topology FeedForward<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* FeedForward (" + name + ") *}|";  
+    topology.parameters = 0;
     if (L1 == nullptr || L2 == nullptr || A1 == nullptr) {
-        dot += "{- No training done yet -}";
+        topology.dot += "{- No training done yet -}";
     } else {
-        dot +=  L1->generateDotFormat("L1") + "|";
-        dot +=  A1->generateDotFormat() + "|"; 
-        dot +=  L2->generateDotFormat("L2"); 
+        Topology top1 =  L1->generateDotFormat("L1") ;
+        Topology top2 =  A1->generateDotFormat() ; 
+        Topology top3 =  L2->generateDotFormat("L2"); 
+        topology.dot += top1.dot + "|" + top2.dot + "|" + top3.dot;
+        topology.parameters += top1.parameters + top2.parameters + top3.parameters;
     }
-    return dot; 
+    return topology; 
 }
 
 /*****************************************************************************************************
@@ -740,18 +754,21 @@ void Encoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 }
 
 template <class T>
-std::string Encoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Encoder *}|";
-
+Topology Encoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Encoder *}|";
+    topology.parameters = 0;
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {
-        dot += "{- No training done yet -}";
+        topology.dot += "{- No training done yet -}";
     } else {
-        dot +=  M1->generateDotFormat() + "|";
-        dot +=  LN1->generateDotFormat("add_norm1") + "|";
-        dot +=  F1->generateDotFormat() + "|";
-        dot +=  LN2->generateDotFormat("add_norm2");
+        Topology top1 =  M1->generateDotFormat("M1") ;
+        Topology top2 =  LN1->generateDotFormat("add_norm1") ;
+        Topology top3 =  F1->generateDotFormat("F1") ;
+        Topology top4 =  LN2->generateDotFormat("add_norm2");
+        topology.dot += top1.dot +  "|" + top2.dot + + "|" + top3.dot + "|" + top4.dot;
+        topology.parameters += top1.parameters + top2.parameters + top3.parameters + top4.parameters;
     }
-    return dot; 
+    return topology; 
 }
 
 // where weights is BxNxW and bias is W.
@@ -803,15 +820,19 @@ void EncoderLayer<T>::updateParameters(std::string& optimizertype, T& learningRa
 }
 
 template <class T>
-std::string EncoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Encoder Layer *}|";
+Topology EncoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Encoder Layer *}|";
+    topology.parameters = 0;
 
     for (int i = 0; i < this->L; i++) {
         Encoder<T>* encoder = this->encoders.at(i);
-        dot += encoder->generateDotFormat("encoder " + i);
+        Topology top = encoder->generateDotFormat("encoder " + i);
+        topology.dot += top.dot;
+        topology.parameters += top.parameters;
     }
 
-    return dot; 
+    return topology; 
 }
 
 /*****************************************************************************************************
@@ -1008,20 +1029,25 @@ void Decoder<T>::updateParameters(std::string& optimizertype, T& learningRate, i
 }
   
 template <class T>
-std::string Decoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Decoder *}|";
+Topology Decoder<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Decoder *}|";
+    topology.parameters = 0;
 
     if (M1 == nullptr || LN1 == nullptr || F1 == nullptr || LN2 == nullptr)  {
-        dot += "{- No training done yet -}";
+        topology.dot += "{- No training done yet -}";
     } else {
-        dot +=  M1->generateDotFormat("Masked") + "|";
-        dot +=  LN1->generateDotFormat("add_norm1") + "|";
-        dot +=  M2->generateDotFormat() + "|";
-        dot +=  LN2->generateDotFormat("add_norm2") + "|";
-        dot +=  F1->generateDotFormat() + "|";
-        dot +=  LN3->generateDotFormat("add_norm3");
+        Topology top1 =  M1->generateDotFormat("Masked") ;
+        Topology top2 =  LN1->generateDotFormat("add_norm1") ;
+        Topology top3 =  M2->generateDotFormat("M2") ;
+        Topology top4 =  LN2->generateDotFormat("add_norm2") ;
+        Topology top5 =  F1->generateDotFormat("F1") ;
+        Topology top6 =  LN3->generateDotFormat("add_norm3");
+        topology.dot += top1.dot + "|" + top2.dot + "|" + top3.dot + "|" + top4.dot + "|" + top5.dot + "|" + top6.dot ;
+        topology.parameters += top1.parameters + top2.parameters + top3.parameters +
+                               top4.parameters + top5.parameters + top6.parameters;
     }
-    return dot; 
+    return topology; 
 }
 
 // where weights is BxNxW and bias is W.
@@ -1085,15 +1111,17 @@ void DecoderLayer<T>::updateParameters(std::string& optimizertype, T& learningRa
 }
 
 template <class T>
-std::string DecoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Decoder Layer *}|";
-
+Topology DecoderLayer<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Decoder Layer *}|";
+    topology.parameters = 0;
     for (int i = 0; i < this->L; i++) {
         Decoder<T>* decoder = this->decoders.at(i);
-        dot += decoder->generateDotFormat("decoder " + i);
+        Topology top = decoder->generateDotFormat("decoder " + i);
+        topology.dot += top.dot;
+        topology.parameters += top.parameters;
     }
-
-    return dot; 
+    return topology; 
 }
 
 /************ Attention & Transformers initialize template ************/

@@ -28,6 +28,7 @@
 
 #include <sqlite3.h>
 #include "logger.h"
+#include <random>
 
 #define TK_SPACE_ L"<s>"    
 #define TK_MASK_  L"<MASK>"
@@ -201,7 +202,13 @@ private:
         }
 
         // Example of a sampling strategy: Randomly shuffle the vector before sorting
-        std::random_shuffle(layerDistanceIndexTuples.begin(), layerDistanceIndexTuples.end());
+        // std::random_shuffle - deprecated in gcc++14, removed in gcc++17, use std::shuffle
+
+        // Create a random number generator
+        std::random_device rd;  // Non-deterministic random seed
+        std::mt19937 g(rd());   // Mersenne Twister PRNG
+
+        std::shuffle(layerDistanceIndexTuples.begin(), layerDistanceIndexTuples.end(), g);
 
         // Sort using a lambda function for custom comparison and adaptive threshold
         std::partial_sort(layerDistanceIndexTuples.begin(), layerDistanceIndexTuples.begin() + maxComparisons,

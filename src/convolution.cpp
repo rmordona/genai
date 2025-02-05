@@ -118,7 +118,7 @@ const aitensor<T> Convolution<T>::forward(const aitensor<T>& input_data) {
  
 template <class T>
 const aitensor<T> Convolution<T>::backward(const aitensor<T>& gradients) {
-
+ 
     log_info("===============================================");
     log_info("Convolution Backward Pass ...");
 
@@ -223,8 +223,10 @@ void Convolution<T>::updateParameters(std::string& optimizertype, T& learningRat
 }
 
 template <class T>
-std::string Convolution<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Convolution (" + name + ") *}|";  
+Topology Convolution<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Convolution (" + name + ") *}|";  
+    topology.parameters = 0;
     T min_weights = 0.0, max_weights = 0.0;
     T min_biases = 0.0, max_biases = 0.0;
     try {
@@ -233,19 +235,20 @@ std::string Convolution<T>::generateDotFormat(const std::string& name , bool ope
         min_biases = kernel.biases.minCoeff();
         max_biases = kernel.biases.maxCoeff();
     } catch (...) {};
-
-    dot += "{Parameters=" + std::to_string(kernel.weights.rows() * kernel.weights.cols() + kernel.biases.size()) + "|" +
+    int parameters = kernel.weights.rows() * kernel.weights.cols() + kernel.biases.size();
+    topology.parameters += parameters;
+    topology.dot += "{Parameters=" + std::to_string(parameters) + "|" +
              "BatchSize=" + std::to_string(batch_size) + "}|";
-    dot += "{Input=(" + std::to_string(inputHeight) + " x " + std::to_string(inputWidth) + ")|";  
-    dot += "Kernel=(" + std::to_string(kernelHeight) + " x " + std::to_string(kernelWidth) + ")|";  
-    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|";  
+    topology.dot += "{Input=(" + std::to_string(inputHeight) + " x " + std::to_string(inputWidth) + ")|";  
+    topology.dot += "Kernel=(" + std::to_string(kernelHeight) + " x " + std::to_string(kernelWidth) + ")|";  
+    topology.dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|";  
     if (weights == true) {
-    dot += "{Kernel Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
-    dot += "{Kernel Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+    topology.dot += "{Kernel Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
+    topology.dot += "{Kernel Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
     } else {
-        dot.pop_back(); // Remove dangling | character
+        topology.dot.pop_back(); // Remove dangling | character
     }
-    return dot;
+    return topology;
 }
 
 /**********  Convolution Network initialize templates *****************/

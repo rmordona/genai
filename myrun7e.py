@@ -130,7 +130,7 @@ node1.setData(data = encoder_input, normalize=True, positional=True);
 modelgraph.setTarget(data = target, normalize=False);
 
 # Perform fitting
-modelgraph.train(loss="cce", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=20, learn_rate=0.0001, use_step_decay = False, decay_rate = 0.90)
+modelgraph.train(loss="cce", metrics=[], optimizer="nadam", batch_size = 10, max_epoch=1000, learn_rate=0.0001, use_step_decay = False, decay_rate = 0.90)
 
 
 #yy_pred = modelgraph.predict();

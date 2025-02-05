@@ -159,7 +159,7 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
 
     aiscalar<T> stopping_criteria = 1e-4;
     // aiscalar<T> old_loss = inf();
- 
+  
     auto start_time        = std::chrono::system_clock::now();
     auto end_time          = std::chrono::system_clock::now();
     std::time_t next_time  = std::chrono::system_clock::to_time_t(end_time);
@@ -172,11 +172,17 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
     aitensor<T> batch_target = {}; // Y
     aitensor<T> batch_output = {}; // Y-hat
 
+    // We assume that model.setData and model.setTarget have been called to set
+    // the input data and target data prior to invoking the train function.
     int target_size = this->target.size();
 
-    if (batch_size > target_size) {
-        batch_size = target_size;
+    py_cout << "Target Size " << target_size << std::endl;
+
+    if ((int) batch_size >= (int) target_size) {
+        this->batch_size = target_size;
     }
+
+    py_cout << "Batch Size: " << batch_size << " Target Size: " << target_size << std::endl;
  
     for (int iter = 1; iter <= max_epoch; iter++) {
 
@@ -190,56 +196,39 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
         // int total_loss_cnt = 0;
         int total_metrics_cnt = 0;
 
-        // for (int start_index = 0; start_index < ( target_size - batch_size + 1); start_index += batch_size) {
+        this->start_index = std::rand() % (target_size - this->batch_size + 1);
+        batch_target = BaseOperator::getBatch(this->target, this->start_index, this->batch_size);
+        log_detail( "Entering Forward Propagation ..." );
+        batch_output = this->graph->forwardPropagation(this->start_index, this->batch_size);
+        log_detail( "Forward Output: Tensor Size {0} {1}x{2}", batch_output.size(), batch_output.at(0).rows(), batch_output.at(0).cols() );
+        log_matrix( batch_output );
 
-            this->start_index = std::rand() % (target_size - batch_size + 1);
+        log_detail( "Computing Loss ..." );
+        this->loss = this->graph->computeLoss(this->losstype, batch_output, batch_target); 
+        log_detail( "Computing Loss Gradient ..." );
+        this->gradients = this->graph->computeGradients(this->losstype, batch_output, batch_target);
+        log_matrix( this->gradients );
+        log_detail( "Entering Backward Propagation ..." );
+        this->gradients = this->graph->backwardPropagation(this->gradients); 
+        log_detail( "Updating Parameters ..." );
+        this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
+        if (this->losstype == "bce" || this->losstype == "cce") {
+            log_detail( "Calculate Performance Metrics ...");
+            this->metrics = this->graph->computeMetrics(metricstype, batch_output, batch_target);
+            tot_metrics_precision += this->metrics.precision;
+            tot_metrics_recall += this->metrics.recall;
+            tot_metrics_f1score += this->metrics.f1score;
+            total_metrics_cnt ++;
+        }
+        // Calculate Time, then display loss
+        end_time = std::chrono::system_clock::now();
+        elapsed_seconds = end_time - start_time;
+        next_time = std::chrono::system_clock::to_time_t(end_time);
+        start_time = end_time;
 
-            batch_target = BaseOperator::getBatch(this->target, this->start_index, this->batch_size);
-
-            log_detail( "Entering Forward Propagation ..." );
-            batch_output = this->graph->forwardPropagation(this->start_index, this->batch_size);
-
-            log_detail( "Forward Output: Tensor Size {0} {1}x{2}", batch_output.size(), batch_output.at(0).rows(), batch_output.at(0).cols() );
-            log_matrix( batch_output );
-
-            log_detail( "Computing Loss ..." );
-            this->loss = this->graph->computeLoss(this->losstype, batch_output, batch_target); 
-
-            log_detail( "Computing Loss Gradient ..." );
-            this->gradients = this->graph->computeGradients(this->losstype, batch_output, batch_target);
-            log_matrix( this->gradients );
-
-            log_detail( "Entering Backward Propagation ..." );
-            this->gradients = this->graph->backwardPropagation(this->gradients); 
-
-            log_detail( "Updating Parameters ..." );
-            this->graph->updateParameters(this->optimizertype, this->learningRate, iter);
-
-            if (this->losstype == "bce" || this->losstype == "cce") {
-                log_detail( "Calculate Performance Metrics ...");
-                this->metrics = this->graph->computeMetrics(metricstype, batch_output, batch_target);
-                tot_metrics_precision += this->metrics.precision;
-                tot_metrics_recall += this->metrics.recall;
-                tot_metrics_f1score += this->metrics.f1score;
-                total_metrics_cnt ++;
-            }
-
-            // total_loss += this->loss;
-            // total_loss_cnt ++;
-
-            // Calculate Time, then display loss
-            end_time = std::chrono::system_clock::now();
-            elapsed_seconds = end_time - start_time;
-            next_time = std::chrono::system_clock::to_time_t(end_time);
-            start_time = end_time;
-
-            total_seconds += elapsed_seconds.count();
-            duration += elapsed_seconds.count();
-            total_iteration++;
-        // }
-
-        // total_loss = this->loss; // total_loss / total_loss_cnt;
-
+        total_seconds += elapsed_seconds.count();
+        duration += elapsed_seconds.count();
+        total_iteration++;
         losses.push_back(this->loss);
         
         if (this->losstype == "bce" || this->losstype == "cce") {
@@ -247,7 +236,6 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
             tot_metrics_recall    = tot_metrics_recall / total_metrics_cnt;
             tot_metrics_f1score   = tot_metrics_f1score / total_metrics_cnt;
         }
-
         // Print Progress
         if (iter == 1 || iter % mod_epoch == 0 || iter == max_epoch) {
 
@@ -283,7 +271,6 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
             total_iteration = 0;
 
         }
-
         if (this->loss <= stopping_criteria) break;
 
     }
@@ -312,7 +299,7 @@ std::vector<float> BaseModel<T>::train(std::string& losstype, std::vector<std::s
 * to the Node class.
 **************************************************************************************************/
 template <class T>
-aitensor<T> BaseModel<T>::predict() {
+aitensor<T> BaseModel<T>::predict(int sequence_length) {
  
     // Initialize MPI
     //MPI_Init(NULL, NULL);
@@ -322,25 +309,28 @@ aitensor<T> BaseModel<T>::predict() {
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
-    int target_size = this->target.size();
+    int target_size = this->graph->getDataSize();
 
     auto start_time = std::chrono::system_clock::now();
 
+    aitensor<T> predicted;
+
     int tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
 
-    py_cout << "Model Inference ..." << std::endl;
+    for (int iter = 0; iter <= sequence_length; iter++) {
 
-    aitensor<T> predicted = this->graph->forwardPropagation(0, target_size);
+        predicted = this->graph->forwardPropagation(0, target_size);
 
-    log_detail( "Predicted Result: Tensor Size {0}", predicted.size() );
-    log_matrix( predicted );
+        log_detail( "Predicted Result: Tensor Size {0}", predicted.size() );
+        log_matrix( predicted );
 
-    if (this->losstype == "bce" || this->losstype == "cce") {
-        log_detail( "Calculate Performance Metrics ...");
-        this->metrics = this->graph->computeMetrics(metricstype, predicted, this->target);
-        tot_metrics_precision = this->metrics.precision;
-        tot_metrics_recall = this->metrics.recall;
-        tot_metrics_f1score = this->metrics.f1score;
+        if (this->losstype == "bce" || this->losstype == "cce") {
+            this->metrics = this->graph->computeMetrics(metricstype, predicted, this->target);
+            tot_metrics_precision += this->metrics.precision;
+            tot_metrics_recall += this->metrics.recall;
+            tot_metrics_f1score += this->metrics.f1score;
+        }
+
     }
 
     // Calculate Time, then display loss
@@ -354,13 +344,13 @@ aitensor<T> BaseModel<T>::predict() {
 
     if (this->losstype == "bce" || this->losstype == "cce") {
         if (this->metrics.isprecision) {
-            py_cout << " Acc (P): " << tot_metrics_precision;
+            py_cout << " Acc (P): " << tot_metrics_precision / sequence_length;
         }
         if (this->metrics.isrecall) {
-            py_cout << "Acc (R): " << tot_metrics_recall;
+            py_cout << "Acc (R): " << tot_metrics_recall / sequence_length;
         }
         if (this->metrics.isf1score) {
-            py_cout << "Acc (F1): " << tot_metrics_f1score;
+            py_cout << "Acc (F1): " << tot_metrics_f1score / sequence_length;
         }
         py_cout << " ... ";
     }
@@ -369,7 +359,7 @@ aitensor<T> BaseModel<T>::predict() {
 
     // Also, log the result if Logging INFO is enabled
     log_detail( "Acc (P): {:8.5f} ... Elapsed {}us at {}", 
-            tot_metrics_precision, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
+            tot_metrics_precision / sequence_length, elapsed_seconds.count() * 1000000, std::ctime(&next_time) );
 
     log_detail( "Prediction done ..." );
 
@@ -379,53 +369,44 @@ aitensor<T> BaseModel<T>::predict() {
     //MPI_Finalize();
 
 }
-  
+
 /**************************************************************************************************
-* ModelNode::setDataFloat and setDecoderDataFloat
+* ModelNode::setData and setDecoderData
 * Temporarily store np.array (passed as dtype = np.float32) to a double pointer (this->input_fdata).
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
+void ModelNode::setData(const py::array& data, const bool normalize, const bool positional) {
     try {
-        if (datatype == "double") {
-            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
-        }
 
-        this->input_fdata = ConvertData::totensor(data);
+        py::buffer_info buf = data.request();
+
+        if (buf.format == py::format_descriptor<double>::format()) {
+            if (this->datatype == DataType::float32) {
+                throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+            }
+            this->input_ddata = ConvertData::totensor(data.cast<py::array_t<double>>());
+        } 
+        else if (buf.format == py::format_descriptor<float>::format()) {
+            if (this->datatype == DataType::float64) {
+                throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
+            }
+            this->input_fdata = ConvertData::totensor(data.cast<py::array_t<float>>());
+        } 
+        else {
+            throw std::runtime_error("Unsupported dtype!");
+        }
         this->normalize   = normalize;
         this->positional  = positional;
 
     } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "(Model:setData) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:setData) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
-    }
-}
-
-void ModelNode::setDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
-
-    try {
-        if (datatype == "float") {
-            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
-        }
-
-        this->input_ddata = ConvertData::totensor(data);
-        this->normalize   = normalize;
-        this->positional  = positional;
-
-    } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
-    } catch (...) {
-        // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
+        std::cerr << "(Model:setData) Unknown Error:" << std::endl;
     }
 }
 
@@ -435,97 +416,87 @@ void ModelNode::setDataDouble(const py::array_t<double>& data, bool const normal
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setDecoderDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
+void ModelNode::setDecoderData(const py::array& data, bool const normalize, const bool positional) {
 
     try {
-        if (datatype == "float") {
-            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+
+        py::buffer_info buf = data.request();
+
+        if (buf.format == py::format_descriptor<double>::format()) {
+            if (this->datatype == DataType::float32) {
+                throw AIException("Precision used in decoder data is 'double' but the model uses 'float' ...");
+            }
+            py_cout << " Set Decoder Data in float64 format ... " << std::endl;
+            this->decoder_ddata = ConvertData::totensor(data.cast<py::array_t<double>>());
+        } 
+        else if (buf.format == py::format_descriptor<float>::format()) {
+            if (this->datatype == DataType::float64) {
+                throw AIException("Precision used in decoder data is 'float' but the model uses 'double' ...");
+            }
+            py_cout << " Set Decoder Data in float32 format ... " << std::endl;
+            this->decoder_fdata = ConvertData::totensor(data.cast<py::array_t<float>>());
+        } 
+        else {
+            throw std::runtime_error("Unsupported dtype!");
         }
 
-        this->decoder_ddata = ConvertData::totensor(data);
         this->normalize   = normalize;
         this->positional  = positional;
 
     } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "(Model:setDecoderData) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:setDecoderData) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
-    }
-}
-
-void ModelNode::setDecoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
-    try {
-        if (datatype == "double") {
-            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
-        }
-
-        this->decoder_fdata = ConvertData::totensor(data);
-        this->normalize   = normalize;
-        this->positional  = positional;
-
-    } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
-    } catch (...) {
-        // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
+        std::cerr << "(Model:setDecoderData) Unknown Error:" << std::endl;
     }
 }
 
 /**************************************************************************************************
-* ModelNode::setEncoderDataDouble and setEncoderDataFloat
+* ModelNode::setEncoderData and setEncoderData
 * Temporarily store np.array (passed as dtype = np.float64) to a double pointer (this->input_ddata).
 * Upon training entry, the double pointer will be transformed to an aitensor and handed over
 * to the Node class.
 **************************************************************************************************/
-void ModelNode::setEncoderDataDouble(const py::array_t<double>& data, bool const normalize, const bool positional) {
+void ModelNode::setEncoderData(const py::array& data, bool const normalize, const bool positional) {
 
     try {
-        if (datatype == "float") {
-            throw AIException("Precision used in data is 'double' but the model uses 'float' ...");
+        py::buffer_info buf = data.request();
+
+        if (buf.format == py::format_descriptor<double>::format()) {
+            if (this->datatype == DataType::float32) {
+                throw AIException("Precision used in encoder data is 'double' but the model uses 'float' ...");
+            }
+            py_cout << " Set Encoder Data in float64 format ... " << std::endl;
+            this->encoder_ddata = ConvertData::totensor(data.cast<py::array_t<double>>());
+        } 
+        else if (buf.format == py::format_descriptor<float>::format()) {
+            if (this->datatype == DataType::float64) {
+                throw AIException("Precision used in encoder data is 'float' but the model uses 'double' ...");
+            }
+            py_cout << " Set Encoder Data in float32 format ... " << std::endl;
+            this->encoder_fdata = ConvertData::totensor(data.cast<py::array_t<float>>());
+        } 
+        else {
+            throw std::runtime_error("Unsupported dtype!");
         }
 
-        this->encoder_ddata = ConvertData::totensor(data);
         this->normalize   = normalize;
         this->positional  = positional;
 
     } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "(Model:setEncoderData) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:setEncoderData) Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
+        std::cerr << "(Model:setEncoderData) Unknown Error:" << std::endl;
     }
 }
 
-void ModelNode::setEncoderDataFloat(const py::array_t<float>& data, const bool normalize, const bool positional) {
-    try {
-        if (datatype == "double") {
-            throw AIException("Precision used in data is 'float' but the model uses 'double' ...");
-        }
-
-        this->encoder_fdata = ConvertData::totensor(data);
-        this->normalize   = normalize;
-        this->positional  = positional;
-
-    } catch (const AIException& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Catch standard exceptions
-        std::cerr << "Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
-    } catch (...) {
-        // Catch all other exceptions
-        std::cerr << "Unknown Error:" << std::endl;
-    }
-}
 
 /**************************************************************************************************
 * ModelNode::setOperations
@@ -538,14 +509,14 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
     for (auto& op : operations) {
         // Check the dynamic type of the object using dynamic_cast
         if (auto linear = std::dynamic_pointer_cast<ModelLinear>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Linear<float>* newop = new Linear<float>(
                                                             linear->getSize(), 
                                                             linear->getBias()
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 Linear<double>* newop = new Linear<double>(
                                                             linear->getSize(), 
                                                             linear->getBias()
@@ -554,34 +525,34 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else
         if (auto batchnorm = std::dynamic_pointer_cast<ModelBatchNorm>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 BatchNorm<float>* newop = new BatchNorm<float>();
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 BatchNorm<double>* newop = new BatchNorm<double>();
                 this->operations.push_back(newop);
             }
         } else
         if (auto layernorm = std::dynamic_pointer_cast<ModelLayerNorm>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 LayerNorm<float>* newop = new LayerNorm<float>();
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 LayerNorm<double>* newop = new LayerNorm<double>();
                 this->operations.push_back(newop);
             } 
         } else
         if (auto activate = std::dynamic_pointer_cast<ModelActivation>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Activation<float>* newop = new Activation<float>(
                                                             activate->getActivationType(), 
                                                             activate->getAlpha()
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") { 
+            if (this->datatype == DataType::float64) { 
                 Activation<double>* newop = new Activation<double>(
                                                             activate->getActivationType(), 
                                                             activate->getAlpha()
@@ -590,13 +561,13 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         }  else  
         if (auto dropout = std::dynamic_pointer_cast<ModelDropout>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Dropout<float>* newop = new Dropout<float>(
                                                             dropout->getProbability()
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 Dropout<double>* newop = new Dropout<double>(
                                                             dropout->getProbability()
                                                         );
@@ -604,17 +575,17 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         }  else
         if (auto flatten = std::dynamic_pointer_cast<ModelFlatten>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Flatten<float>* newop = new Flatten<float>();
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 Flatten<double>* newop = new Flatten<double>();
                 this->operations.push_back(newop);
             }
         }  else
         if (auto convolution = std::dynamic_pointer_cast<ModelConvolution>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Convolution<float>* newop = new Convolution<float>(
                                                             convolution->getKernelSize(),
                                                             convolution->getStride(),
@@ -624,7 +595,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") { 
+            if (this->datatype == DataType::float64) { 
                 Convolution<double>* newop = new Convolution<double>(
                                                             convolution->getKernelSize(),
                                                             convolution->getStride(),
@@ -636,14 +607,14 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         }  else  // Transformer Component
         if (auto attention = std::dynamic_pointer_cast<ModelAttention>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 Attention<float>* newop = new Attention<float>(
                                                             attention->getSize(),
                                                             attention->getBias()
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 Attention<double>* newop = new Attention<double>(
                                                             attention->getSize(),
                                                             attention->getBias(),
@@ -653,7 +624,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             } 
         } else  // Transformer Component 
         if (auto feedforward = std::dynamic_pointer_cast<ModelFeedForward>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 FeedForward<float>* newop = new FeedForward<float>(
                                                             feedforward->getSize(),
                                                             feedforward->getBias(),
@@ -662,7 +633,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 FeedForward<double>* newop = new FeedForward<double>(
                                                             feedforward->getSize(),
                                                             feedforward->getBias(),
@@ -673,7 +644,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else  // Transformer Component 
         if (auto multiheadattention = std::dynamic_pointer_cast<ModelMultiHeadAttention>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 MultiHeadAttention<float>* newop = new MultiHeadAttention<float>(
                                                             multiheadattention->getHead(),
                                                             multiheadattention->getAttentionSize(),
@@ -682,7 +653,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 MultiHeadAttention<double>* newop = new MultiHeadAttention<double>(
                                                             multiheadattention->getHead(),
                                                             multiheadattention->getAttentionSize(),
@@ -693,7 +664,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else   // Transformer Component
         if (auto encoder = std::dynamic_pointer_cast<ModelEncoder>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 EncoderLayer<float>* newop = new EncoderLayer<float>(
                                                             encoder->getHead(),
                                                             encoder->getAttentionSize(),
@@ -705,7 +676,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 EncoderLayer<double>* newop = new EncoderLayer<double>(
                                                             encoder->getHead(),
                                                             encoder->getAttentionSize(),
@@ -719,7 +690,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else   // Transformer Component 
         if (auto decoder = std::dynamic_pointer_cast<ModelDecoder>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 DecoderLayer<float>* newop = new DecoderLayer<float>(
                                                             decoder->getHead(),
                                                             decoder->getAttentionSize(),
@@ -731,7 +702,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") { 
+            if (this->datatype == DataType::float64) { 
                 DecoderLayer<double>* newop = new DecoderLayer<double>(
                                                             decoder->getHead(),
                                                             decoder->getAttentionSize(),
@@ -745,7 +716,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         }  else   // Recurrent Network Component
         if (auto rnn = std::dynamic_pointer_cast<ModelRNN>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 RNN<float>* newop = new RNN<float>(         rnn->getHiddenSize(),
                                                             rnn->getOuputSize(),
                                                             rnn->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -755,7 +726,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 RNN<double>* newop = new RNN<double>(       rnn->getHiddenSize(),
                                                             rnn->getOuputSize(),
                                                             rnn->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -767,7 +738,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else   // Recurrent Network Component
         if (auto lstm = std::dynamic_pointer_cast<ModelLSTM>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 LSTM<float>* newop = new LSTM<float>(       lstm->getHiddenSize(),
                                                             lstm->getOuputSize(),
                                                             lstm->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -777,7 +748,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 LSTM<double>* newop = new LSTM<double>(     lstm->getHiddenSize(),
                                                             lstm->getOuputSize(),
                                                             lstm->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -789,7 +760,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
             }
         } else   // Recurrent Network Component
         if (auto gru = std::dynamic_pointer_cast<ModelGRU>(op)) {
-            if (datatype == "float") {
+            if (this->datatype == DataType::float32) {
                 GRU<float>* newop = new GRU<float>(         gru->getHiddenSize(),
                                                             gru->getOuputSize(),
                                                             gru->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -799,7 +770,7 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
                                                         );
                 this->operations.push_back(newop);
             } else 
-            if (datatype == "double") {
+            if (this->datatype == DataType::float64) {
                 GRU<double>* newop = new GRU<double>(       gru->getHiddenSize(),
                                                             gru->getOuputSize(),
                                                             gru->getOutputSequenceLength(), // For One-TO-Many Scenario
@@ -818,14 +789,16 @@ void ModelNode::setOperations(std::vector<std::shared_ptr<BaseOperator>>& operat
 * This is the Model Constructor Implementation - Note that this is only a meta model.
 * The actual model is the BaseModel Class.
 *************************************************************************************************/
-Model::Model(const std::string& datatype, int seed) {
-    this->datatype = datatype;
-    if (datatype == "float") {
+Model::Model(DataType dtype, int seed) {
+
+    this->datatype = dtype;
+
+    if (this->datatype == DataType::float32) {
         std::shared_ptr<BaseModel<float>> bmodelf = std::make_shared<BaseModel<float>>(seed);
         std::shared_ptr<Graph<float>> graphXf = std::make_unique<Graph<float>>();
         bmodelf->setGraph(graphXf);
         this->modelXf = bmodelf;
-    } else if (datatype == "double") {
+    } else if (this->datatype == DataType::float64) {
         std::shared_ptr<BaseModel<double>> bmodeld = std::make_shared<BaseModel<double>>(seed);
         std::shared_ptr<Graph<double>> graphXd = std::make_unique<Graph<double>>();
         bmodeld->setGraph(graphXd);
@@ -841,18 +814,18 @@ Model::Model(const std::string& datatype, int seed) {
 * and register to the graph.
 *************************************************************************************************/
 std::shared_ptr<ModelNode> Model::addNode(std::string name, NodeType ntype) {
-    if (datatype == "float") {
+    if (this->datatype == DataType::float32) {
         if (!isNode(name)) { 
-            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
+            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, this->datatype);
             this->modelXf->getGraph()->createNode(name, ntype);
             this->nodes.push_back(node);
             return node;
         } else {
             std::cerr << "Node already exists. Use another name ..." << std::endl;
         }
-    } else if (datatype == "double") {
+    } else if (this->datatype == DataType::float64) {
         if (!isNode(name)) {
-            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, datatype);
+            std::shared_ptr<ModelNode> node = std::make_shared<ModelNode>(name, ntype, this->datatype);
             this->modelXd->getGraph()->createNode(name, ntype);
             this->nodes.push_back(node);
             return node;
@@ -877,11 +850,11 @@ void Model::connect(std::shared_ptr<ModelNode> from,std::shared_ptr<ModelNode> t
         if (to == nullptr) {
         throw AIException(" Target node is missing ...");
         }
-        if (datatype == "float") {
-            modelXf->getGraph()->connect(from->getName(), to->getName());
+        if (this->datatype == DataType::float32) {
+            this->modelXf->getGraph()->connect(from->getName(), to->getName());
         } else
-        if (datatype == "double") {
-            modelXd->getGraph()->connect(from->getName(), to->getName());
+        if (this->datatype == DataType::float64) {
+            this->modelXd->getGraph()->connect(from->getName(), to->getName());
         }
     } catch (const AIException& e) {
         std::cerr << "(Model:connect) Error: " << e.what() << std::endl;
@@ -922,57 +895,68 @@ void Model::seedNodes(bool setOps) {
 
         // set Node Input Data
         if (size != 0) {
-            if (datatype == "float") {
-                modelXf->getGraph()->setData(node->getName(), node->getDataFloat(), node->getNormalize(), node->getPositional());
+            if (this->datatype == DataType::float32) {
+                this->modelXf->getGraph()->setData(node->getName(), node->getDataFloat(), node->getNormalize(), node->getPositional());
             } else
-            if (datatype == "double") {
-                modelXd->getGraph()->setData(node->getName(), node->getDataDouble(), node->getNormalize(), node->getPositional());
+            if (datatype == DataType::float64) {
+                this->modelXd->getGraph()->setData(node->getName(), node->getDataDouble(), node->getNormalize(), node->getPositional());
             }
         }
 
         // set Node Decoder Data (For Transformer Decoders)
         if (dsize != 0) {
-            if (datatype == "float") {
-                modelXf->getGraph()->setDecoderData(node->getName(), node->getDecoderDataFloat(), node->getNormalize(), node->getPositional());
+            if (this->datatype == DataType::float32) {
+                this->modelXf->getGraph()->setDecoderData(node->getName(), node->getDecoderDataFloat(), node->getNormalize(), node->getPositional());
             } else
-            if (datatype == "double") {
-                modelXd->getGraph()->setDecoderData(node->getName(), node->getDecoderDataDouble(), node->getNormalize(), node->getPositional());
+            if (this->datatype == DataType::float64) {
+                this->modelXd->getGraph()->setDecoderData(node->getName(), node->getDecoderDataDouble(), node->getNormalize(), node->getPositional());
             }
         }
 
         // set Node Decoder Data (For Transformer Decoders)
         if (esize != 0) {
-            if (datatype == "float") {
-                modelXf->getGraph()->setEncoderData(node->getName(), node->getEncoderDataFloat(), node->getNormalize(), node->getPositional());
+            if (this->datatype == DataType::float32) {
+                this->modelXf->getGraph()->setEncoderData(node->getName(), node->getEncoderDataFloat(), node->getNormalize(), node->getPositional());
             } else
-            if (datatype == "double") {
-                modelXd->getGraph()->setEncoderData(node->getName(), node->getEncoderDataDouble(), node->getNormalize(), node->getPositional());
+            if (this->datatype == DataType::float64) {
+                this->modelXd->getGraph()->setEncoderData(node->getName(), node->getEncoderDataDouble(), node->getNormalize(), node->getPositional());
             }
         }
 
         if (setOps == true) {
-            if (datatype == "float") {
-                modelXf->getGraph()->setOperations(node->getName(), node->getOperations());
+            if (this->datatype == DataType::float32) {
+                this->modelXf->getGraph()->setOperations(node->getName(), node->getOperations());
             } else
-            if (datatype == "double") {
-                modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
+            if (this->datatype == DataType::float64) {
+                this->modelXd->getGraph()->setOperations(node->getName(), node->getOperations());
             }
         }
     } 
 }
 
 /************************************************************************************************
-* Model::setTargetFlat
+* Model::setTarget
 * We use modelXf.setTarget to convert the python array to aitensor<float> and store
 * the tensor inside the model.
 *************************************************************************************************/
-void Model::setTargetFloat(const py::array_t<float>& target, const bool normalize) {
+void Model::setTarget(const py::array& target, const bool normalize) {
+    py::buffer_info buf = target.request();
     try {
-        if (datatype == "double") {
-            throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
+        if (buf.format == py::format_descriptor<double>::format()) {
+            if (this->datatype == DataType::float32) {
+                throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
+            }
+            this->modelXd->setTarget(target.cast<py::array_t<double>>(), normalize);
+        } 
+        else if (buf.format == py::format_descriptor<float>::format()) {
+            if (this->datatype == DataType::float64) {
+                throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
+            }
+            this->modelXf->setTarget(target.cast<py::array_t<float>>(), normalize);
+        } 
+        else {
+            throw std::runtime_error("Unsupported dtype!");
         }
-        modelXf->setTarget(target, normalize);
-
     } catch (const AIException& e) {
         std::cerr << "(Model:setTargetFloat) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
@@ -985,43 +969,27 @@ void Model::setTargetFloat(const py::array_t<float>& target, const bool normaliz
 }
 
 /************************************************************************************************
-* Model::setTargetDouble
-* We use modelXd.setTarget to convert the python array to aitensor<double> and store
-* the tensor inside the model.
-*************************************************************************************************/
-void Model::setTargetDouble(const py::array_t<double>& target, const bool normalize) {
-    try {
-        if (datatype == "float") {
-            throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
-        }
-        modelXd->setTarget(target, normalize);
-
-    } catch (const AIException& e) {
-        std::cerr << "(Model:setTargetDouble) Error: " << e.what() << std::endl;
-    } catch (const std::exception& e) {
-        // Catch standard exceptions
-        std::cerr << "(Model:setTargetDouble)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
-    } catch (...) {
-        // Catch all other exceptions
-        std::cerr << "(Model:setTargetDouble) Unknown Error:" << std::endl;
-    }
-}
-
-/************************************************************************************************
 * Model::predictFloat
 * We use modelXd.setTarget to convert the python array to aitensor<double> and store
 * the tensor inside the model.
 *************************************************************************************************/
-py::array_t<float> Model::predictFloat() {
+py::array Model::predict(int sequence_length) {
     py_cout << "Entering Prediction Float ...";
-    try {
-        if (datatype == "double") {
-            throw AIException("Precision used in target data is 'float' but the model uses 'double' ...");
-        } 
 
+    // Check the dtype of the input argument
+    // std::string dtype_name = dtype.attr("name").cast<std::string>();
+    // std::cout << "Requested dtype: " << dtype_name << std::endl;
+
+    try {
         this->seedNodes(false);
-        aitensor<float> tensor = this->modelXf->predict();
-        return ConvertData::topyarray(tensor); 
+        if (this->datatype == DataType::float32) {
+            aitensor<float> tensor = this->modelXf->predict(sequence_length); 
+            return ConvertData::topyarray(tensor); 
+        } else
+        if (this->datatype == DataType::float64) {
+            aitensor<double> tensor = this->modelXd->predict(sequence_length);
+            return ConvertData::topyarray(tensor); 
+        }
 
     } catch (const AIException& e) {
         std::cerr << "(Model:predictFloat) Error: " << e.what() << std::endl;
@@ -1035,15 +1003,21 @@ py::array_t<float> Model::predictFloat() {
     return py::array_t<float>();
 }
   
-py::array_t<double> Model::predictDouble() {
+/*
+py::array_t<double> Model::predictDouble(int sequence_length, const py::dtype dtype) {
     py_cout << "Entering Prediction Double ...";
+
+    // Check the dtype of the input argument
+    std::string dtype_name = dtype.attr("name").cast<std::string>();
+    std::cout << "Requested dtype: " << dtype_name << std::endl;
+
     try {
         if (datatype == "float") {
             throw AIException("Precision used in target data is 'double' but the model uses 'float' ...");
         }
 
         this->seedNodes(false);
-        aitensor<double> tensor = this->modelXd->predict();  
+        aitensor<double> tensor = this->modelXd->predict(sequence_length);  
         return ConvertData::topyarray(tensor); 
 
     } catch (const AIException& e) {
@@ -1057,6 +1031,7 @@ py::array_t<double> Model::predictDouble() {
     }
     return py::array_t<double>();
 }
+*/
 
 
 /************************************************************************************************
@@ -1068,14 +1043,14 @@ py::array_t<double> Model::predictDouble() {
 * Model::generateDotFormat
 * Show the graph of the neural network in Dot Format
 *************************************************************************************************/
-std::string Model::generateDotFormat(bool operators, bool weights) {
-        if (datatype == "float") {
+Topology Model::generateDotFormat(bool operators, bool weights) {
+        if (this->datatype == DataType::float32) {
             return this->modelXf->getGraph()->generateDotFormat(operators, weights);
         } else
-        if (datatype == "double") {
+        if (this->datatype == DataType::float64) {
             return this->modelXd->getGraph()->generateDotFormat(operators, weights);
         }
-        return "none";
+        return Topology();
 }
 
 /************************************************************************************************
@@ -1086,13 +1061,13 @@ std::vector<float> Model::train(std::string& losstype, std::vector<std::string>&
                 const int max_epoch, const double learn_rate , const bool use_step_decay, const double decay_rate) {
     try {
         this->seedNodes(true);
-        if (datatype == "float") {
+        if (this->datatype == DataType::float32) {
             return this->modelXf->train(losstype, metricstype, optimizertype, batch_size,  max_epoch,  
                                   static_cast<float>(learn_rate), use_step_decay, static_cast<float>(decay_rate));
         } else
-        if (datatype == "double") {
+        if (this->datatype == DataType::float64) {
             return this->modelXd->train(losstype, metricstype, optimizertype, batch_size,  max_epoch, 
-                                   static_cast<double>(learn_rate), use_step_decay, static_cast<double>(decay_rate));
+                                  static_cast<double>(learn_rate), use_step_decay, static_cast<double>(decay_rate));
         }
     } catch (const AIException& e) {
         std::cerr << "(Model::train) Error: " << e.what() << std::endl;
@@ -1106,6 +1081,7 @@ std::vector<float> Model::train(std::string& losstype, std::vector<std::string>&
 
     return std::vector<float>();
 }
+
 
 /*
 void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts) {
@@ -1154,5 +1130,130 @@ void trainModel(const py::list& repeatSequentially, const py::list& repeatCounts
     // Finalize MPI
     MPI_Finalize();
 
+}
+*/
+
+
+// Function that processes any NumPy array and doubles its values
+template <typename T>
+py::array_t<T> process_array_t(py::array_t<T> arr) {
+    py::buffer_info buf = arr.request();
+    size_t size = buf.size;
+
+    // Create a new NumPy array for results
+    auto result = py::array_t<T>({(pybind11::ssize_t) size});
+    py::buffer_info res_buf = result.request();
+
+    // Get raw pointers
+    T* input_ptr = static_cast<T*>(buf.ptr);
+    T* result_ptr = static_cast<T*>(res_buf.ptr);
+
+    // Process: Multiply each element by 2
+    for (size_t i = 0; i < (size_t) size; ++i) {
+        result_ptr[i] = input_ptr[i] * 2;
+    }
+
+    return result;
+}
+
+// Generic wrapper to dispatch based on dtype
+py::array Model::process_array(py::array arr) {
+    py::buffer_info buf = arr.request();
+
+    if (buf.format == py::format_descriptor<double>::format()) {
+        return process_array_t<double>(arr.cast<py::array_t<double>>());
+    } 
+    else if (buf.format == py::format_descriptor<float>::format()) {
+        return process_array_t<float>(arr.cast<py::array_t<float>>());
+    } 
+    else if (buf.format == py::format_descriptor<int>::format()) {
+        return process_array_t<int>(arr.cast<py::array_t<int>>());
+    } 
+    else {
+        throw std::runtime_error("Unsupported dtype!");
+    }
+}
+
+/*
+// Generic wrapper to dispatch based on dtype
+py::array_t<double> Model::process_xarray(py::array_t<double> arr) {
+    py::buffer_info buf = arr.request();
+
+    if (buf.format == py::format_descriptor<double>::format()) {
+        return process_array_t<double>(arr.cast<py::array_t<double>>());
+    } 
+    else if (buf.format == py::format_descriptor<float>::format()) {
+        return process_array_t<float>(arr.cast<py::array_t<float>>());
+    } 
+    else if (buf.format == py::format_descriptor<int>::format()) {
+        return process_array_t<int>(arr.cast<py::array_t<int>>());
+    } 
+    else {
+        throw std::runtime_error("Unsupported dtype!");
+    }
+}
+
+py::array Model::process_xtype(py::array arr) {
+    py::buffer_info buf = arr.request();
+
+    if (buf.format == py::format_descriptor<double>::format()) {
+        return process_array_t<double>(arr.cast<py::array_t<double>>());
+    } 
+    else if (buf.format == py::format_descriptor<float>::format()) {
+        return process_array_t<float>(arr.cast<py::array_t<float>>());
+    } 
+    else if (buf.format == py::format_descriptor<int>::format()) {
+        return process_array_t<int>(arr.cast<py::array_t<int>>());
+    } 
+    else {
+        throw std::runtime_error("Unsupported dtype!");
+    }
+}
+
+// Function to return an array with the dtype passed
+py::array Model::array_with_dtype(py::dtype dtype) {
+    // Check the dtype of the input argument
+    std::string dtype_name = dtype.attr("name").cast<std::string>();
+    std::cout << "Requested dtype: " << dtype_name << std::endl;
+
+    if (dtype_name == DataType::float32) {
+        // Create an array of np.float32
+        py::array_t<float> result = py::array_t<float>({5}); // Array size of 5 for example
+        auto buf = result.request();
+        float* ptr = static_cast<float*>(buf.ptr);
+        
+        // Initialize values (for example, fill with 1.0)
+        for (size_t i = 0; i < 5; ++i) {
+            ptr[i] = 1.0f;
+        }
+        return result;
+    }
+    else if (dtype_name == DataType::float64) {
+        // Create an array of np.float64
+        py::array_t<double> result = py::array_t<double>({5}); // Array size of 5 for example
+        auto buf = result.request();
+        double* ptr = static_cast<double*>(buf.ptr);
+        
+        // Initialize values (for example, fill with 1.0)
+        for (size_t i = 0; i < 5; ++i) {
+            ptr[i] = 1.0;
+        }
+        return result;
+    }
+    else if (dtype_name == "int32") {
+        // Create an array of np.int32
+        py::array_t<int> result = py::array_t<int>({5}); // Array size of 5 for example
+        auto buf = result.request();
+        int* ptr = static_cast<int*>(buf.ptr);
+        
+        // Initialize values (for example, fill with 1)
+        for (size_t i = 0; i < 5; ++i) {
+            ptr[i] = 1;
+        }
+        return result;
+    }
+    else {
+        throw std::runtime_error("Unsupported dtype!");
+    }
 }
 */

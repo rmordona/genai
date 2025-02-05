@@ -44,6 +44,29 @@ struct SequenceTupleFloat {
 };
 */
 
+class TokenSequence {
+    private:
+       aitensor<double> Dinput;
+       aitensor<double> Dshifted;       
+       aitensor<double> Dtarget;
+       aitensor<float> Finput;
+       aitensor<float> Fshifted;       
+       aitensor<float> Ftarget;
+    public:
+        void setDinput(const aitensor<double>& input) { this->Dinput = input; };
+        void setDshifted(const aitensor<double>& shifted) { this->Dshifted = shifted; };
+        void setDtarget(const aitensor<double>& target) { this->Dtarget = target; };
+        void setFinput(const aitensor<float>& input) { this->Finput = input; };
+        void setFshifted(const aitensor<float>& shifted) { this->Fshifted = shifted; };
+        void setFtarget(const aitensor<float>& target) { this->Ftarget = target; };
+        aitensor<double> getDinput() { return this->Dinput; };
+        aitensor<double> getDshifted() { return this->Dshifted; };
+        aitensor<double> getDtarget() { return this->Dtarget ; };
+        aitensor<float> getFinput() { return this->Finput; };
+        aitensor<float> getFshifted() { return this->Fshifted ; };
+        aitensor<float> getFtarget() { return this->Ftarget; };
+};
+
 /*************************************************************************************************
  * BaseTokenModel is the actual structure we use to perform tokenization.
  * underlying operations needed to train a model.
@@ -127,12 +150,12 @@ public:
 
     aimatrix<T> listEmbeddings();
 
-    // We sequence the sentences into embeddings
+    // We sequence the sentences into embeddings          
     std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> encode(const std::vector<std::wstring>& sentences, 
-                int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
+               int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
     // Convert embeddings to interpetable words
-    std::vector<std::wstring> decode(const aitensor<T>& sequences, bool isembedding = true);
+    std::vector<std::wstring> decode(const aitensor<T>& sequences, const std::string& seq_type = "embedding");
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -196,7 +219,7 @@ private:
     std::string losstype = "mse";
     std::string optimizertype = "adam";
     int max_epoch = 1;
-    std::string datatype = "float";
+    DataType datatype = DataType::float32;
     double learningRate = 0.01;
     double clipThreshold = 0.01;
     double regularization = 0.01;
@@ -206,9 +229,11 @@ private:
     std::shared_ptr<BPETokenizer<float>> tokenizerf;
     std::shared_ptr<BPETokenizer<double>> tokenizerd;
 
+    TokenSequence tokenseq;
+
 public: 
 
-    TokenModel(const std::string& tokenizer = "bpetokenizer", const std::string& datatype = "float", int seed = 0);
+    TokenModel(const std::string& tokenizer = "bpetokenizer", DataType dtype = DataType::float32, int seed = 0);
 
     // set Tokenizer
     // void setTokenizer(const std::string& name);
@@ -240,18 +265,21 @@ public:
     py::array_t<float> embeddingsFloat();
 
     // Encode - We sequence the sentences into embeddings
-    std::tuple<py::array_t<double>, py::array_t<double>, py::array_t<double>> encodeDouble(const std::vector<std::wstring>& sentences, 
+    void  encode(const std::vector<std::wstring>& sentences, 
                 int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
-    // Encode - We sequence the sentences into embeddings
-    std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> encodeFloat(const std::vector<std::wstring>& sentences, 
-                int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
+    py::array getInputSequence();
+    py::array getShiftedSequence();
+    py::array getTargetSequence();
+
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences, bool isembedding = true);
+    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences, const std::string& seq_type = "embedding");
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences, bool isembedding = true);
+    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences, const std::string& seq_type = "embedding");
+
+
 };
 
 

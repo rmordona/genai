@@ -81,7 +81,7 @@ public:
     const aitensor<T> backward(const aitensor<T>& gradients);
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)
     void backwardPass() {} // virtual function of BaseOperator (different from those of the RecurrentBase)

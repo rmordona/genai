@@ -423,6 +423,7 @@ double* allocate_matrix(ssize_t rows, ssize_t cols) {
     return matrix;
 }
 
+/*
 void process_array1(py::array_t<double> inputArray) {
     // Access the underlying NumPy array data
     py::buffer_info bufInfo = inputArray.request();
@@ -483,6 +484,7 @@ void process_matrix(py::array_t<double> inputMatrix) {
         print_string("", true);
     }
 }
+*/
 
 py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
     py::print("Processing matrix:");
@@ -542,7 +544,7 @@ LOGGER* ai_log;
 
 
 PYBIND11_MODULE(genai, m) {
-    m.doc() = "Example C++ module for Python";
+    m.doc() = "GenAI C++ module for Python";
 
     ai_log = new LOGGER();
 
@@ -556,6 +558,11 @@ PYBIND11_MODULE(genai, m) {
         .value("Hidden", NodeType::Hidden)
         .value("Output", NodeType::Output)
         .value("Generic", NodeType::Generic)
+        .export_values();
+
+    py::enum_<DataType>(m, "DataType")
+        .value("float32", DataType::float32)
+        .value("float64", DataType::float64)
         .export_values();
 
     py::enum_<RNNType>(m, "RNNtype")
@@ -582,28 +589,32 @@ PYBIND11_MODULE(genai, m) {
         .value("GELU", ActivationType::GELU)
         .value("SOFTMAX", ActivationType::SOFTMAX)
         .export_values();
-   
+    
     py::class_<SampleClass, std::shared_ptr<SampleClass>>(m, "SampleClass")
         .def(py::init<double>())
         .def(py::init<float>());
 
+    py::class_<Topology, std::shared_ptr<Topology>>(m, "Topology")
+        .def_readonly("dot", &Topology::dot)
+        .def_readonly("parameters", &Topology::parameters);
 
     py::class_<ModelNode, std::shared_ptr<ModelNode>>(m, "Node")
         .def("setOperations", (void (ModelNode::*)(std::vector<std::shared_ptr<BaseOperator>>&)) &ModelNode::setOperations)
-        .def("setData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
-        .def("setData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument")
-        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setDecoderDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
-        .def("setDecoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setDecoderDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument")
-        .def("setEncoderData", (void (ModelNode::*)(const py::array_t<double>&, const bool, const bool)) &ModelNode::setEncoderDataDouble, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with double argument")
-        .def("setEncoderData", (void (ModelNode::*)(const py::array_t<float>&, const bool, const bool)) &ModelNode::setEncoderDataFloat, 
-                py::arg("data"), py::arg("normalize") = false, py::arg("positional") = false, "Function with float argument");
-
-    
+        .def("setData", (void (ModelNode::*)(const py::array&, const bool, const bool)) &ModelNode::setData, 
+                py::arg("data"), 
+                py::arg("normalize") = false, 
+                py::arg("positional") = false, 
+                "Function with double argument")
+        .def("setDecoderData", (void (ModelNode::*)(const py::array&, const bool, const bool)) &ModelNode::setDecoderData, 
+                py::arg("data"), 
+                py::arg("normalize") = false, 
+                py::arg("positional") = false, 
+                "Function with double argument")
+        .def("setEncoderData", (void (ModelNode::*)(const py::array&, const bool, const bool)) &ModelNode::setEncoderData, 
+                py::arg("data"), 
+                py::arg("normalize") = false, 
+                py::arg("positional") = false, 
+                "Function with double argument");
     py::class_<BaseOperator, std::shared_ptr<BaseOperator>>(m, "BaseOperator");
     py::class_<ModelLinear, BaseOperator, std::shared_ptr<ModelLinear>>(m, "Dense")
         .def(py::init<int, bool>(), py::arg("size") = 0, py::arg("bias") = true);
@@ -621,15 +632,27 @@ PYBIND11_MODULE(genai, m) {
         .def(py::init<>());
     py::class_<ModelConvolution, BaseOperator, std::shared_ptr<ModelConvolution>>(m, "Convolution")
         .def(py::init<const int, const int, const int, const int, bool>(), py::arg("kernel_size") = 2,
-        py::arg("stride") = 1, py::arg("padding") =1, py::arg("dilation") = 1, py::arg("bias") = true);
+                py::arg("stride") = 1, 
+                py::arg("padding") =1, 
+                py::arg("dilation") = 1, 
+                py::arg("bias") = true);
     py::class_<ModelAttention, BaseOperator, std::shared_ptr<ModelAttention>>(m, "Attention")
-        .def(py::init<int, bool, bool>(), py::arg("attention_size") = 4, py::arg("bias") = true, py::arg("masked") = false); 
+        .def(py::init<int, bool, bool>(), 
+                py::arg("attention_size") = 4, 
+                py::arg("bias") = true, 
+                py::arg("masked") = false); 
     py::class_<ModelMultiHeadAttention, BaseOperator, std::shared_ptr<ModelMultiHeadAttention>>(m, "MultiHeadAttention")
-        .def(py::init<int, int, bool, bool>(), py::arg("heads") = 1, py::arg("attention_size") = 3, py::arg("bias") = true, py::arg("masked") = false); 
+        .def(py::init<int, int, bool, bool>(), 
+                py::arg("heads") = 1, 
+                py::arg("attention_size") = 3, 
+                py::arg("bias") = true, 
+                py::arg("masked") = false); 
     py::class_<ModelFeedForward, BaseOperator, std::shared_ptr<ModelFeedForward>>(m, "FeedForward")
         .def(py::init<int, bool, const std::string&, const float>(), 
-                py::arg("feed_size") = 4,  py::arg("bias") = true,
-                py::arg("activation_type") = "leakyrelu", py::arg("alpha") = 0.01);
+                py::arg("feed_size") = 4,  
+                py::arg("bias") = true,
+                py::arg("activation_type") = "leakyrelu", 
+                py::arg("alpha") = 0.01);
     py::class_<ModelEncoder, BaseOperator, std::shared_ptr<ModelEncoder>>(m, "Encoder")
         .def(py::init<int, int, int, int, bool, const std::string&, const float>(), 
                 py::arg("heads")          = 1,
@@ -674,61 +697,107 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("num_layers") = 1, 
                 py::arg("bidirectional") = true,
                 py::arg("rnntype") = RNNType::MANY_TO_MANY);
- 
+      
     py::class_<Model>(m, "Model")
-        .def(py::init<const std::string&, int>(),  py::arg("datatype") = "float", py::arg("seed") = 0)
+        .def(py::init<DataType, int>(),
+                py::arg("dtype") = DataType::float32,  
+                py::arg("seed") = 2017)
         .def("addNode", (std::shared_ptr<ModelNode> (Model::*)(const std::string&, NodeType)) &Model::addNode,
-                  py::arg("name"),  py::arg("nodetype"), "Add Node To Graph")
-        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node to another node")
-        .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, "Connects this node from multiple nodes")
-        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, "Connects this node to multiple nodes")
-        .def("setTarget", (void (Model::*)(const py::array_t<double>&, const bool)) &Model::setTargetDouble, 
-                    py::arg("data"), py::arg("normalize") = false, "Function with double argument")
-        .def("setTarget", (void (Model::*)(const py::array_t<float>&, const bool)) &Model::setTargetFloat, 
-                    py::arg("data"), py::arg("normalize") = false, "Function with float argument")
-        .def("predict", (py::array_t<double> (Model::*)()) &Model::predictDouble, "Function with double argument")
-        .def("predict", (py::array_t<float> (Model::*)()) &Model::predictFloat, "Function with float argument")
+                py::arg("name"),  
+                py::arg("nodetype"), 
+                "Add Node To Graph")
+        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>,std::shared_ptr<ModelNode>)) &Model::connect, 
+                "Connects this node to another node")
+        .def("connect", (void (Model::*)(std::vector<std::shared_ptr<ModelNode>>, std::shared_ptr<ModelNode>)) &Model::connect, 
+                "Connects this node from multiple nodes")
+        .def("connect", (void (Model::*)(std::shared_ptr<ModelNode>, std::vector<std::shared_ptr<ModelNode>>)) &Model::connect, 
+                "Connects this node to multiple nodes")
+        .def("setTarget", (void (Model::*)(const py::array&, const bool)) &Model::setTarget, 
+                py::arg("data"), 
+                py::arg("normalize") = false, 
+                "Function with float argument")
+        .def("predict", (py::array (Model::*)(int)) &Model::predict, 
+                py::arg("sequence_length") = 0, 
+                "Function with float argument")
         .def("train", (std::vector<float> (Model::*)(std::string&, std::vector<std::string>&, std::string&, int, int, double, bool, double)) &Model::train, 
                 py::arg("loss") = "mse",  
-                py::arg("metrics"),  py::arg("optimizer") = "adam", py::arg("batch_size") = 10,
-                py::arg("max_epoch")=1, py::arg("learn_rate") = 0.01, py::arg("use_step_decay") = false, py::arg("decay_rate") = 0.1, 
+                py::arg("metrics"),  
+                py::arg("optimizer") = "adam", 
+                py::arg("batch_size") = 10,
+                py::arg("max_epoch")= 1, 
+                py::arg("learn_rate") = 0.01, 
+                py::arg("use_step_decay") = false,
+                py::arg("decay_rate") = 0.1, 
                  "Training a model")
-        .def("generateDotFormat", (std::string (Model::*)(bool, bool)) &Model::generateDotFormat,
-                py::arg("operators") = true, py::arg("weights") = true);
+        .def("generateDotFormat", (Topology (Model::*)(bool, bool)) &Model::generateDotFormat,
+                py::arg("operators") = true,
+                py::arg("weights") = true)
+        .def("process_array",  (py::array (Model::*)(py::array)) &Model::process_array, 
+                py::arg("arr"), 
+                "Process a NumPy array by doubling its values.");
+        /*
+        .def("process_xarray",  (py::array_t<double> (Model::*)(py::array_t<double>)) &Model::process_xarray, 
+                py::arg("arr"), 
+                "Process a NumPy array by doubling its values.")
+        .def("process_xtype",  (py::array (Model::*)(py::array)) &Model::process_xtype, 
+                py::arg("arr"), 
+                "Process a NumPy array by doubling its values.")
+        .def("array_with_dtype", (py::array (Model::*) (py::dtype)) &Model::array_with_dtype, 
+                py::arg("dtype"), 
+                "Process a NumPy array by doubling its values.");
+        */
 
     py::class_<TokenModel>(m, "TokenModel")
-        .def(py::init<const std::string&, const std::string&, int>(), 
-                py::arg("tokenizer") = "bpetokenizer", py::arg("datatype") = "float", py::arg("seed") = 0)
+        .def(py::init<const std::string&, DataType, int>(), 
+                py::arg("tokenizer") = "bpetokenizer", 
+                py::arg("dtype") = DataType::float32, 
+                py::arg("seed") = 0)
         .def("tokenize",  (std::vector<std::wstring> (TokenModel::*)(const std::wstring&)) &TokenModel::tokenize, 
                 "Tokenize a Sentence")
         .def("tokenize",  (std::vector<std::vector<std::wstring>> (TokenModel::*)(const std::vector<std::wstring>&)) &TokenModel::tokenize, 
                 "Tokenize a set of Sentences")
         .def("preload", (void (TokenModel::*)(const std::vector<std::wstring>&, int, int)) &TokenModel::preload, 
-            py::arg("corpus"), py::arg("merges") = 2, py::arg("size") = 5, "Train a BPE tokenizer")
+                py::arg("corpus"), 
+                py::arg("merges") = 2, 
+                py::arg("size") = 5, 
+                "Train a BPE tokenizer")
         .def("merge", (void (TokenModel::*)(const std::vector<std::wstring>&, int)) &TokenModel::merge, 
-            py::arg("corpus"), py::arg("merges"), "Merge Tokens from new Corpus")
+                py::arg("corpus"), 
+                py::arg("merges"), 
+                "Merge Tokens from new Corpus")
         .def("train", (void (TokenModel::*)( const std::vector<std::wstring>&, int, const std::string&, const std::string&,
                              double, int, double, double)) &TokenModel::train,
-            py::arg("corpus"),  py::arg("batch_size"), py::arg("losstype") = "mse", py::arg("optimizertype") = "adam",
-            py::arg("learn_rate") = 0.01, py::arg("max_epoch") = 1, 
-            py::arg("clipthreshold"), py::arg("regularization"), "Train Word Embedding using GloVe")
+                py::arg("corpus"),  
+                py::arg("batch_size"), 
+                py::arg("losstype") = "mse", 
+                py::arg("optimizertype") = "adam",
+                py::arg("learn_rate") = 0.01, 
+                py::arg("max_epoch") = 1, 
+                py::arg("clipthreshold"), 
+                py::arg("regularization"), 
+                "Train Word Embedding using GloVe")
         .def("tokens",  (std::vector<std::wstring> (TokenModel::*)()) &TokenModel::tokens, "Get tokens a Sentence")
         .def("embeddings", (py::array_t<double> (TokenModel::*)()) &TokenModel::embeddingsDouble, "Function with double argument")
         .def("embeddings", (py::array_t<float> (TokenModel::*)()) &TokenModel::embeddingsFloat, "Function with float argument")
-        .def("encode",  (std::tuple<py::array_t<double>,  py::array_t<double>, py::array_t<double>> 
-                    (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
-                    &TokenModel::encodeDouble, 
-                    py::arg("corpus"), py::arg("sample_size") = 10, py::arg("chunk_size") = 10, 
-                    py::arg("sequence_type") = "chunk", py::arg("rowwise") = false,  "Get sequence a Sentence")
-        .def("encode",  (std::tuple<py::array_t<float>, py::array_t<float>, py::array_t<float>> 
-                    (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
-                    &TokenModel::encodeFloat, 
-                    py::arg("corpus"), py::arg("sample_size") = 10,py::arg("chunk_size") = 10, 
-                    py::arg("sequence_type") = "chunk",  py::arg("rowwise") = false, "Get sequence a Sentence")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&, bool)) &TokenModel::decodeDouble, 
-                    py::arg("sequences"), py::arg("isembedding") = true, "Function with float argument")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&, bool)) &TokenModel::decodeFloat, 
-                    py::arg("sequences"), py::arg("isembedding") = true, "Function with float argument");
+        .def("encode",  (void (TokenModel::*)(const std::vector<std::wstring>&, int, int, const std::string&, bool)) 
+                    &TokenModel::encode, 
+                py::arg("corpus"), 
+                py::arg("sample_size") = 10, 
+                py::arg("chunk_size") = 10, 
+                py::arg("sequence_type") = "chunk", 
+                py::arg("rowwise") = false,  
+                "Get sequence a Sentence")
+        .def("getInputSequence", (py::array(TokenModel::*)()) &TokenModel::getInputSequence, "Function to get Sequence")
+        .def("getShiftedSequence", (py::array(TokenModel::*)()) &TokenModel::getShiftedSequence, "Function to get Sequence")
+        .def("getTargetSequence", (py::array(TokenModel::*)()) &TokenModel::getTargetSequence, "Function to get Sequence")
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&, const std::string&)) &TokenModel::decodeDouble, 
+                py::arg("sequences"), 
+                py::arg("seq_type") = "embedding", 
+                "Function with float argument")
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&, const std::string&)) &TokenModel::decodeFloat, 
+                py::arg("sequences"), 
+                py::arg("seq_type") = "embedding", 
+                "Function with float argument");
 
 
     // Definitions for Scraper APIs
@@ -739,15 +808,18 @@ PYBIND11_MODULE(genai, m) {
     // Define function to print hello
     m.def("print_string", &print_string, "Print 'string'");
     m.def("print_double", &print_double, "Print 'double'");
-    m.def("process_array", &process_array, "Process a NumPy array");
-    m.def("process_matrix", &process_matrix, "Process a NumPy array");
+    // m.def("process_array", &process_array, "Process a NumPy array");
+    // m.def("process_matrix", &process_matrix, "Process a NumPy array");
     m.def("matmul", &matmul, "Matrix Multiplication a NumPy array");
 
     // Definitions for URLFrontier APIs
     py::class_<URLFrontier>(m, "URLFrontier")
-        .def(py::init<int, const std::string&>(), py::arg("max_urls"), py::arg("queue_address"))
+        .def(py::init<int, const std::string&>(), 
+                py::arg("max_urls"), 
+                py::arg("queue_address"))
         .def("enqueue",  (void (URLFrontier::*)(const std::string&, int)) &URLFrontier::enqueue, 
-                py::arg("url"), py::arg("priority_percentage"))
+                py::arg("url"), 
+                py::arg("priority_percentage"))
         .def("start_worker_threads", (void (URLFrontier::*)()) &URLFrontier::startWorkerThread);
 
     // Set std::cout precision display

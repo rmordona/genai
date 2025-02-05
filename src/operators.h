@@ -29,6 +29,7 @@
 #include <any>
 #include "logger.h"
 
+
 class SampleClass {
 private:
     std::any privmember;
@@ -42,6 +43,17 @@ public:
         return std::any_cast<T>(privmember);
     }
 };
+
+/*************************************************************************************************
+// Helper class for Topology class
+**************************************************************************************************/
+
+class Topology {
+    public:
+        std::string dot = "";
+        int parameters = 0;
+};
+
 
 /*****************************************************************************************************
 * Base Optimizer Class
@@ -236,7 +248,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -303,7 +315,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -366,7 +378,7 @@ public:
 
     void updateParameters(std::string& optimizertype, T& learningRate, int& iter);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -384,8 +396,8 @@ private:
     aitensor<T> output_data; // BxNxW samples 
 
     // To support generateDotFormat()
-    int max_dInput = 0;
-    int min_dInput = 0;
+    float max_dInput = 0.0;
+    float min_dInput = 0.0;
 
     std::string activationtype = "leakyrelu";
     T alpha = 0.01; // for leakyReLU
@@ -481,7 +493,7 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -552,7 +564,7 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}
@@ -575,7 +587,7 @@ public:
 
     const aitensor<T> backward(const aitensor<T>& gradients);
 
-    std::string generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
+    Topology generateDotFormat(const std::string& name = "generic", bool operators = false, bool weights = false);
 
     void forwardPass() {}
     void backwardPass() {}

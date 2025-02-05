@@ -718,8 +718,10 @@ void Linear<T>::updateParameters(std::string& optimizertype, T& learningRate, in
 }
 
 template <class T>
-std::string Linear<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Linear Transformation (" + name + ") *}|";  
+Topology Linear<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Linear Transformation (" + name + ") *}|";  
+    topology.parameters = 0;
     T min_weights = 0.0, max_weights = 0.0;
     T min_biases = 0.0, max_biases = 0.0;
     if (this->M != 0) // if weights are already initialized.
@@ -729,18 +731,20 @@ std::string Linear<T>::generateDotFormat(const std::string& name , bool operator
         min_biases = parameters.biases.minCoeff();
         max_biases = parameters.biases.maxCoeff();
     } catch (...) {};
-    dot += "{Parameters=" + std::to_string(parameters.weights.rows() * parameters.weights.cols() + parameters.biases.size()) + "|" +
+    int params = parameters.weights.rows() * parameters.weights.cols() + parameters.biases.size();
+    topology.parameters += params;
+    topology.dot += "{Parameters=" + std::to_string(params) + "|" +
              "BatchSize=" + std::to_string(batch_size) + "}|";
-    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(embedding_size) + ")|"; 
-    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
+    topology.dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(embedding_size) + ")|"; 
+    topology.dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     if (weights == true) {
-        dot += "{Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
-        dot += "{Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
+        topology.dot += "{Weights|min=" + scalar_to_string(min_weights) + "|max=" + scalar_to_string(max_weights) + "}|";    
+        topology.dot += "{Biases|min=" + scalar_to_string(min_biases) + "|max=" + scalar_to_string(max_biases) + "}"; 
     } else {
-        dot.pop_back(); // Remove dangling | character
+        topology.dot.pop_back(); // Remove dangling | character
     }
 
-    return dot;
+    return topology;
 }
 
 /*****************************************************************************************************
@@ -1049,8 +1053,10 @@ void BatchNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string BatchNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Batch Normalization (" + name + ") *}|";  
+Topology BatchNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Batch Normalization (" + name + ") *}|";  
+    topology.parameters = 0;
     T min_scale = 0.0, max_scale = 0.0;
     T min_shift = 0.0, max_shift = 0.0;
     if (this->M != 0) // if weights are already initialized.
@@ -1060,18 +1066,20 @@ std::string BatchNorm<T>::generateDotFormat(const std::string& name , bool opera
         max_shift = shift.maxCoeff();
         min_shift = shift.minCoeff();
     } catch (...) {};
-    dot += "{Parameters=" + std::to_string(scale.size() + shift.size()) + "|" +
+    int parameters = scale.size() + shift.size();
+    topology.parameters += parameters;
+    topology.dot += "{Parameters=" + std::to_string(parameters) + "|" +
              "BatchSize=" + std::to_string(batch_size) + "}|";
-    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
-    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
+    topology.dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
+    topology.dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     if (weights == true) {
-    dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
-    dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
+    topology.dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
+    topology.dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
     } else {
-        dot.pop_back(); // Remove dangling | character
+        topology.dot.pop_back(); // Remove dangling | character
     }
 
-    return dot;
+    return topology;
 }
 
 
@@ -1362,8 +1370,10 @@ void LayerNorm<T>::updateParameters(std::string& optimizertype, T& learningRate,
 }
 
 template <class T>
-std::string LayerNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Layer Normalization (" + name + ") *}|"; 
+Topology LayerNorm<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Layer Normalization (" + name + ") *}|"; 
+    topology.parameters = 0;
     T min_scale = 0.0, max_scale = 0.0;
     T min_shift = 0.0, max_shift = 0.0;
     if (this->N != 0) // if weights are already initialized.
@@ -1373,17 +1383,19 @@ std::string LayerNorm<T>::generateDotFormat(const std::string& name , bool opera
         max_shift = shift.maxCoeff();
         min_shift = shift.minCoeff();
     } catch (...) {};
-    dot += "{Parameters=" + std::to_string(scale.size() + shift.size()) + "|" +
+    int parameters = scale.size() + shift.size();
+    topology.parameters += parameters;
+    topology.dot += "{Parameters=" + std::to_string(parameters) + "|" +
              "BatchSize=" + std::to_string(batch_size) + "}|";
-    dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
-    dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
+    topology.dot += "{Input=(" + std::to_string(input_size) + " x " + std::to_string(param_size) + ")|"; 
+    topology.dot += "Output=(" + std::to_string(outputHeight) + " x " + std::to_string(outputWidth) + ")}|"; 
     if (weights == true) {
-    dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
-    dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
+    topology.dot += "{Shape|min=" + scalar_to_string(min_scale) + "|max=" + scalar_to_string(max_scale) + "}|";
+    topology.dot += "{Shift|min=" + scalar_to_string(min_shift) + "|max=" + scalar_to_string(max_shift) + "}";
     } else {
-        dot.pop_back(); // Remove dangling | character
+        topology.dot.pop_back(); // Remove dangling | character
     }
-    return dot;   
+    return topology;   
 }
 
 /*****************************************************************************************************
@@ -1608,6 +1620,8 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
 
     aimatrix<T> input, output, gradient;
 
+    // int minG = 0, maxG = 0, tempG;
+
     for (int i = 0; i < this->batch_size; ++i) {
 
         output   = this->output_data.at(i);
@@ -1620,7 +1634,7 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
         dInput.push_back(computeGradient(gradient, output, input)); 
 
     }
-
+ 
     log_detail("Activation Gradient Result" );
     log_matrix(dInput.at(0)); 
 
@@ -1632,16 +1646,18 @@ const aitensor<T> Activation<T>::backward(const aitensor<T>& gradients) {
 } 
  
 template <class T>
-std::string Activation<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Activation (" + activationtype + ")*}|";
+Topology Activation<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Activation (" + activationtype + ")*}|";
+    topology.parameters = 0;
     T min_input = 0.0, max_input = 0.0;
     if (this->N != 0 || this->M != 0) 
     try {
        max_input = this->max_dInput; 
        min_input = this->min_dInput; 
     } catch (...) {};
-    dot += "{dInput|min=" + scalar_to_string(min_input) + "|max=" + scalar_to_string(max_input) + "}";  
-    return dot;
+    topology.dot += "{dInput|min=" + scalar_to_string(min_input) + "|max=" + scalar_to_string(max_input) + "}";  
+    return topology;
 }
 
 /*****************************************************************************************************
@@ -1727,10 +1743,12 @@ const aitensor<T> Dropout<T>::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-std::string Dropout<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Dropout Layer (" + name + ") *}|";  
-    dot += "{Probability=" + std::to_string(this->probability) + "}";   
-    return dot;
+Topology Dropout<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Dropout Layer (" + name + ") *}|";  
+    topology.dot += "{Probability=" + std::to_string(this->probability) + "}";   
+    topology.parameters = 0;
+    return topology;
 }
 
 /*****************************************************************************************************
@@ -1794,11 +1812,13 @@ const aitensor<T> Flatten<T>::backward(const aitensor<T>& gradients) {
 }
 
 template <class T>
-std::string Flatten<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
-    std::string dot = "{* Flatten Layer (" + name + ") *}|";  
-    dot += "{Original=( " + std::to_string(this->input_height) + " x " + std::to_string(this->input_width) + ")|";    
-    dot += "Flattened=(1 x " + std::to_string(this->input_height * this->input_width) + ")}"; 
-    return dot;
+Topology Flatten<T>::generateDotFormat(const std::string& name , bool operators, bool weights) {
+    Topology topology;
+    topology.dot = "{* Flatten Layer (" + name + ") *}|";  
+    topology.dot += "{Original=( " + std::to_string(this->input_height) + " x " + std::to_string(this->input_width) + ")|";    
+    topology.dot += "Flattened=(1 x " + std::to_string(this->input_height * this->input_width) + ")}"; 
+    topology.parameters = 0;
+    return topology;
 }
 
 /*****************************************************************************************************
@@ -1857,17 +1877,17 @@ const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& 
 
     aimatrix<T> target_ = target; 
 
+    // This assumes an index-based target, and not a one-hot-encoding.
+    // therefore, we convert the index to one-hot-encoding.
     if (p_col > t_col && t_col == 1) {
         T index = 0.0;
-
         target_ = aimatrix<T>::Zero(p_row, p_col);
-
         for (int i = 0; i < p_row; i++) {
             index = target.row(i)[0];
             target_.row(i)[index] = 1.0;
         }
     } 
- 
+
     // Calculate the CCE loss for each batch and instance (log likelihood)
     aimatrix<T> cce_loss = target_.array() * predicted.array().log();
     
@@ -1881,6 +1901,7 @@ const aiscalar<T> Loss<T>::cce(const aimatrix<T>& predicted, const aimatrix<T>& 
 
     return batch_mean_cce_loss;
 
+
 }
 
 template <class T>
@@ -1892,19 +1913,22 @@ const aimatrix<T> Loss<T>::cceGradient(const aimatrix<T>& predicted, const aimat
 
     aimatrix<T> target_ = target; 
 
+    // This assumes an index-based target, and not a one-hot-encoding.
+    // therefore, we convert the index to one-hot-encoding.
     if (p_col > t_col && t_col == 1) {
         T index = 0.0;
-
         target_ = aimatrix<T>::Zero(p_row, p_col);
-
         for (int i = 0; i < p_row; i++) {
             index = target.row(i)[0];
             target_.row(i)[index] = 1.0;
         }
     } 
 
-    aimatrix<T> gradient =   ( predicted.array() - target_.array() );
+    aimatrix<T> gradient =  predicted.array() - target_.array() ;
     return gradient;
+
+
+
 }
 
 // For Support Vectors (not necessarily for Neural)
@@ -2122,3 +2146,4 @@ template class Loss<double>;  // Instantiate with double
 
 template class Metrics<float>;  // Instantiate with float
 template class Metrics<double>;  // Instantiate with double
+

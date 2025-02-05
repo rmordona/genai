@@ -633,68 +633,72 @@ std::string replaceSpace(Node<T>* node) {
 }
 
 template <class T>
-std::string Node<T>::generateDotFormat(bool operators, bool weights) {
+Topology Node<T>::generateDotFormat(bool operators, bool weights) {
     std::string nodename = replaceSpace((Node<T>*) this);
     std::string nodelabel = nodename + "_label";
-    std::string dot_ = "";
+    Topology topology, top;
     int cnt = 0; 
+    topology.parameters = 0;
+    topology.dot = "";
     for (const auto& op : operations ) {
-            // Check the dynamic type of the object using dynamic_cast
+        top.parameters = 0;
+        top.dot = "";
+        // Check the dynamic type of the object using dynamic_cast
         //if (auto linear = std::dynamic_pointer_cast<Linear<T>>(op)) {
         if (Linear<T>* linear = dynamic_cast<Linear<T>*>(op)) {
-            dot_ +=  linear->generateDotFormat("", operators, weights);
+            top =  linear->generateDotFormat("Dense", operators, weights);
         } else
         //if (auto batchnorm = std::dynamic_pointer_cast<BatchNorm<T>>(op)) {
         if (BatchNorm<T>* batchnorm = dynamic_cast<BatchNorm<T>*>(op)) {
-            dot_ +=  batchnorm->generateDotFormat("", operators, weights);
+            top =  batchnorm->generateDotFormat("", operators, weights);
         } else            
         //if (auto layernorm = std::dynamic_pointer_cast<LayerNorm<T>>(op)) {
         if (LayerNorm<T>* layernorm = dynamic_cast<LayerNorm<T>*>(op)) {
-            dot_ += layernorm->generateDotFormat("", operators, weights);
+            top = layernorm->generateDotFormat("", operators, weights);
         } else               
         //if (auto activation = std::dynamic_pointer_cast<Activation<T>>(op)) {
         if (Activation<T>* activation = dynamic_cast<Activation<T>*>(op)) {
-            dot_ += activation->generateDotFormat("", operators, weights);
+            top = activation->generateDotFormat("", operators, weights);
         }  else
         //if (auto dropout = std::dynamic_pointer_cast<Dropout<T>>(op)) {
         if (Dropout<T>* dropout = dynamic_cast<Dropout<T>*>(op)) {
-            dot_ += dropout->generateDotFormat("", operators, weights);
+            top = dropout->generateDotFormat("", operators, weights);
         }  else
         //if (auto flatten = std::dynamic_pointer_cast<Flatten<T>>(op)) {
         if (Flatten<T>* flatten = dynamic_cast<Flatten<T>*>(op)) {
-            dot_ += flatten->generateDotFormat("", operators, weights);
+            top = flatten->generateDotFormat("", operators, weights);
         }  else
         //if (auto convolution = std::dynamic_pointer_cast<Convolution<T>>(op)) {
         if (Convolution<T>* convolution = dynamic_cast<Convolution<T>*>(op)) {
-            dot_ += convolution->generateDotFormat("", operators, weights);
+            top = convolution->generateDotFormat("", operators, weights);
         }  else
         //if (auto attention = std::dynamic_pointer_cast<Attention<T>>(op)) {
         if (Attention<T>* attention = dynamic_cast<Attention<T>*>(op)) {
-            dot_ += attention->generateDotFormat("", operators, weights);
+            top = attention->generateDotFormat("", operators, weights);
         } else            
         //if (auto feedforward = std::dynamic_pointer_cast<FeedForward<T>>(op)) {
         if (FeedForward<T>* feedforward = dynamic_cast<FeedForward<T>*>(op)) {
-            dot_ += feedforward->generateDotFormat("", operators, weights);
+            top = feedforward->generateDotFormat("", operators, weights);
         } else   
         //if (auto attention = std::dynamic_pointer_cast<MultiHeadAttention<T>>(op)) {
         if (MultiHeadAttention<T>* multiheadattention = dynamic_cast<MultiHeadAttention<T>*>(op)) {
-            dot_ += multiheadattention->generateDotFormat("", operators, weights);
-        } else            
-        //if (auto encoder = std::dynamic_pointer_cast<Encoder<T>>(op)) {
-        if (Encoder<T>* encoder = dynamic_cast<Encoder<T>*>(op)) {
-            dot_ += encoder->generateDotFormat("", operators, weights);
+            top = multiheadattention->generateDotFormat("", operators, weights);
+        } else  
+        if (EncoderLayer<T>* encoderlayer = dynamic_cast<EncoderLayer<T>*>(op)) {
+            top = encoderlayer->generateDotFormat("", operators, weights);
+        }  else
+        if (DecoderLayer<T>* decoderlayer = dynamic_cast<DecoderLayer<T>*>(op)) {
+            top = decoderlayer->generateDotFormat("", operators, weights);
         } 
-        //if (auto decoder = std::dynamic_pointer_cast<Decoder<T>>(op)) {
-        if (Decoder<T>* decoder = dynamic_cast<Decoder<T>*>(op)) {
-            dot_ += decoder->generateDotFormat("", operators, weights);
-        } 
-        if (++cnt < (int) operations.size()) { dot_ += "|"; }
+        topology.dot += top.dot;
+        topology.parameters += top.parameters;
+        if (++cnt < (int) operations.size()) { topology.dot += "|"; }
     }
     if (operators == true) {
-        dot_ = nodelabel + " [shape=record, fontsize=11, label=\"" + dot_ + "\"]; ";
-        dot_ += nodename + "->" + nodelabel + ";";
+        topology.dot = nodelabel + " [shape=record, fontsize=11, label=\"" + topology.dot + "\"]; ";
+        topology.dot += nodename + "->" + nodelabel + ";";
     }
-    return dot_;
+    return topology;
 }
 
 /*****************************************************************************************************
@@ -757,6 +761,16 @@ void Graph<T>::setData(const std::string& nodename, const aitensor<T>& data, con
     if (node != nullptr) {        
         node->setData(data, normalize, positional);
     }
+}
+
+template <class T>
+int Graph<T>::getDataSize() {
+    int size = 0;
+    for (const auto& node : this->getNodes()) {
+        int size = node->getDataSize();
+        if (size > 0) return size;
+    }
+    return size;
 }
 
 template <class T>
@@ -1053,30 +1067,34 @@ const PerfMetrics<T> Graph<T>::computeMetrics(const std::vector<std::string>& me
 }
 
 template <class T>
-std::string Graph<T>::generateDotFormat(bool operators, bool weights) {
+Topology Graph<T>::generateDotFormat(bool operators, bool weights) {
     log_detail("Plotting Graph Format ...");
+    Topology topology;
 
-    std::string dot = 
-        "digraph G {  node [shape=circle, fontsize=11]; rankdir=LR; ";
+    topology.parameters = 0;
+    topology.dot        = "digraph G {  node [shape=circle, fontsize=11]; rankdir=LR; ";
 
     for (auto& node: nodes) {
-        dot += removeSpace(node) + "; ";
+        topology.dot += removeSpace(node) + "; ";
     }
 
     for (auto& connection : this->connections) {
         Node<T>* source = connection->getSource();
         Node<T>* destination = connection->getDestination();
         std::string edge = removeSpace(source) + "->" + removeSpace(destination) + ";";
-        dot += edge;
+        topology.dot += edge;
     }
 
     for (auto& node: nodes) {
-        dot += node->generateDotFormat(operators, weights);
+        Topology top;
+        top = node->generateDotFormat(operators, weights);
+        topology.dot += top.dot;
+        topology.parameters += top.parameters;
     }
 
-    dot += "}";
+    topology.dot += "}";
 
-    return dot;
+    return topology;
 }
 
 template <class T>
