@@ -857,6 +857,8 @@ p
 
 # Recurrent Neural Network
 ## RNN, LSTM, GRU
+- In the example below, let us use RRN to classify based on a given probability label.
+- Here, we use softmax for the probability and cross-entropy for the loss.
 
 
 ```python
@@ -902,7 +904,7 @@ node1.setData(data = np.array(embedding1, dtype=np.float32), normalize=False);
 
 modelgraph.connect(node1, node2);
 
-# Ground Truth in which
+# Ground Truth in which (For Classification)
 target = [ 
            [  [0,0,1,0],  [0,0,1,0], [0,0,1,0]  ], # Any data that has close to 1, has a probably of [0,0,1,0] 
            [  [1,0,0,0],  [1,0,0,0], [1,0,0,0]  ], # Any data that has close to 2, has a probably of [1,0,0,0]
@@ -920,29 +922,29 @@ ai.print_string("Done.", True)
     Fitting the model ...
     Target Size 5
     Batch Size: 10 Target Size: 5
-    Epoch 1/520 ... Loss: 1.35241 ... Avg Elapsed 597us at Tue Feb  4 16:56:55 2025
+    Epoch 1/520 ... Loss: 1.35241 ... Avg Elapsed 495us at Tue Feb  4 18:45:48 2025
     
-    Epoch 52/520 ... Loss: 0.608323 ... Avg Elapsed 203.176us at Tue Feb  4 16:56:55 2025
+    Epoch 52/520 ... Loss: 0.608323 ... Avg Elapsed 185.098us at Tue Feb  4 18:45:48 2025
     
-    Epoch 104/520 ... Loss: 0.268125 ... Avg Elapsed 223.808us at Tue Feb  4 16:56:55 2025
+    Epoch 104/520 ... Loss: 0.268125 ... Avg Elapsed 222.5us at Tue Feb  4 18:45:48 2025
     
-    Epoch 156/520 ... Loss: 0.0461866 ... Avg Elapsed 187.962us at Tue Feb  4 16:56:55 2025
+    Epoch 156/520 ... Loss: 0.0461866 ... Avg Elapsed 205.962us at Tue Feb  4 18:45:48 2025
     
-    Epoch 208/520 ... Loss: 0.0052187 ... Avg Elapsed 179.135us at Tue Feb  4 16:56:55 2025
+    Epoch 208/520 ... Loss: 0.0052187 ... Avg Elapsed 190.942us at Tue Feb  4 18:45:48 2025
     
-    Epoch 260/520 ... Loss: 0.00466447 ... Avg Elapsed 179.462us at Tue Feb  4 16:56:55 2025
+    Epoch 260/520 ... Loss: 0.00466447 ... Avg Elapsed 172.404us at Tue Feb  4 18:45:48 2025
     
-    Epoch 312/520 ... Loss: 0.00293655 ... Avg Elapsed 188.058us at Tue Feb  4 16:56:55 2025
+    Epoch 312/520 ... Loss: 0.00293655 ... Avg Elapsed 173.904us at Tue Feb  4 18:45:48 2025
     
-    Epoch 364/520 ... Loss: 0.00682007 ... Avg Elapsed 183.038us at Tue Feb  4 16:56:55 2025
+    Epoch 364/520 ... Loss: 0.00682007 ... Avg Elapsed 202.788us at Tue Feb  4 18:45:48 2025
     
-    Epoch 416/520 ... Loss: 0.00155462 ... Avg Elapsed 175.173us at Tue Feb  4 16:56:55 2025
+    Epoch 416/520 ... Loss: 0.00155462 ... Avg Elapsed 186.923us at Tue Feb  4 18:45:48 2025
     
-    Epoch 468/520 ... Loss: 0.00206029 ... Avg Elapsed 179.75us at Tue Feb  4 16:56:55 2025
+    Epoch 468/520 ... Loss: 0.00206029 ... Avg Elapsed 188.731us at Tue Feb  4 18:45:48 2025
     
-    Epoch 520/520 ... Loss: 0.000797156 ... Avg Elapsed 209.404us at Tue Feb  4 16:56:55 2025
+    Epoch 520/520 ... Loss: 0.000797156 ... Avg Elapsed 166.115us at Tue Feb  4 18:45:48 2025
     
-     Duration D: 0, HR: 0, MN: 0, SC: 0.09966
+     Duration D: 0, HR: 0, MN: 0, SC: 0.098869
     Done.
 
 
