@@ -40,6 +40,17 @@
 *
 * This will allow us to process sequences in batches instead of just looping over one step at a time
 * for a single sequence. Now, if that's the case, we pad each sequence to achieve uniform sequence lengths.
+*
+* Assume three sequences (where A is a vector representing a word in sequence 1, e.g. [0.233, 0.453, ...])
+* Seq 1: [A, B, C]        → Length 3  
+* Seq 2: [D, E]           → Length 2  
+* Seq 3: [F, G, H, I]     → Length 4
+*
+* Packed Sequences:
+* Timestep 1: [F, A, D]  - All the first words in the three sequences
+* Timestep 2: [G, B, E]  - All the second words in the three sequences
+* Timestep 3: [H, C]     - All the third words in the three sequences
+* Timestep 4: [I]        - All the fourth remaining words in the three sequences.
 *************************************************************************************************************/
  
 #include "genai.h"
@@ -135,6 +146,10 @@ const aimatrix<T> RNNCell<T>::forward(const aimatrix<T>& X) {
     log_info("RNNCell Forward Pass end ...");
 
     // We return Output next layer;
+    // Note that the if this is the last cell, then final hidden state output is used as 
+    // input for linear transformation (WxH +b) -> that's the logits
+    // softmax((WxH +b)) -> gives the next word for a text generation, machine translations.
+    // the W has the row-size of the number of vocabulary, and col-size has the hidden_size.
     return new_H;
 }
 
@@ -415,27 +430,51 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     log_detail("Dimension of Wo: {0}x{1}", Wo.rows(), Wo.cols());
     log_matrix(Wo);
 
-    // Calculate the forget gate values (nxp * pxh + nxh * hxh  = nxh)
+    /*
+     LSTM CELL Diagram (where C is long-term memory and H is short-term memory):
+                                         (new C)
+     C --------- x ------------------ + -------------------------------------------------------> Cell State
+                 |                    |                                                |
+                 |             -------x -----                    -----------        (tanh)
+                 | Ft          | It         | Gt                 | Ot      |           | 
+             (sigmoid)     (sigmoid)      (tanh)              (sigmoid)    -------x ----
+                 |             |            |                    |                |
+                 + bf          + bi         + bg                 + bo             |
+                 |             |            |                    |                |
+         x--Uf --+     x--Ui --+   x-- Ug --+           x-- Uo --+                |
+         |       |     |       |   |        |           |        |                |  (new H)
+     H ----------|-------------|------------|--------------------|                -------------> Hidden State / Output Gate
+                 |             |            |                    |
+            Wf --x        Wi --x       Wg --x               Wo --x
+                 |             |            |                    |
+     X -----------------------------------------------------------
+    */
+    // Calculate the forget gate values (nxp * pxh + nxh * hxh  = nxh) 
+    // %Long-Term To Reember, where H is short-term memory lane
     aimatrix<T> Ft = BaseOperator::sigmoid((aimatrix<T>) ((BaseOperator::matmul(X, Wf) + BaseOperator::matmul(H, Uf)).rowwise() + bf));
     log_detail("Dimension of Ft: {0}x{1}", Ft.rows(), Ft.cols());
     log_matrix(Ft);
 
     // Calculate the input gate values (nxp * pxh + nxh * hxh  = nxh)
+    // % Potential Memory To Remember, where H is short-term memory lane
     aimatrix<T> It = BaseOperator::sigmoid((aimatrix<T>) ((BaseOperator::matmul(X, Wi) + BaseOperator::matmul(H, Ui)).rowwise() + bi));
     log_detail("Dimension of It: {0}x{1}", It.rows(), It.cols());
     log_matrix(It);
 
     // Calculate the candidate state values (nxp * pxh + nxh * hxh  = nxh)
+    // Potential Long-Term Memory, where H is short-term memory lane
     aimatrix<T> Gt = BaseOperator::tanh((aimatrix<T>)  ((BaseOperator::matmul(X, Wg) + BaseOperator::matmul(H, Ug)).rowwise() + bg));
     log_detail("Dimension of Gt: {0}x{1}", Gt.rows(), Gt.cols());
     log_matrix(Gt);
 
     // Calculate the output gate values (nxp * pxh + nxh * hxh  = nxh)
+    // % Potential Memory To Remember, where H is short-term memory lane
     aimatrix<T> Ot = BaseOperator::sigmoid((aimatrix<T>)  ((BaseOperator::matmul(X, Wo) + BaseOperator::matmul(H, Uo)).rowwise() + bo));
     log_detail("Dimension of Ot: {0}x{1}", Ot.rows(), Ot.cols());
     log_matrix(Ot);
 
     // Calculate the new cell state by updating based on the gates (result: nxh)
+    // C is long-term memory lane, new_C is the new long-term memory lane.
     aimatrix<T> new_C = Ft.array() * C.array() + It.array() * Gt.array();
     log_detail("Dimension of new_C: {0}x{1}", new_C.rows(), new_C.cols());
     log_matrix(new_C);
@@ -455,6 +494,10 @@ const aimatrix<T> LSTMCell<T>::forward(const aimatrix<T>& X) {
     log_info("LSTMCell Forward Pass end ...");
 
     // We return Output next layer;
+    // Note that the if this is the last cell, then final hidden state output is used as 
+    // input for linear transformation (WxH +b) -> that's the logits
+    // softmax((WxH +b)) -> gives the next word for a text generation, machine translations.
+    // the W has the row-size of the number of vocabulary, and col-size has the hidden_size.
     return new_H; 
 
 }
@@ -917,6 +960,10 @@ const aimatrix<T> GRUCell<T>::forward(const aimatrix<T>& X) {
     log_info("GRUCell Forward Pass end ...");
 
     // We return Output next layer;
+    // Note that the if this is the last cell, then final hidden state output is used as 
+    // input for linear transformation (WxH +b) -> that's the logits
+    // softmax((WxH +b)) -> gives the next word for a text generation, machine translations.
+    // the W has the row-size of the number of vocabulary, and col-size has the hidden_size.
     return new_H; 
 }
  
@@ -1252,7 +1299,7 @@ std::tuple<aimatrix<T>, airowvector<T>> RecurrentBase<T>::getWeights(int step, a
 
 // Handle output for ONE_TO_MANY scenarios
 template <class T>
-const aimatrix<T> RecurrentBase<T>::processPrediction(int step, const aimatrix<T>& H) {
+const aimatrix<T> RecurrentBase<T>::processLogit(int step, const aimatrix<T>& H) {
     log_info("===============================================");
     log_info("Recurrent Base Processing Output ...");
     aimatrix<T> V, Yhat; // H being the final output.
@@ -1290,7 +1337,7 @@ const aimatrix<T> RecurrentBase<T>::processPrediction(int step, const aimatrix<T
 
 // Handle output for MANY_TO_ONE or MANY_TO_MANY scenarios
 template <class T>
-const aitensor<T> RecurrentBase<T>::processPredictions() {
+const aitensor<T> RecurrentBase<T>::processLogits() {
     log_info("===============================================");
     log_info("Recurrent Base Processing Output ...");
     aimatrix<T> H, V, Yhat; // H being the final output.
@@ -1340,17 +1387,19 @@ const aitensor<T> RecurrentBase<T>::processPredictions() {
         log_detail("H output ... {:d} {:d} {:d}",  H.size(), H.rows(), H.cols());
         log_matrix(H);
 
+        // where V.row = size of the vocabulary (could be very large, e.g. GPT token size is 50k), 
+        //       V.cols = size of the embedding.
         log_detail("V output ... {:d} {:d} {:d}", V.size(), V.rows(), V.cols());
         log_matrix(V);
 
         log_detail("bo output ... {:d}", by.size());
         log_rowvector(by);
 
-        log_detail("Matmul (H * v) ...");
+        log_detail("Matmul (H * V) ...");
         log_matrix(BaseOperator::matmul(H, V));
 
         // this->setOutputSize( this->getHiddenSize());
-        Yhat = (BaseOperator::matmul(H, V).rowwise() + by); // no non-linearity operations to logit, raw Hidden State output
+        Yhat = (BaseOperator::matmul(H, V).rowwise() + by); // no non-linearity operations to logits, raw Hidden State output
 
         log_detail("Non-Linearity result (yhat) at step {0}:", step);
         log_matrix(Yhat);
@@ -1366,6 +1415,7 @@ const aitensor<T> RecurrentBase<T>::processPredictions() {
     this->setPredictions(predictions);
     return predictions; // Cache output for backward pass while also pass it to next operations.
 }
+
 
 template <class T>
 const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
@@ -1425,9 +1475,32 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
                 input_batch = input_data.at(idx_);
             } 
 
+            /*
+                Diagram (Layered RNN/LSTM/GRU):
+                    - where  H  gets passed from layer to layer (as ** input_batch **)
+                    - the last H becomes the final output  from the final layer and will be used to go 
+                    - through linear transformation (e.g. O3xW + b) to get the logits.
+
+                           H (O1)              H (O2)             H (O3)
+                           |                   |                  |
+                      +---------+         +---------+         +---------+
+                C --- |         | -- C -- |         | -- C -- |         | --> C  (new use after last cell)
+                H --- |   Cell  | -- H -- |   Cell  | -- H -- |   Cell  | --> H   
+                      +---------+         +---------+         +---------+
+                           |                   |                  |
+                           H                   H                  H
+                           |                   |                  |
+                     +---------+         +---------+         +---------+
+                C --- |         | -- C -- |         | -- C -- |         | --> C  (new use after last cell)
+                H --- |   Cell  | -- H -- |   Cell  | -- H -- |   Cell  | --> H   
+                      +---------+         +---------+         +---------+
+                           |                   |                  |
+                           X1                  X2                 X3
+            */
+
             log_detail("Input Batch:");
             log_detail("Input Batch Dim: {0}x{1}", input_size, embedding_size);
- 
+
             // Forward pass through each layer of the RNN
             for (int layer = 0; layer < this->getNumLayers(); ++layer) {
                 log_detail("Entering Cell Forward pass at Layer {0} ...", layer);
@@ -1457,7 +1530,7 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
                 log_detail("Add Forward Direction output ...");
                 // pass predicted output of hidden state to next time step as input in ONE_TO_MANY scenario.
                 if (rnntype == RNNType::ONE_TO_MANY) {
-                    input_batch = processPrediction(step, input_batch);
+                    input_batch = processLogit(step, input_batch);
                 }
                 this->foutput.push_back(input_batch);
                 log_detail("Forward Direction output size: {0}", this->foutput.size());
@@ -1471,11 +1544,23 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_detail("Processing Output ...");
 
+    // Note that after the last cell, the output is the final hidden state which is used as 
+    // input for linear transformation (WxH +b) -> that's the logits
+    // softmax((WxH +b)) -> gives the next word for a text generation, machine translations.
+    // the W has the row-size of the number of vocabulary, and col-size has the hidden_size.
+
+    // The final output is a logits output. However, take note that a vocabulary size could be in tens of thousands.
+    // Ultimately, to get the closest next word, we require softmax.
+    // In practice, even though the model computes logits for the entire vocabulary, efficient methods (such as sampling-based techniques, 
+    // negative sampling, or hierarchical softmax) can be used to reduce the computational burden.
+    // These methods aim to avoid full softmax computation over the entire vocabulary, 
+    // improving speed while maintaining reasonable performance.
+
     // otherwise, if scenario is not ONE_TO_MANY, then generate output as is without passing to next time step.
     if (rnntype == RNNType::ONE_TO_MANY) {
         this->Yhat = this->foutput; // ONE_TO_MANY only handles forward direction.
     } else {
-        this->Yhat = processPredictions();
+        this->Yhat = processLogits(); // get the logits
     }
 
     // marker to indicate the weights are all initialized, as they depend on these sizes.
@@ -1483,7 +1568,7 @@ const aitensor<T> RecurrentBase<T>::forwardpass(const aitensor<T>& input_data) {
 
     log_detail("RecurrentBase Forward Pass end ...");
 
-    return this->Yhat;
+    return this->Yhat; // Logits
 }
 
 // For Many-To-Many or MANY-To-One Scenario

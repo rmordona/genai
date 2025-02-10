@@ -30,8 +30,8 @@ cleaned_sentences[1]
 
 
 import genai as ai
-dtype = "float"
-tokenizer = ai.TokenModel(tokenizer="bpetokenizer", datatype=dtype);
+random_seed  = 2024
+tokenizer = ai.TokenModel(tokenizer="bpetokenizer", dtype=ai.DataType.float32, seed = random_seed);
 
 tokenizer.preload(corpus = cleaned_sentences, merges = 100, size=5);
 tokenizer.train(corpus=cleaned_sentences, 
@@ -48,9 +48,8 @@ cleaned_sentences[:5]
 sequences = tokenizer.sequence(cleaned_sentences[:5])
 
 
-
-dtype = "double"
-modelgraph = ai.Model(datatype=dtype);
+random_seed  = 2023
+modelgraph = ai.Model(dtype=ai.DataType.float32, seed = random_seed);
 node1  = modelgraph.addNode("node1", ai.NodeType.Generic);
 node2  = modelgraph.addNode("node2", ai.NodeType.Generic);
 

@@ -1,9 +1,6 @@
 export CC=/usr/local/Cellar/gcc/14.2.0_1/bin/gcc-14
 export CXX=/usr/local/Cellar/gcc/14.2.0_1/bin/g++-14
-#export CC=/usr/local/Cellar/gcc/13.1.0/bin/gcc-13
-#export CXX=/usr/local/Cellar/gcc/13.1.0/bin/g++-13
-#export CC=/usr/local/Cellar/gcc/13.1.0/bin/x86_64-apple-darwin22-gcc-13
-#export CXX=/usr/local/Cellar/gcc/13.1.0/bin/x86_64-apple-darwin22-g++-13
+
 #rm -rf  /Users/raymondordona/Documents/genai/framework_cpp/build
 #make clean
 #cmake -DCMAKE_BUILD_TYPE=Release -Dpybind11_DIR=/usr/local/pkg/homebrew/lib/python3.7/site-packages/pybind11/share/cmake/pybind11
@@ -12,9 +9,8 @@ export CXX=/usr/local/Cellar/gcc/14.2.0_1/bin/g++-14
 #CC=/usr/local/Cellar/gcc/13.1.0/bin/gcc-13 CXX=/usr/local/Cellar/gcc/13.1.0/bin/g++-13 /usr/local/bin/python3.11 setup.py build
 
 
+## Use this one and let the ccache and use the above variables CC and CXX 
 python3.11 setup.py build_ext --inplace
-
-CC=/usr/local/Cellar/gcc/14.2.0_1/bin/gcc-14 CXX=/usr/local/Cellar/gcc/14.2.0_1/bin/g++-14 /usr/local/bin/python3.11 setup.py build
 
 # in conjunction with /usr/local/bin/python3.11
 

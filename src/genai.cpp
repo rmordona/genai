@@ -541,7 +541,7 @@ py::array_t<double>  matmul(py::array_t<double> A, py::array_t<double> B) {
 }
  
 LOGGER* ai_log;
-
+  
 
 PYBIND11_MODULE(genai, m) {
     m.doc() = "GenAI C++ module for Python";
@@ -787,18 +787,26 @@ PYBIND11_MODULE(genai, m) {
                 py::arg("sequence_type") = "chunk", 
                 py::arg("rowwise") = false,  
                 "Get sequence a Sentence")
-        .def("getInputSequence", (py::array(TokenModel::*)()) &TokenModel::getInputSequence, "Function to get Sequence")
-        .def("getShiftedSequence", (py::array(TokenModel::*)()) &TokenModel::getShiftedSequence, "Function to get Sequence")
-        .def("getTargetSequence", (py::array(TokenModel::*)()) &TokenModel::getTargetSequence, "Function to get Sequence")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&, const std::string&)) &TokenModel::decodeDouble, 
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array&, const std::string&)) &TokenModel::decode, 
+                py::arg("sequences"), 
+                py::arg("seq_type") = "embedding", 
+                "Function for Decode")
+        .def("onehot", (py::array (TokenModel::*)(const py::array&)) &TokenModel::onehot, 
+                py::arg("sequences"), 
+                "Function with onehot")
+        /*
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&, const std::string&)) &TokenModel::decode, 
                 py::arg("sequences"), 
                 py::arg("seq_type") = "embedding", 
                 "Function with float argument")
-        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<float>&, const std::string&)) &TokenModel::decodeFloat, 
+        .def("decode", (std::vector<std::wstring> (TokenModel::*)(const py::array_t<double>&, const std::string&)) &TokenModel::decode, 
                 py::arg("sequences"), 
                 py::arg("seq_type") = "embedding", 
-                "Function with float argument");
-
+                "Function with float argument")
+        */
+        .def("getInputSequence", (py::array(TokenModel::*)()) &TokenModel::getInputSequence, "Function to get Sequence")
+        .def("getShiftedSequence", (py::array(TokenModel::*)()) &TokenModel::getShiftedSequence, "Function to get Sequence")
+        .def("getTargetSequence", (py::array(TokenModel::*)()) &TokenModel::getTargetSequence, "Function to get Sequence");
 
     // Definitions for Scraper APIs
     py::class_<Scraper>(m, "Scraper")

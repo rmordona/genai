@@ -309,7 +309,20 @@ aitensor<T> BaseModel<T>::predict(int sequence_length) {
     log_info( "******************************************************************************************" );
     log_detail( "Number of Graph Nodes: {:d}", this->graph->getNodes().size() );
 
-    int target_size = this->graph->getDataSize();
+    int max_epoch = sequence_length;
+
+    // We assume that model.setData and model.setTarget have been called to set
+    // the input data and target data prior to invoking the train function.
+    int target_size = this->target.size();
+
+    py_cout << "Target Size " << target_size << std::endl;
+
+    if ((int) batch_size >= (int) target_size) {
+        this->batch_size = target_size;
+    }
+
+
+    // int target_size = this->graph->getDataSize();
 
     auto start_time = std::chrono::system_clock::now();
 
@@ -317,9 +330,14 @@ aitensor<T> BaseModel<T>::predict(int sequence_length) {
 
     int tot_metrics_precision = 0, tot_metrics_recall = 0, tot_metrics_f1score = 0;
 
-    for (int iter = 0; iter <= sequence_length; iter++) {
+    py_cout << "Prediction (Target Size): " << target_size << std::endl;
 
-        predicted = this->graph->forwardPropagation(0, target_size);
+    // Max epoch equal to sequence_length applies only to RNN/LSTM/GRUs
+    for (int iter = 0; iter <= max_epoch; iter++) {
+
+        this->start_index = std::rand() % (target_size - this->batch_size + 1);
+        predicted = this->graph->forwardPropagation(this->start_index, this->batch_size);
+        // predicted = this->graph->forwardPropagation(0, target_size);
 
         log_detail( "Predicted Result: Tensor Size {0}", predicted.size() );
         log_matrix( predicted );
@@ -969,7 +987,7 @@ void Model::setTarget(const py::array& target, const bool normalize) {
 }
 
 /************************************************************************************************
-* Model::predictFloat
+* Model::predict
 * We use modelXd.setTarget to convert the python array to aitensor<double> and store
 * the tensor inside the model.
 *************************************************************************************************/
@@ -992,13 +1010,13 @@ py::array Model::predict(int sequence_length) {
         }
 
     } catch (const AIException& e) {
-        std::cerr << "(Model:predictFloat) Error: " << e.what() << std::endl;
+        std::cerr << "(Model:predict) Error: " << e.what() << std::endl;
     } catch (const std::exception& e) {
         // Catch standard exceptions
-        std::cerr << "(Model:predictFloat)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
+        std::cerr << "(Model:predict)Standard Error: " << e.what() << " at " << __LINE__ << std::endl;
     } catch (...) {
         // Catch all other exceptions
-        std::cerr << "(Model:predictFloat) Unknown Error:" << std::endl;
+        std::cerr << "(Model:predict) Unknown Error:" << std::endl;
     }
     return py::array_t<float>();
 }

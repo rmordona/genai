@@ -45,7 +45,7 @@ class LOGGER {
 private:
     std::shared_ptr<spdlog::logger> log;
 public:
-    std::string filename = "spdlog.log";
+    std::string filename = "genai.log";
     LOGGER () {
 
         char buffer[PATH_MAX];
@@ -61,7 +61,7 @@ public:
 
         spd::set_level(spd::level::debug);
 
-        log->info("Initializing LOGGER ....");
+        log->info("Initializing GENAI LOGGER ....");
     }
 
     ~LOGGER () {

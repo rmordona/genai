@@ -380,9 +380,10 @@ public:
 template <class T>
 class RecurrentBase {
 private:
-    std::vector<CellBase<T>*> fcells;
-    std::vector<CellBase<T>*> bcells;
-    std::vector<CellBase<T>*> cells;
+    // one cell per layer, not per timestep; meaning, all timesteps in one layer share one cell
+    std::vector<CellBase<T>*> fcells; 
+    std::vector<CellBase<T>*> bcells; 
+    std::vector<CellBase<T>*> cells;  
 
     aitensor<T> input_data;
 
@@ -458,9 +459,9 @@ public:
 
     std::tuple<aimatrix<T>, airowvector<T>> getWeights(int step, aimatrix<T> out);
 
-    const aimatrix<T> processPrediction(int step, const aimatrix<T>& H);
+    const aimatrix<T> processLogit(int step, const aimatrix<T>& H);
 
-    const aitensor<T> processPredictions();
+    const aitensor<T> processLogits();
 
     void processGradients(aitensor<T>& gradients);
 

@@ -765,7 +765,15 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
 
     typename Embeddings<T>::RecordStruct record;
 
-    aitensor<T> inp_sequences, shifted_sequences, tgt_sequences;
+    // Reset the Sequences
+    this->inp_sequences.clear();  // empties vector but does not deallocate memory.
+    this->inp_sequences.shrink_to_fit(); // deallocates memory.
+
+    this->shifted_sequences.clear();   
+    this->shifted_sequences.shrink_to_fit(); 
+
+    this->tgt_sequences.clear(); 
+    this->tgt_sequences.shrink_to_fit();
 
     aimatrix<T> inp_sequence, shifted_sequence, tgt_sequence; 
 
@@ -802,6 +810,7 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
     embedding_size = tk_unk_.size();
 
     log_detail( "Embedding Size : ... {0} Vocab Size: ... {1}", embedding_size, vocab_size );
+
 
     if (sequence_type == "chunk") {
         // Applicable to situations in which we process a series of text which can be randomly chunked.
@@ -870,7 +879,6 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                     // tgt_sequence.row(row)[token_index] = 1.0; // use one-hot encoding
                     tgt_sequence.row(row)[0] = token_index; // use indices instead  
 
-
                     inp_sequence.row(row) = retrieveEmbeddings(inp_token);
                     shifted_sequence.row(row) = retrieveEmbeddings(shifted_token);
 
@@ -881,18 +889,21 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                     i -= 1;
                     continue;
                 }
-                inp_sequences.push_back(inp_sequence);
-                shifted_sequences.push_back(shifted_sequence);
-                tgt_sequences.push_back(tgt_sequence);
 
+                // push_back makes a copy, but with std::move, it transfers ownership of a matrix instead of a copy
+                // emplace_back however is the fastest
+                this->inp_sequences.emplace_back(inp_sequence);
+                this->shifted_sequences.emplace_back(shifted_sequence);
+                this->tgt_sequences.emplace_back(tgt_sequence);
             }
 
-        } else { // non-rowwise
+        } else { // Non-Rowwise
 
             // Used by RNN/LSTM/GRU
             // Generate random sampling from the corpus, each sample is a chunk that contains 
             // an ordered sequence of tokens. 
             // The dimension is T x S x E where  T = sequenced tokens per chunk, S = number of sample chunks, E = embedding size.
+            // Shifted Sequence is not used by RNN/LSTM/GRU, only decoder in a Transformer encoder-decoders
 
             std::vector<int> startIndices;
 
@@ -901,8 +912,8 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                 inp_sequence = aimatrix<T>::Zero(sample_size, embedding_size);
                 tgt_sequence = aimatrix<T>::Zero(sample_size, embedding_size);
 
-                inp_sequences.push_back(inp_sequence);
-                tgt_sequences.push_back(tgt_sequence);
+                this->inp_sequences.emplace_back(inp_sequence);
+                this->tgt_sequences.emplace_back(tgt_sequence);
             }
 
             // Generate the starting index of each sample. 
@@ -932,8 +943,8 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                         tgt_token = TK_EOS_;
                     }
 
-                    inp_sequences.at(i).row(j) = retrieveEmbeddings(inp_token);
-                    tgt_sequences.at(i).row(j) = retrieveEmbeddings(tgt_token);
+                    this->inp_sequences.at(i).row(j) = retrieveEmbeddings(inp_token);
+                    this->tgt_sequences.at(i).row(j) = retrieveEmbeddings(tgt_token);
 
                     // If chunk contains end-of-sequence mid-way, then break
                     if (inp_token.compare(TK_EOS_) == 0) {
@@ -945,18 +956,20 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
             }
 
         }
-
+ 
     } else
     if (sequence_type == "sentence") {
         // Applicable to situations in which we process a sentence as a sequence in entirety
         // and cannot be randomly chunked.
-  
+
         // Use the largest corpus size to build the tensor.  Shorter Sequences will be padded with zeroes.
         int seq_size = 0;
         for (int i = 0; i < corpus_size; i++) {
             seq_size = corpus[i].size();
             sequence_size = (seq_size  > sequence_size) ? seq_size : sequence_size;
         }
+
+        py_cout << "Corpus Size: " << corpus_size << " Sequence Size:" << sequence_size << " Embedding Size: " << embedding_size << std::endl;
 
         if (rowwise) { // For encoder-decoder Transformer
 
@@ -988,20 +1001,21 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                      shifted_sequence.row(sequence_size - 1) = tk_eos_;
                 }
 
-                inp_sequences.push_back(inp_sequence);
-                tgt_sequences.push_back(tgt_sequence);
-                shifted_sequences.push_back(shifted_sequence);
+                this->inp_sequences.emplace_back(inp_sequence);
+                this->tgt_sequences.emplace_back(tgt_sequence);
+                this->shifted_sequences.emplace_back(shifted_sequence);
             }
 
         } else { // For RNN / LSTM /GRU
 
+            // Shifted Sequence is not used by RNN/LSTM/GRU, only decoder in a Transformer encoder-decoders
             // Generate the matrices for the sequence
             for (int i = 0; i < sequence_size; i++) {
                 inp_sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
                 tgt_sequence = aimatrix<T>::Zero(corpus_size, embedding_size);
 
-                inp_sequences.push_back(inp_sequence);
-                tgt_sequences.push_back(tgt_sequence);
+                this->inp_sequences.emplace_back(inp_sequence);
+                this->tgt_sequences.emplace_back(tgt_sequence);
             }       
 
             for (int i = 0; i < sequence_size; i++) {
@@ -1018,19 +1032,23 @@ std::tuple<aitensor<T>,aitensor<T>, aitensor<T>> BaseTokenModel<T>::encode(const
                             tgt_token = TK_PAD_;
                         }
 
-                        inp_sequences.at(i).row(j) = retrieveEmbeddings(inp_token);
-                        tgt_sequences.at(i).row(j) = retrieveEmbeddings(tgt_token);
+                        this->inp_sequences.at(i).row(j) = retrieveEmbeddings(inp_token);
+                        this->tgt_sequences.at(i).row(j) = retrieveEmbeddings(tgt_token);
 
                     }
                 }
             }
+
+            //py_cout << "Getting there ..." << std::endl;
+            // return std::make_tuple(this->inp_sequences, this->shifted_sequences, this->tgt_sequences);
+
         } 
 
     } else {
         throw AIException("Please choose 'sentence' or 'chunk' for the sequence_type ...");
     }
 
-    return std::make_tuple(inp_sequences, shifted_sequences, tgt_sequences);
+    return std::make_tuple(this->inp_sequences, this->shifted_sequences, this->tgt_sequences);
 }
 
 
@@ -1123,6 +1141,95 @@ std::vector<std::wstring>  BaseTokenModel<T>::decode(const aitensor<T>& sequence
                 } 
 
                 sentence += L" " + token;
+
+                // if (token == TK_EOS_) break;
+
+            }
+
+            sentences.push_back(sentence);
+
+        }
+
+        log_detail("Size of sentences {0}", sentences.size());
+
+        return sentences;
+
+        } catch (const AIException& e) {
+            std::cerr << "Error (Embeddings::decode): " << e.what() << std::endl;
+        }
+
+    return sentences;
+
+} 
+
+
+/************************************************************************************************
+* BaseTokenModel::onehot
+* Decode the prediction
+* Expected input is a vector of matrix:   Sequence_Length x Corpus_Size  x Embedding
+*************************************************************************************************/
+template <class T>
+aitensor<T> BaseTokenModel<T>::onehot(const aitensor<T>& sequences) {  
+
+    aitensor<T> sentences = {};
+
+    aimatrix<T> wordEmbeddings = this->embeddings->getWordEmbeddings();
+
+    const int wsize = wordEmbeddings.rows();
+
+    aiscalar<T> closest_distance = 0;
+
+    aiscalar<T> distance = 0;
+
+    int closest_index = 0;
+
+    std::vector<std::wstring> tokens = this->listTokens();
+
+    try {
+    
+        int sequence_size = sequences.size();
+
+        std::wstring token;
+        
+        airowvector<T> embedding;
+
+        for (int i = 0; i < sequence_size; i++) {
+
+            int corpus_size = sequences.at(i).rows();
+
+
+            aimatrix<T> sentence = aimatrix<T>::Zero(corpus_size, wsize); 
+
+            for (int j = 0; j < corpus_size; j++) {
+
+                embedding = sequences.at(i).row(j);
+
+                // Reset distance and index.
+                closest_distance = std::numeric_limits<T>::infinity();
+
+                closest_index = -1;
+
+                distance = 0;
+
+                T isnonzero = embedding.sum(); 
+
+                // If sum is zero, most likely it's a special token, e.g. PAD, SOS, EOS, etc. ...
+                // otherwise, for non-zero, let's retrieve the embedding.
+                if (isnonzero) {
+                    // Temporary use this bruteforce approach of searching
+                    // until HNSW code is completed.
+                    for (int k  = 0; k <  wsize; k++) {
+                        distance = Distance<T>::euclidean(embedding, wordEmbeddings.row(k));
+                        if (distance < closest_distance) {
+                                closest_distance = distance;
+                                closest_index = k;
+                        }
+                    }
+                
+                    // token = closest_index;
+                    sentence(j, closest_index) = 1.0;
+
+                } 
 
                 // if (token == TK_EOS_) break;
 
@@ -1327,37 +1434,23 @@ py::array_t<float> TokenModel::embeddingsFloat() {
 // std::tuple<py::array, py::array, py::array> TokenModel::encode(const std::vector<std::wstring>& sentences,
 void TokenModel::encode(const std::vector<std::wstring>& sentences,
           int sample_size, int chunk_size, const std::string& sequence_type, bool rowwise) {
-    py::array_t<double> inp_embedding;
-    py::array_t<double> shifted_embedding;
-    py::array_t<double> tgt_embedding;
-
     if (this->datatype == DataType::float64) {
-        aitensor<double> inp_embedding;
-        aitensor<double> shifted_embedding;
-        aitensor<double> tgt_embedding;
-        std::tie(inp_embedding, shifted_embedding, tgt_embedding) = this->tokenizerd->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
-        this->tokenseq.setDinput(inp_embedding); // ConvertData::topyarray(inp_embedding);
-        this->tokenseq.setDshifted(shifted_embedding); // ConvertData::topyarray(shifted_embedding);
-        this->tokenseq.setDtarget(tgt_embedding); // ConvertData::topyarray(tgt_embedding);
+        std::tie(this->inp_dembedding, this->shifted_dembedding, this->tgt_dembedding) = 
+                this->tokenizerd->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
     } else 
     if (this->datatype == DataType::float32) {
-        aitensor<float> inp_embedding;
-        aitensor<float> shifted_embedding;
-        aitensor<float> tgt_embedding;
-        std::tie(inp_embedding, shifted_embedding, tgt_embedding) = this->tokenizerf->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
-        this->tokenseq.setFinput(inp_embedding); // ConvertData::topyarray(inp_embedding);
-        this->tokenseq.setFshifted(shifted_embedding); // ConvertData::topyarray(shifted_embedding);
-        this->tokenseq.setFtarget(tgt_embedding); // ConvertData::topyarray(tgt_embedding);
+        std::tie(this->inp_fembedding, this->shifted_fembedding, this->tgt_fembedding) = 
+                this->tokenizerf->encode(sentences, sample_size, chunk_size, sequence_type, rowwise);
     }
 }
 
 py::array TokenModel::getInputSequence() {
         py::array_t<float> embedding;
         if (this->datatype == DataType::float64) {
-            return ConvertData::topyarray(this->tokenseq.getDinput());
+            return ConvertData::topyarray(this->inp_dembedding);
         } else
         if (this->datatype == DataType::float32) {
-            return ConvertData::topyarray(this->tokenseq.getFinput());
+            return ConvertData::topyarray(this->inp_fembedding);
         }      
         return embedding;
 }
@@ -1365,10 +1458,10 @@ py::array TokenModel::getInputSequence() {
 py::array TokenModel::getShiftedSequence() {
         py::array_t<float> embedding;
         if (this->datatype == DataType::float64) {
-            return ConvertData::topyarray(this->tokenseq.getDshifted());
+            return ConvertData::topyarray(this->shifted_dembedding);
         } else
         if (this->datatype == DataType::float32) {
-            return ConvertData::topyarray(this->tokenseq.getFshifted());
+            return ConvertData::topyarray(this->inp_fembedding);
         }        
         return embedding;    
 }
@@ -1376,20 +1469,55 @@ py::array TokenModel::getShiftedSequence() {
 py::array TokenModel::getTargetSequence() {
         py::array_t<float> embedding;
         if (this->datatype == DataType::float64) {
-            return ConvertData::topyarray(this->tokenseq.getDtarget());
+            return ConvertData::topyarray(this->tgt_dembedding);
         } else
         if (this->datatype == DataType::float32) {
-            return ConvertData::topyarray(this->tokenseq.getFtarget());
+            return ConvertData::topyarray(this->tgt_fembedding);
         }     
         return embedding;    
 }
 
 /************************************************************************************************
-* TokenModel::decodeDouble and decodeFloat
+* TokenModel::decode 
 * Functions to decoded a given sentence in TxE matrix form where
 * T = sequence of tokens, E = embedding size
 *************************************************************************************************/
+std::vector<std::wstring> TokenModel::decode(const py::array& sequences, const std::string& seq_type) {
 
+    if (this->datatype == DataType::float64) {
+        aitensor<double> raw_sequences = ConvertData::totensor(sequences.cast<py::array_t<double>>());
+        log_detail("Size of Raw (Double): {0}", raw_sequences.size());
+        return this->tokenizerd->decode(raw_sequences, seq_type);
+    } else 
+    if (this->datatype == DataType::float32) {
+        aitensor<float> raw_sequences = ConvertData::totensor(sequences.cast<py::array_t<float>>());
+        log_detail("Size of Raw (Float): {0}", raw_sequences.size());
+        return this->tokenizerf->decode(raw_sequences, seq_type);
+    }
+    return std::vector<std::wstring>();
+}
+
+/************************************************************************************************
+* TokenModel::onehot 
+* Functions to decoded a given sentence in TxE matrix form where
+* T = sequence of tokens, E = embedding size
+*************************************************************************************************/
+py::array TokenModel::onehot(const py::array& sequences) {
+    py::array_t<float> tokens;
+    if (this->datatype == DataType::float64) {
+        aitensor<double> raw_sequences = ConvertData::totensor(sequences.cast<py::array_t<double>>());
+        log_detail("Size of Raw (Double): {0}", raw_sequences.size());
+        return ConvertData::topyarray(this->tokenizerd->onehot(raw_sequences));
+    } else 
+    if (this->datatype == DataType::float32) {
+        aitensor<float> raw_sequences = ConvertData::totensor(sequences.cast<py::array_t<float>>());
+        log_detail("Size of Raw (Float): {0}", raw_sequences.size());
+        return ConvertData::topyarray(this->tokenizerf->onehot(raw_sequences));
+    }
+    return tokens;
+}
+
+/*
 std::vector<std::wstring> TokenModel::decodeDouble(const py::array_t<double>& sequences, const std::string& seq_type) {
 
     aitensor<double> raw_dsequences = ConvertData::totensor(sequences);
@@ -1408,6 +1536,7 @@ std::vector<std::wstring> TokenModel::decodeDouble(const py::array_t<double>& se
     return std::vector<std::wstring>();
 }
 
+
 std::vector<std::wstring> TokenModel::decodeFloat(const py::array_t<float>& sequences, const std::string& seq_type) {
 
     aitensor<float> raw_fsequences = ConvertData::totensor(sequences);
@@ -1425,6 +1554,7 @@ std::vector<std::wstring> TokenModel::decodeFloat(const py::array_t<float>& sequ
     }
     return std::vector<std::wstring>();
 }
+*/
 
 /************ Tokenizer / Embeddings initialize template ************/
 

@@ -44,29 +44,6 @@ struct SequenceTupleFloat {
 };
 */
 
-class TokenSequence {
-    private:
-       aitensor<double> Dinput;
-       aitensor<double> Dshifted;       
-       aitensor<double> Dtarget;
-       aitensor<float> Finput;
-       aitensor<float> Fshifted;       
-       aitensor<float> Ftarget;
-    public:
-        void setDinput(const aitensor<double>& input) { this->Dinput = input; };
-        void setDshifted(const aitensor<double>& shifted) { this->Dshifted = shifted; };
-        void setDtarget(const aitensor<double>& target) { this->Dtarget = target; };
-        void setFinput(const aitensor<float>& input) { this->Finput = input; };
-        void setFshifted(const aitensor<float>& shifted) { this->Fshifted = shifted; };
-        void setFtarget(const aitensor<float>& target) { this->Ftarget = target; };
-        aitensor<double> getDinput() { return this->Dinput; };
-        aitensor<double> getDshifted() { return this->Dshifted; };
-        aitensor<double> getDtarget() { return this->Dtarget ; };
-        aitensor<float> getFinput() { return this->Finput; };
-        aitensor<float> getFshifted() { return this->Fshifted ; };
-        aitensor<float> getFtarget() { return this->Ftarget; };
-};
-
 /*************************************************************************************************
  * BaseTokenModel is the actual structure we use to perform tokenization.
  * underlying operations needed to train a model.
@@ -88,6 +65,9 @@ private:
 
     // Initialize the gradients for the batch
     aimatrix<T> batchGradients;
+
+    // Hold Memory For Sequences
+    aitensor<T> inp_sequences, shifted_sequences, tgt_sequences;
 
 public:
 
@@ -156,6 +136,9 @@ public:
 
     // Convert embeddings to interpetable words
     std::vector<std::wstring> decode(const aitensor<T>& sequences, const std::string& seq_type = "embedding");
+
+    // Convert embeddings to interpetable words
+    aitensor<T> onehot(const aitensor<T>& sequences);
 
     // Function to print the vocabulary
     void printVocabulary(int rows);
@@ -229,7 +212,14 @@ private:
     std::shared_ptr<BPETokenizer<float>> tokenizerf;
     std::shared_ptr<BPETokenizer<double>> tokenizerd;
 
-    TokenSequence tokenseq;
+    aitensor<double> inp_dembedding;
+    aitensor<double> shifted_dembedding;
+    aitensor<double> tgt_dembedding;
+
+    aitensor<float> inp_fembedding;
+    aitensor<float> shifted_fembedding;
+    aitensor<float> tgt_fembedding;
+
 
 public: 
 
@@ -268,16 +258,22 @@ public:
     void  encode(const std::vector<std::wstring>& sentences, 
                 int sample_size = 10, int chunk_size = 10, const std::string& sequence_type = "chunk", bool rowwise = false);
 
-    py::array getInputSequence();
-    py::array getShiftedSequence();
-    py::array getTargetSequence();
+    // Decode - Convert embeddings to interpetable words
+    std::vector<std::wstring> decode(const py::array& sequences, const std::string& seq_type = "embedding");
+
+    // OneHot - Convert embeddings to interpetable words
+    py::array onehot(const py::array& sequences);
+
+    py::array  getInputSequence();
+    py::array  getShiftedSequence();
+    py::array  getTargetSequence();
 
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences, const std::string& seq_type = "embedding");
+    //std::vector<std::wstring> decodeFloat(const py::array_t<float>& sequences, const std::string& seq_type = "embedding");
 
     // Decode - Convert embeddings to interpetable words
-    std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences, const std::string& seq_type = "embedding");
+    //std::vector<std::wstring> decodeDouble(const py::array_t<double>& sequences, const std::string& seq_type = "embedding");
 
 
 };

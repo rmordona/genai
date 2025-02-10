@@ -620,8 +620,13 @@ public:
     static py::array_t<T> topyarray(const aitensor<T>& matrices) {
         // Determine the shape and size of the NumPy array
         size_t num_matrices = matrices.size();
-        size_t matrix_rows = matrices[0].rows();
-        size_t matrix_cols = matrices[0].cols();
+        size_t matrix_rows = 0; 
+        size_t matrix_cols = 0; 
+
+        if (num_matrices != 0) {
+            matrix_rows = matrices[0].rows();
+            matrix_cols = matrices[0].cols();
+        }
 
         // Create a NumPy array with the same shape
         auto result = py::array_t<T>({num_matrices, matrix_rows, matrix_cols});
